@@ -1,5 +1,5 @@
-#include "frame.hpp"
-#include "initialize.hpp"
+#include "frame.h"
+#include "initializer.h"
 #include <opencv2/features2d.hpp>
 #include <opencv2/xfeatures2d.hpp>
 
@@ -32,6 +32,8 @@ int main(int argc, char **argv) {
   }
   cv::Mat K = intrinsic.scale(scale_image).K();
 
+  auto initializer = std::make_shared<Initializer>();
+
   // std::vector
   int cnt = 0;
   double speed = 0;
@@ -51,11 +53,14 @@ int main(int argc, char **argv) {
     } else {
       frame_prev = frames.front();
       cv::Mat R, t;
-      bool res = initialize(frame_cur, frame_prev, K, R, t);
+      bool res = initializer->initialize(frame_cur, frame_prev, K, R, t);
       frames.pop_front();
 
-      speed = (speed * cnt + t.at<double>(0)) / (++cnt);
-      std::cout << cnt << " speed: " << speed << std::endl;
+      if (res) {
+        std::cout << cnt << ": current speed: " << t.at<double>(0);
+        speed = (speed * cnt + t.at<double>(0)) / (++cnt);
+        std::cout << ": average speed: " << speed << std::endl;
+      }
     }
 
     cv::waitKey();

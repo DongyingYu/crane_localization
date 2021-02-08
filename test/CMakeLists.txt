@@ -1,9 +1,12 @@
-# add_compile_options(-std=c++11)
-add_compile_options(-g)
-add_compile_options(-O0)
+# add_compile_options(-g)
+# add_compile_options(-O0)
 
-add_executable(test test.cc)
-target_link_libraries(test
+add_executable(test_initializer 
+  test_initializer.cc
+  ../frame.cc
+  ../initializer.cc
+)
+target_link_libraries(test_initializer
   ${OpenCV_LIBS}
 )
 
