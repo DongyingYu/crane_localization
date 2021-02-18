@@ -1,13 +1,15 @@
-# add_compile_options(-g)
-# add_compile_options(-O0)
-
-add_executable(test_initializer 
-  test_initializer.cc
+add_executable(test_initialize_map
+  test_initialize_map.cc
   ../frame.cc
   ../initializer.cc
+  ../map.cc
 )
-target_link_libraries(test_initializer
+
+file(GLOB g2o_libs ../third_party/g2o/lib/libg2o_*.so)
+message(STATUS "g2o_libs: ${g2o_libs}")
+target_link_libraries(test_initialize_map
   ${OpenCV_LIBS}
+  ${g2o_libs}
 )
 
 add_executable(test_undistort test_undistort.cc)

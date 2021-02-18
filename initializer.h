@@ -8,7 +8,9 @@
  * @copyright Copyright (c) 2021
  *
  */
+#pragma once
 #include "frame.h"
+#include "map.h"
 #include <numeric> // for std::accumulate
 
 /**
@@ -16,23 +18,32 @@
  *        1. 匹配两帧图像的特征点，计算单应矩阵
  *        2. 利用单应矩阵计算R和t，挑选出正确的R和t
  *        3. 利用天车高度9米的先验，得到尺度，初始化地图点。
+ *
+ * @todo 将initializer整合成map的一个方法成员 initializeMono。
  */
 class Initializer {
 public:
   using Ptr = std::shared_ptr<Initializer>;
 
   /**
+   * @brief 利用两帧进行单目初始化，frame1和frame2中的相机内参应当相同。重载
+   * Map::Ptr initialize(Frame::Ptr frame1, Frame::Ptr frame2, const cv::Mat &K)
+   *
+   * @param[in] frame1
+   * @param[in] frame2
+   * @return Map::Ptr 返回初始化成功的地图，初始化失败则返回nullptr
+   */
+  Map::Ptr initialize(Frame::Ptr frame1, Frame::Ptr frame2);
+
+  /**
    * @brief 利用两帧进行单目初始化
    *
-   * @param frame1 [IN] 
-   * @param frame2 [IN] 
-   * @param K [IN] 
-   * @param R [OUT] 
-   * @param t [OUT] 
-   * @return 返回初始化是否成功
+   * @param frame1 [IN]
+   * @param frame2 [IN]
+   * @param K [IN]
+   * @return 返回初始化成功的地图，初始化失败则返回nullptr
    */
-  bool initialize(Frame::Ptr frame1, Frame::Ptr frame2, const cv::Mat &K,
-                  cv::Mat &R, cv::Mat &t);
+  Map::Ptr initialize(Frame::Ptr frame1, Frame::Ptr frame2, const cv::Mat &K);
 
   /**
    * @brief 检查R, t, n是否正确
@@ -45,7 +56,9 @@ public:
    * @return int 内点数目
    */
   int checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
-               const cv::Mat &K, cv::Mat &x3D_sum);
+               const cv::Mat &K, cv::Mat &x3D_sum,
+               std::vector<uchar> &inlier_mask,
+               std::vector<MapPoint::Ptr> &x3Ds);
 
   /**
    * @brief 三角化求空间点在相机1中的坐标

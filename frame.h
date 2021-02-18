@@ -9,22 +9,24 @@
  *
  */
 #pragma once
+#include "mappoint.h"
+#include <Eigen/Core>
 #include <iostream>
+#include <memory>
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/eigen.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
-#include <opencv2/xfeatures2d.hpp>
 
 /**
  * @brief 相机内参(不包含畸变系数)
  */
 class Intrinsic {
 public:
-  double fx;
-  double fy;
-  double cx;
-  double cy;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+
+  Intrinsic() {}
 
   Intrinsic(const double &vfx, const double &vfy, const double &vcx,
             const double &vcy)
@@ -49,6 +51,18 @@ public:
   inline cv::Mat K() {
     return (cv::Mat_<double>(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
   }
+
+  inline Eigen::Matrix3d getEigenK() {
+    Eigen::Matrix3d ret;
+    cv::cv2eigen(K(), ret);
+    return ret;
+  }
+
+public:
+  double fx;
+  double fy;
+  double cx;
+  double cy;
 };
 
 /**
@@ -57,10 +71,13 @@ public:
  */
 class Frame {
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+  
   using Ptr = std::shared_ptr<Frame>;
 
   // ctor
   Frame(const cv::Mat &img);
+  Frame(const cv::Mat &img, const Intrinsic &intrinsic);
 
   /**
    * @brief 与另一帧进行特征点匹配，并根据距离，进行简单筛选
@@ -72,18 +89,43 @@ public:
   void matchWith(const Frame::Ptr frame, std::vector<cv::DMatch> &good_matches,
                  const bool &debug_draw);
 
+  inline Eigen::Matrix3d getEigenR() const {
+    Eigen::Matrix3d ret;
+    cv::cv2eigen(R_cw_, ret);
+    return ret;
+  }
+
+  inline Eigen::Vector3d getEigenT() const {
+    Eigen::Vector3d ret;
+    cv::cv2eigen(t_cw_, ret);
+    return ret;
+  }
+
 public:
+  // 相机内参
+  Intrinsic intrinsic_;
+
   // 图片，特征点，描述符
   cv::Mat img_;
   std::vector<cv::KeyPoint> keypoints_;
   cv::Mat descriptors_;
+
+  // 特征点对应的3D空间点
+  std::vector<MapPoint::WPtr> map_points_;
 
   static cv::Ptr<cv::FeatureDetector> detector_;
   static cv::Ptr<cv::DescriptorExtractor> extrator_;
   static cv::Ptr<cv::DescriptorMatcher> matcher_;
 
   // 代码中T_cw，表示位姿T^c_w。
-  // 假设：点在相机坐标系下的值P_c，点在世界坐标系下的坐标值P_w，则 P_w = T^c_w * P_c
+  // 假设：点在相机坐标系下的值P_c，点在世界坐标系下的坐标值P_w，则 P_w = T^c_w
+  // * P_c
   cv::Mat R_cw_;
   cv::Mat t_cw_;
+
+private:
+  /**
+   * @brief 仅供构造函数使用，进行初始化
+   */
+  void init();
 };

@@ -30,7 +30,8 @@ int main(int argc, char **argv) {
   if (transpose_image) {
     intrinsic = intrinsic.transpose();
   }
-  cv::Mat K = intrinsic.scale(scale_image).K();
+  intrinsic = intrinsic.scale(scale_image);
+  cv::Mat K = intrinsic.K();
 
   auto initializer = std::make_shared<Initializer>();
 
@@ -44,7 +45,7 @@ int main(int argc, char **argv) {
       cv::transpose(img, img);
     }
     cv::resize(img, img, {0, 0}, scale_image, scale_image);
-    frame_cur = cv::makePtr<Frame>(img);
+    frame_cur = cv::makePtr<Frame>(img, intrinsic);
 
     frames.emplace_back(frame_cur);
 
@@ -52,11 +53,12 @@ int main(int argc, char **argv) {
       continue;
     } else {
       frame_prev = frames.front();
-      cv::Mat R, t;
-      bool res = initializer->initialize(frame_cur, frame_prev, K, R, t);
+      Map::Ptr map = initializer->initialize(frame_cur, frame_prev, K);
+      map->initial_ba();
       frames.pop_front();
 
-      if (res) {
+      if (map) {
+        cv::Mat t = map->frames_[1]->t_cw_;
         std::cout << cnt << ": current speed: " << t.at<double>(0);
         speed = (speed * cnt + t.at<double>(0)) / (++cnt);
         std::cout << ": average speed: " << speed << std::endl;

@@ -10,7 +10,9 @@
  */
 #include "frame.h"
 
-Frame::Frame(const cv::Mat &img) : img_(img.clone()) {
+void Frame::init() {
+  assert(!img_.empty());
+
   // 计算Oriented FAST角点
   std::vector<cv::KeyPoint> keypoints;
   detector_->detect(img_, keypoints);
@@ -32,6 +34,18 @@ Frame::Frame(const cv::Mat &img) : img_(img.clone()) {
 
   // BRIEF
   extrator_->compute(img_, keypoints_, descriptors_);
+  std::cout << "[INFO]: keypoints_.size()=" << keypoints_.size();
+  std::cout << " descriptors_.size()=" << descriptors_.size() << std::endl;
+
+  // 初始化
+  map_points_.resize(keypoints_.size());
+}
+
+Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }
+
+Frame::Frame(const cv::Mat &img, const Intrinsic &intrinsic)
+    : img_(img.clone()), intrinsic_(intrinsic) {
+  init();
 }
 
 void Frame::matchWith(const Frame::Ptr frame,

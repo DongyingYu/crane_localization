@@ -31,8 +31,13 @@ static void statistic(const std::vector<double> &data,
             << " max: " << max_v << " ave: " << ave << std::endl;
 }
 
-bool Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
-                             const cv::Mat &K, cv::Mat &R, cv::Mat &t) {
+Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2){
+  const cv::Mat K = frame1->intrinsic_.K();
+  initialize(frame1, frame2, K);
+}
+
+Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
+                                 const cv::Mat &K) {
   // 1. 匹配两帧图像的特征点，计算单应矩阵
   std::vector<cv::DMatch> good_matches;
   frame1->matchWith(frame2, good_matches, true);
@@ -54,22 +59,29 @@ bool Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
 
   std::cout << "[INFO]: Find H inliers: " << h_inliers << std::endl;
 
-  // 2. 利用单应矩阵计算R和t，挑选出正确的R和t
+  // 2. 利用单应矩阵计算R和t，挑选出正确的R和t，，初始化地图点
   std::vector<cv::Mat> Rs, ts, normals;
   cv::decomposeHomographyMat(H, K, Rs, ts, normals);
 
   cv::Mat R_h, t_h, x3D_mean;
   int x3D_inliers = 0;
+  std::vector<uchar> inlier_mask;
+  std::vector<MapPoint::Ptr> x3Ds;
   for (int i = 0; i < Rs.size(); ++i) {
     cv::Mat x3D_sum = cv::Mat::zeros(3, 1, CV_64F);
+    std::vector<uchar> mask;
+    std::vector<MapPoint::Ptr> x3Ds_tmp;
     // 检查R，t，n，统计内点数目
-    int inliers = checkRtn(Rs[i], ts[i], normals[i], K, x3D_sum);
+    int inliers =
+        checkRtn(Rs[i], ts[i], normals[i], K, x3D_sum, mask, x3Ds_tmp);
 
     if (inliers > x3D_inliers) {
       x3D_inliers = inliers;
       x3D_mean = x3D_sum / x3D_inliers;
       R_h = Rs[i];
       t_h = ts[i];
+      inlier_mask = mask;
+      x3Ds = x3Ds_tmp;
     }
   }
   std::cout << "[INFO]: Recover Rt, inliers: " << x3D_inliers << std::endl;
@@ -77,24 +89,52 @@ bool Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
   if (x3D_inliers < x3D_inliers_threshold_) {
     std::cout << "[WARNING]: Initialize failed for too few x3D inliers"
               << std::endl;
-    return false;
+    return nullptr;
   } else {
     std::cout << "[INFO]: x3D_mean: " << x3D_mean.at<double>(0) << " "
               << x3D_mean.at<double>(1) << " " << x3D_mean.at<double>(2) << " "
               << std::endl;
   }
 
-  // 3. 利用天车高度9米的先验，得到尺度，初始化地图点。
+  // 3. 利用天车高度9米的先验，得到尺度。
   double scale = 9 / x3D_mean.at<double>(2);
-  R = R_h;
-  t = t_h * scale;
+  t_h = t_h * scale;
 
-  std::cout << "[INFO]: t: " << t.at<double>(0) << " " << t.at<double>(1) << " "
-            << t.at<double>(2) << std::endl;
+  std::cout << "[INFO]: t: " << t_h.at<double>(0) << " " << t_h.at<double>(1)
+            << " " << t_h.at<double>(2) << std::endl;
   // cv::Mat t_normed = t / cv::norm(t);
   // std::cout << "[INFO]: normed t: " << t_normed.at<double>(0) << " "
   //           << t_normed.at<double>(1) << " " << t_normed.at<double>(2)
   //           << " " << std::endl;
+
+  // 4. 初始化地图，建立特征点与地图点之间的关联
+  Map::Ptr map = std::make_shared<Map>();
+  map->mappoints_ = x3Ds;
+  int x3D_idx = 0;
+  std::cout << x3Ds.size();
+  for (int i = 0; i < inlier_mask.size(); ++i) {
+    if (!inlier_mask[i]) {
+      continue;
+    }
+    const cv::DMatch &m = good_matches[i];
+    int kp_idx1 = m.queryIdx;
+    int kp_idx2 = m.trainIdx;
+    MapPoint::Ptr x3D = x3Ds[x3D_idx];
+    x3D->observations_.emplace_back(std::pair<int, int>(0, kp_idx1));
+    x3D->observations_.emplace_back(std::pair<int, int>(1, kp_idx2));
+    frame1->map_points_[kp_idx1] = MapPoint::WPtr(x3D);
+    frame2->map_points_[kp_idx2] = MapPoint::WPtr(x3D);
+    x3D_idx++;
+  }
+
+  frame1->R_cw_ = cv::Mat::eye(3, 3, CV_64F);
+  frame1->t_cw_ = cv::Mat::zeros(3, 1, CV_64F);
+  frame2->R_cw_ = R_h;
+  frame2->t_cw_ = t_h;
+  map->frames_.emplace_back(frame1);
+  map->frames_.emplace_back(frame2);
+
+  return map;
 }
 
 /**
@@ -104,11 +144,16 @@ bool Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
  * @param t 平移
  * @param n 法向量
  * @param K 相机内参
- * @param x3D_sum 空间点（内点）的坐标值总和（在相机位置1坐标系中）
+ * @param x3D_sum 空间点（内点）的坐标值总和（在相机位置1坐标系中） (to be
+ * deprecated)
+ * @param inlier_mask mask，大小与points1_一致，标志该特征点是否有对应的3D空间点
+ * @param x3Ds 空间点（内点，不包含尺度信息）
  * @return int 内点数目
  */
 int Initializer::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
-                          const cv::Mat &K, cv::Mat &x3D_sum) {
+                          const cv::Mat &K, cv::Mat &x3D_sum,
+                          std::vector<uchar> &inlier_mask,
+                          std::vector<MapPoint::Ptr> &x3Ds) {
 
   // 因为相机是俯视地面，法向量必须是大致沿z轴的（z轴分量绝对值最大）
   if (std::fabs(n.at<double>(2, 0)) <= std::fabs(n.at<double>(0, 0)) ||
@@ -126,6 +171,8 @@ int Initializer::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
   std::vector<double> e1s, e2s, cos_thetas;
 
   int x3D_cnt = 0;
+  inlier_mask = std::vector<uchar>(ransac_status_.size(), '\0');
+  x3Ds.clear();
   for (int j = 0; j < ransac_status_.size(); ++j) {
     // 如果不是计算H矩阵时的内点，则不参与计算
     if (!ransac_status_[j]) {
@@ -172,10 +219,14 @@ int Initializer::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
       continue;
     }
 
+    x3Ds.emplace_back(std::make_shared<MapPoint>(
+        x3D_C1.at<double>(0), x3D_C1.at<double>(1), x3D_C1.at<double>(2)));
     x3D_sum += x3D_C1;
     x3D_cnt++;
+    inlier_mask[j] = '\1';
   }
 
+  // debug info
   statistic(cos_thetas, "  cos_theta");
   statistic(e1s, "  e1");
   statistic(e2s, "  e2");
