@@ -1,0 +1,40 @@
+/**
+ * @file system.cc
+ * @author xiaotaw (you@domain.com)
+ * @brief 
+ * @version 0.1
+ * @date 2021-02-19
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
+#include "system.h"
+
+void System::run() {
+    while (1) {
+      if (!checkInput()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        continue;
+      }
+      {
+        std::unique_lock<std::mutex> lock(input_mutex_);
+        last_frame_ = cur_frame_;
+        cur_frame_ = input_frames_.front();
+        input_frames_.pop_front();
+      }
+      if (!last_frame_){
+        // 只有一帧，啥事也不干
+        continue;
+      }
+      if (!cur_map_){
+        cv::Mat R, t;
+        cur_map_ = initializer_->initialize(last_frame_, cur_frame_, intrinsic_.K());
+        cur_map_->initial_ba();
+      } else {
+        cur_map_->track(cur_frame_);
+
+      }
+
+    }
+  }
