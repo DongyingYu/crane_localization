@@ -54,6 +54,7 @@ void Map::initial_ba() {
     auto v = new g2o::VertexSBAPointXYZ();
     v->setId(id);
     v->setEstimate(mappoints_[i]->toEigenVector3d());
+    v->setMarginalized(true);
     optimizer.addVertex(v);
 
     for (const std::pair<int, int> &obs : mappoints_[i]->observations_) {
@@ -83,4 +84,7 @@ void Map::initial_ba() {
   // optimize
   optimizer.initializeOptimization();
   optimizer.optimize(10);
+
+
+
 }
