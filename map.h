@@ -37,7 +37,7 @@ public:
    *       为了①方便实现且可拓展性，②可能实际天车运行时，不一定符合理想情况；
    *       我们使用一般形式SE3顶点来表示相机位姿，而限制条件通过边的形式加入图中。
    */
-  void initial_ba();
+  void initial_ba(const int & n_iterations=10);
 
 public:
   std::mutex mutex_mappoints_;

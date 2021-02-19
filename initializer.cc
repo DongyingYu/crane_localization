@@ -38,6 +38,8 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2){
 
 Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
                                  const cv::Mat &K) {
+  std::cout << "[INFO]: trying to initialize a map " << std::endl;
+
   // 1. 匹配两帧图像的特征点，计算单应矩阵
   std::vector<cv::DMatch> good_matches;
   frame1->matchWith(frame2, good_matches, true);
@@ -122,8 +124,8 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
     MapPoint::Ptr x3D = x3Ds[x3D_idx];
     x3D->observations_.emplace_back(std::pair<int, int>(0, kp_idx1));
     x3D->observations_.emplace_back(std::pair<int, int>(1, kp_idx2));
-    frame1->map_points_[kp_idx1] = MapPoint::WPtr(x3D);
-    frame2->map_points_[kp_idx2] = MapPoint::WPtr(x3D);
+    frame1->mappoint_idx_[kp_idx1] = x3D_idx;
+    frame2->mappoint_idx_[kp_idx2] = x3D_idx;
     x3D_idx++;
   }
 

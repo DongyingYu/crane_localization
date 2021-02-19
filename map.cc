@@ -21,9 +21,25 @@
 #include "third_party/g2o/g2o/types/sba/types_six_dof_expmap.h"
 #include <numeric>
 
-bool Map::track(Frame::Ptr frame) {}
+bool Map::track(Frame::Ptr cur_frame) {
+  Frame::Ptr last_frame = frames_.back();
+  std::vector<cv::DMatch> good_matches;
+  last_frame->matchWith(cur_frame, good_matches, true);
 
-void Map::initial_ba() {
+  int cnt_3d = 0, cnt_not_3d = 0;
+  for (const cv::DMatch& m : good_matches) {
+    if( last_frame->mappoint_idx_[m.queryIdx] > 0){
+      cnt_3d ++;
+    }else{
+      cnt_not_3d ++;
+    }
+  }
+  std::cout << "[INFO]: cnt_3d=" << cnt_3d << " cnt_not_3d=" << cnt_not_3d << std::endl; 
+
+
+}
+
+void Map::initial_ba(const int &n_iteration) {
   // create optimizer
   g2o::SparseOptimizer optimizer;
   optimizer.setVerbose(true);
@@ -83,8 +99,23 @@ void Map::initial_ba() {
 
   // optimize
   optimizer.initializeOptimization();
-  optimizer.optimize(10);
+  optimizer.optimize(n_iteration);
 
+  // optimize result
 
+  // camera pose
+  for (int i=0; i<frames_.size(); ++i) {
+    auto v = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(i));
+    Eigen::Matrix4d emat = v->estimate().to_homogeneous_matrix();
+    frames_[i]->setPose(emat);
+    std::cout << "frame " << i << std::endl << emat << std::endl;
+  }
 
+  for (int i=0; i<mappoints_.size(); ++i){
+    auto v = static_cast<g2o::VertexSBAPointXYZ*>(optimizer.vertex(i+frames_.size()));
+    Eigen::Vector3d evec = v->estimate();
+    mappoints_[i]->setValue(evec);
+    // std::cout << "mappoint " << i << " change ";
+    // std::cout << evec - mappoints_[i]->toEigenVector3d() << std::endl;
+  }
 }

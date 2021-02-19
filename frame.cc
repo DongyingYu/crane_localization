@@ -38,7 +38,7 @@ void Frame::init() {
   std::cout << " descriptors_.size()=" << descriptors_.size() << std::endl;
 
   // 初始化
-  map_points_.resize(keypoints_.size());
+  mappoint_idx_ = std::vector<int>(keypoints_.size(), -1);
 }
 
 Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }

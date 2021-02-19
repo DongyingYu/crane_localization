@@ -87,7 +87,7 @@ public:
    * @param debug_draw [IN] 是否画出匹配图
    */
   void matchWith(const Frame::Ptr frame, std::vector<cv::DMatch> &good_matches,
-                 const bool &debug_draw);
+                 const bool &debug_draw=false);
 
   inline Eigen::Matrix3d getEigenR() const {
     Eigen::Matrix3d ret;
@@ -101,6 +101,12 @@ public:
     return ret;
   }
 
+  inline void setPose(const Eigen::Matrix4d& mat) {
+    cv::eigen2cv(mat, T_cw_);
+    T_cw_.rowRange(0,3).colRange(0,3).copyTo(R_cw_);
+    T_cw_.rowRange(0,3).col(3).copyTo(t_cw_);
+  }
+
 public:
   // 相机内参
   Intrinsic intrinsic_;
@@ -111,7 +117,7 @@ public:
   cv::Mat descriptors_;
 
   // 特征点对应的3D空间点
-  std::vector<MapPoint::WPtr> map_points_;
+  std::vector<int> mappoint_idx_;
 
   static cv::Ptr<cv::FeatureDetector> detector_;
   static cv::Ptr<cv::DescriptorExtractor> extrator_;
@@ -120,6 +126,7 @@ public:
   // 代码中T_cw，表示位姿T^c_w。
   // 假设：点在相机坐标系下的值P_c，点在世界坐标系下的坐标值P_w，则 P_w = T^c_w
   // * P_c
+  cv::Mat T_cw_;
   cv::Mat R_cw_;
   cv::Mat t_cw_;
 

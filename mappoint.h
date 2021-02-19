@@ -19,7 +19,6 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
   
   using Ptr = std::shared_ptr<MapPoint>;
-  using WPtr = std::weak_ptr<MapPoint>;
 
   MapPoint(float x, float y, float z) : x_(x), y_(y), z_(z) {}
 
@@ -28,6 +27,12 @@ public:
     Eigen::Vector3d ret;
     ret << x_, y_, z_;
     return ret;
+  }
+
+  inline void setValue(const Eigen::Vector3d& vec){
+    x_ = vec[0];
+    y_ = vec[1];
+    z_ = vec[2];
   }
 
 
