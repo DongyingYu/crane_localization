@@ -1,12 +1,12 @@
 /**
  * @file test_system.cc
  * @author xiaotaw (you@domain.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2021-02-19
- * 
+ *
  * @copyright Copyright (c) 2021
- * 
+ *
  */
 #include "system.h"
 

@@ -18,10 +18,9 @@
 
 class System {
 public:
-
   using Ptr = std::shared_ptr<System>;
 
-  System(const Intrinsic& intrinsic) : intrinsic_(intrinsic) {
+  System(const Intrinsic &intrinsic) : intrinsic_(intrinsic) {
     thread_ = std::thread(&System::run, this);
   }
 
@@ -32,7 +31,7 @@ public:
     return !input_frames_.empty();
   }
 
-  inline void insertNewFrame(const Frame::Ptr& frame) {
+  inline void insertNewFrame(const Frame::Ptr &frame) {
     std::unique_lock<std::mutex> lock(input_mutex_);
     input_frames_.emplace_back(frame);
   }
@@ -49,7 +48,7 @@ public:
   Map::Ptr cur_map_ = nullptr;
   // 历史地图
   std::vector<Map::Ptr> maps_;
-  
+
   // todo: keyframe
   Frame::Ptr cur_frame_ = nullptr;
   Frame::Ptr last_frame_ = nullptr;

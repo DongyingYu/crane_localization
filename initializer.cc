@@ -31,7 +31,7 @@ static void statistic(const std::vector<double> &data,
             << " max: " << max_v << " ave: " << ave << std::endl;
 }
 
-Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2){
+Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
   const cv::Mat K = frame1->intrinsic_.K();
   initialize(frame1, frame2, K);
 }

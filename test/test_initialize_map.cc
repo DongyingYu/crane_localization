@@ -56,6 +56,7 @@ int main(int argc, char **argv) {
       frame_prev = frames.front();
       Map::Ptr map = initializer->initialize(frame_cur, frame_prev, K);
       G2oOptimizer::mapBundleAdjustment(map);
+      G2oOptimizerForLinearMotion::mapBundleAdjustment(map);
       frames.pop_front();
 
       if (map) {

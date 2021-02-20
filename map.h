@@ -14,8 +14,7 @@
 #include <mutex>
 #include <vector>
 
-class Map
-{
+class Map {
 
 public:
   using Ptr = std::shared_ptr<Map>;
@@ -24,7 +23,7 @@ public:
 
   /**
    * @brief 单目初始化
-   * 
+   *
    * @todo 将现有的initializer整合进此函数中
    */
   bool initializeMono();
@@ -37,12 +36,11 @@ public:
    *       为了①方便实现且可拓展性，②可能实际天车运行时，不一定符合理想情况；
    *       我们使用一般形式SE3顶点来表示相机位姿，而限制条件通过边的形式加入图中。
    */
-  void initial_ba(const int & n_iterations=10);
+  void initial_ba(const int &n_iterations = 10);
 
 public:
   std::mutex mutex_mappoints_;
   std::vector<MapPoint::Ptr> mappoints_;
-
 
   std::mutex mutex_frames_;
   std::vector<Frame::Ptr> frames_;

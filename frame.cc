@@ -41,7 +41,6 @@ void Frame::init() {
   mappoint_idx_ = std::vector<int>(keypoints_.size(), -1);
 
   frame_id_ = Frame::total_frame_cnt_++;
-  
 }
 
 Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }

@@ -72,7 +72,7 @@ public:
 class Frame {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  
+
   using Ptr = std::shared_ptr<Frame>;
 
   // ctor
@@ -87,7 +87,7 @@ public:
    * @param debug_draw [IN] 是否画出匹配图
    */
   void matchWith(const Frame::Ptr frame, std::vector<cv::DMatch> &good_matches,
-                 const bool &debug_draw=false);
+                 const bool &debug_draw = false);
 
   inline Eigen::Matrix3d getEigenR() const {
     Eigen::Matrix3d ret;
@@ -101,16 +101,16 @@ public:
     return ret;
   }
 
-  inline void setPose(const Eigen::Matrix4d& mat) {
+  inline void setPose(const Eigen::Matrix4d &mat) {
     cv::eigen2cv(mat, Tcw_);
-    Tcw_.rowRange(0,3).colRange(0,3).copyTo(Rcw_);
-    Tcw_.rowRange(0,3).col(3).copyTo(tcw_);
+    Tcw_.rowRange(0, 3).colRange(0, 3).copyTo(Rcw_);
+    Tcw_.rowRange(0, 3).col(3).copyTo(tcw_);
   }
 
-  inline void setPose(const cv::Mat& mat) {
+  inline void setPose(const cv::Mat &mat) {
     mat.copyTo(Tcw_);
-    Tcw_.rowRange(0,3).colRange(0,3).copyTo(Rcw_);
-    Tcw_.rowRange(0,3).col(3).copyTo(tcw_);
+    Tcw_.rowRange(0, 3).colRange(0, 3).copyTo(Rcw_);
+    Tcw_.rowRange(0, 3).col(3).copyTo(tcw_);
   }
 
 public:

@@ -38,7 +38,7 @@ int main() {
   cv::Mat map2 = cv::Mat::zeros(frame_size, CV_16UC1);
   cv::initUndistortRectifyMap(camera_matrix, dist_coeffs, I, new_camera_matrix,
                               frame_size, map1.type(), map1, map2);
-  std::cout << "Done:  get undistort map"  << std::endl;
+  std::cout << "Done:  get undistort map" << std::endl;
 
   int i = 0;
   while (1) {
@@ -53,15 +53,14 @@ int main() {
     // }
 
     cv::Mat undistorted_frame;
-    cv::remap(frame, undistorted_frame, map1, map2,
-              cv::INTER_LINEAR, cv::BORDER_CONSTANT);
+    cv::remap(frame, undistorted_frame, map1, map2, cv::INTER_LINEAR,
+              cv::BORDER_CONSTANT);
 
     resize(frame, frame, {0, 0}, 0.5, 0.5);
     resize(undistorted_frame, undistorted_frame, {0, 0}, 0.5, 0.5);
     imshow("ori", frame);
     imshow("undistorted", undistorted_frame);
     waitKey(31);
-  
   }
   return 0;
 }
