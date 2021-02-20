@@ -1,5 +1,6 @@
 #include "frame.h"
 #include "initializer.h"
+#include "optimizer.h"
 #include <opencv2/features2d.hpp>
 #include <opencv2/xfeatures2d.hpp>
 
@@ -54,11 +55,11 @@ int main(int argc, char **argv) {
     } else {
       frame_prev = frames.front();
       Map::Ptr map = initializer->initialize(frame_cur, frame_prev, K);
-      map->initial_ba();
+      G2oOptimizer::mapBundleAdjustment(map);
       frames.pop_front();
 
       if (map) {
-        cv::Mat t = map->frames_[1]->t_cw_;
+        cv::Mat t = map->frames_[1]->tcw_;
         std::cout << cnt << ": current speed: " << t.at<double>(0);
         speed = (speed * cnt + t.at<double>(0)) / (++cnt);
         std::cout << ": average speed: " << speed << std::endl;

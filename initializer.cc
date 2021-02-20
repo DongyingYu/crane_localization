@@ -129,10 +129,10 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
     x3D_idx++;
   }
 
-  frame1->R_cw_ = cv::Mat::eye(3, 3, CV_64F);
-  frame1->t_cw_ = cv::Mat::zeros(3, 1, CV_64F);
-  frame2->R_cw_ = R_h;
-  frame2->t_cw_ = t_h;
+  frame1->Rcw_ = cv::Mat::eye(3, 3, CV_64F);
+  frame1->tcw_ = cv::Mat::zeros(3, 1, CV_64F);
+  frame2->Rcw_ = R_h;
+  frame2->tcw_ = t_h;
   map->frames_.emplace_back(frame1);
   map->frames_.emplace_back(frame2);
 

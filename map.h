@@ -29,7 +29,7 @@ public:
    */
   bool initializeMono();
 
-  bool track(Frame::Ptr frame);
+  bool trackNewFrame(Frame::Ptr frame);
 
   /**
    * @brief 地图初始化后的第一次BA优化

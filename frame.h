@@ -91,20 +91,26 @@ public:
 
   inline Eigen::Matrix3d getEigenR() const {
     Eigen::Matrix3d ret;
-    cv::cv2eigen(R_cw_, ret);
+    cv::cv2eigen(Rcw_, ret);
     return ret;
   }
 
   inline Eigen::Vector3d getEigenT() const {
     Eigen::Vector3d ret;
-    cv::cv2eigen(t_cw_, ret);
+    cv::cv2eigen(tcw_, ret);
     return ret;
   }
 
   inline void setPose(const Eigen::Matrix4d& mat) {
-    cv::eigen2cv(mat, T_cw_);
-    T_cw_.rowRange(0,3).colRange(0,3).copyTo(R_cw_);
-    T_cw_.rowRange(0,3).col(3).copyTo(t_cw_);
+    cv::eigen2cv(mat, Tcw_);
+    Tcw_.rowRange(0,3).colRange(0,3).copyTo(Rcw_);
+    Tcw_.rowRange(0,3).col(3).copyTo(tcw_);
+  }
+
+  inline void setPose(const cv::Mat& mat) {
+    mat.copyTo(Tcw_);
+    Tcw_.rowRange(0,3).colRange(0,3).copyTo(Rcw_);
+    Tcw_.rowRange(0,3).col(3).copyTo(tcw_);
   }
 
 public:
@@ -123,12 +129,16 @@ public:
   static cv::Ptr<cv::DescriptorExtractor> extrator_;
   static cv::Ptr<cv::DescriptorMatcher> matcher_;
 
-  // 代码中T_cw，表示位姿T^c_w。
-  // 假设：点在相机坐标系下的值P_c，点在世界坐标系下的坐标值P_w，则 P_w = T^c_w
-  // * P_c
-  cv::Mat T_cw_;
-  cv::Mat R_cw_;
-  cv::Mat t_cw_;
+  // 代码中Tcw，表示位姿T^w_c。
+  // 假设：点在相机坐标系下的值P_c，点在世界坐标系下的坐标值P_w，则
+  // P_c = T^w_c * P_w；代码中即：Pc = Tcw * Pw。
+  cv::Mat Tcw_;
+  cv::Mat Rcw_;
+  cv::Mat tcw_;
+
+  // id
+  int frame_id_;
+  static int total_frame_cnt_;
 
 private:
   /**

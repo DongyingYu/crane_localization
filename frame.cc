@@ -39,6 +39,9 @@ void Frame::init() {
 
   // 初始化
   mappoint_idx_ = std::vector<int>(keypoints_.size(), -1);
+
+  frame_id_ = Frame::total_frame_cnt_++;
+  
 }
 
 Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }
@@ -88,6 +91,8 @@ void Frame::matchWith(const Frame::Ptr frame,
     cv::imshow("good_matches", img_good_match);
   }
 }
+
+int Frame::total_frame_cnt_ = 0;
 
 cv::Ptr<cv::FeatureDetector> Frame::detector_ = cv::ORB::create();
 cv::Ptr<cv::DescriptorExtractor> Frame::extrator_ = cv::ORB::create();

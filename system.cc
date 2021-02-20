@@ -10,6 +10,7 @@
  */
 
 #include "system.h"
+#include "optimizer.h"
 
 void System::run() {
     while (1) {
@@ -30,9 +31,13 @@ void System::run() {
       if (!cur_map_){
         cv::Mat R, t;
         cur_map_ = initializer_->initialize(last_frame_, cur_frame_, intrinsic_.K());
-        cur_map_->initial_ba();
+        G2oOptimizer::mapBundleAdjustment(cur_map_, 10);
       } else {
-        cur_map_->track(cur_frame_);
+        cur_map_->trackNewFrame(cur_frame_);
+
+        if (cur_frame_->frame_id_ - last_frame_->frame_id_ >= 15) {
+          cur_map_->frames_.emplace_back(cur_frame_);
+        }
 
       }
 

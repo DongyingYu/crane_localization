@@ -42,6 +42,10 @@ int main(int argc, char **argv) {
   // std::vector
   int cnt = 0;
   while (1) {
+    cnt++;
+    if (cnt % 15 != 0) {
+      continue;
+    }
     capture >> img;
     if (transpose_image) {
       cv::transpose(img, img);
@@ -49,7 +53,7 @@ int main(int argc, char **argv) {
     cv::resize(img, img, {0, 0}, scale_image, scale_image);
     Frame::Ptr frame_cur = std::make_shared<Frame>(img, intrinsic);
 
-    std::cout << "[INFO]: insert new frame " << cnt++ << std::endl;
+    std::cout << "[INFO]: insert new frame " << cnt << std::endl;
     system->insertNewFrame(frame_cur);
 
     cv::waitKey();
