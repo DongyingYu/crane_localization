@@ -14,12 +14,27 @@ opencv （在4.1.0上测试通过，3.2.0应该也可以，暂未测试）
 ## 运行
 
 ```bash
+# 代码下载
+git clone --recursive git@gitlab.com:3d-mapping/3d-reconstruction/case-base/crane_localization.git
+
 #编译g2o
 cd third_party/g2o
 mkdir build
 cd build
 cmake ..
 make -j
+cd ../../..
+
+#编译DBoW2(todo)
+
+
+#编译
+mkdir build
+cd build
+cmake ..
+make -j
+
+#运行(todo)
 
 ```
 
@@ -37,6 +52,8 @@ make -j
 
 ### 功能性测试
 
+注：需修改g2o_path，以及用于测试的mp4视频的路径
+
 ```bash
 # 单目初始化
 ./test/test_initializer
@@ -46,5 +63,12 @@ g2o_path=/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/crane_lo
 export LD_LIBRARY_PATH=${g2o_path}
 
 ./test/test_initialize_map
+
+# 定位系统（未完成）
+g2o_path=/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/crane_localization/third_party/g2o/lib
+export LD_LIBRARY_PATH=${g2o_path}
+
+./test/test_system
+
 
 ```
