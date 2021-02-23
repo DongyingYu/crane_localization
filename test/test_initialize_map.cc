@@ -50,12 +50,12 @@ int main(int argc, char **argv) {
 
     frames.emplace_back(frame_cur);
 
-    if (frames.size() < 15) {
+    if (frames.size() < 30) {
       continue;
     } else {
       frame_prev = frames.front();
       Map::Ptr map = initializer->initialize(frame_cur, frame_prev, K);
-      G2oOptimizer::mapBundleAdjustment(map);
+      //G2oOptimizer::mapBundleAdjustment(map);
       G2oOptimizerForLinearMotion::mapBundleAdjustment(map);
       frames.pop_front();
 

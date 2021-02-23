@@ -10,6 +10,7 @@
  */
 #pragma once
 #include <Eigen/Core>
+#include <Eigen/Dense>
 #include <memory> // for shared_ptr etc.
 #include <vector>
 
@@ -21,17 +22,11 @@ public:
 
   MapPoint(float x, float y, float z) : x_(x), y_(y), z_(z) {}
 
-  inline Eigen::Vector3d toEigenVector3d() const {
-    Eigen::Vector3d ret;
-    ret << x_, y_, z_;
-    return ret;
-  }
+  Eigen::Vector3d toEigenVector3d() const;
 
-  inline void setValue(const Eigen::Vector3d &vec) {
-    x_ = vec[0];
-    y_ = vec[1];
-    z_ = vec[2];
-  }
+  void fromEigenVector3d(const Eigen::Vector3d &vec);
+
+  void rotate(const Eigen::Quaterniond &q);
 
   // obs.first: frame idx in map.frames_
   // osb.second: keypoint idx in this frame

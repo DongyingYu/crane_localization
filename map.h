@@ -31,12 +31,12 @@ public:
   bool trackNewFrame(Frame::Ptr frame);
 
   /**
-   * @brief 地图初始化后的第一次BA优化
-   * @note 理论上天车相机位姿变换，应当无旋转，只有一个线性位移。
-   *       为了①方便实现且可拓展性，②可能实际天车运行时，不一定符合理想情况；
-   *       我们使用一般形式SE3顶点来表示相机位姿，而限制条件通过边的形式加入图中。
+   * @brief 旋转相机的pose，使得每一帧的旋转都相同，且平移量在X轴
    */
-  void initial_ba(const int &n_iterations = 10);
+  void rotateFrameToXTranslation();
+
+  // debug
+  void printMap() const;
 
 public:
   std::mutex mutex_mappoints_;

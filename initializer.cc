@@ -9,27 +9,7 @@
  *
  */
 #include "initializer.h"
-
-/**
- * @brief 统计数据中的最大值、最小值、平均值，并输出到屏幕
- */
-static void statistic(const std::vector<double> &data,
-                      const std::string &name) {
-  int cnt = 0;
-  double ave = 0, min_v = 0, max_v = 0;
-
-  if (!data.empty()) {
-    cnt = data.size();
-    double sum = std::accumulate(data.begin(), data.end(), 0.0);
-    auto mm = std::minmax_element(data.begin(), data.end());
-    ave = sum / data.size();
-    min_v = *mm.first;
-    max_v = *mm.second;
-  }
-
-  std::cout << "[INFO]: " << name << " cnt: " << cnt << " min: " << min_v
-            << " max: " << max_v << " ave: " << ave << std::endl;
-}
+#include "utils.h"
 
 Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
   const cv::Mat K = frame1->intrinsic_.K();
@@ -42,22 +22,48 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
 
   // 1. 匹配两帧图像的特征点，计算单应矩阵
   std::vector<cv::DMatch> good_matches;
-  frame1->matchWith(frame2, good_matches, true);
-
   points1_.clear();
   points2_.clear();
-  for (const cv::DMatch &m : good_matches) {
-    points1_.emplace_back(frame1->keypoints_[m.queryIdx].pt);
-    points2_.emplace_back(frame2->keypoints_[m.trainIdx].pt);
-  }
+  frame1->matchWith(frame2, good_matches, points1_, points2_, true);
 
-  // todo: H12 or H21 ???
+  // // recover pose from E
+  // ransac_status_.clear();
+  // cv::Mat F =
+  //     cv::findFundamentalMat(points1_, points2_, ransac_status_, cv::RANSAC);
+  // cv::Mat E = K.t() * F * K;
+  // std::cout << "E: " << std::endl << E << std::endl;
+  // cv::Mat R_e, t_e;
+  // std::vector<uchar> mask;
+  // int inliers = cv::recoverPose(E, points1_, points2_, K, R_e, t_e, mask);
+  // std::cout << "R_e: " << std::endl << R_e << std::endl;
+  // std::cout << "t_e: " << std::endl << t_e << std::endl;
+
   // todo: 增大误差阈值，因为没有矫正畸变参数
   ransac_status_.clear();
   cv::Mat H =
       cv::findHomography(points1_, points2_, ransac_status_, cv::RANSAC);
+  std::cout << "H: " << std::endl << H << std::endl;
   int h_inliers = std::accumulate(ransac_status_.begin(), ransac_status_.end(),
                                   0, [](int c1, int c2) { return c1 + c2; });
+
+  // 尝试手动分解H
+  // K*(R-t*n/d)*K.inv() = H
+  // rtnd = K.inv() * H * K
+  // tnd = R - rtnd
+  {
+    cv::Mat rtnd = K.inv() * H * K;
+    std::cout << "rtnd: " << std::endl << rtnd << std::endl;
+    cv::Mat R = cv::Mat::eye(3, 3, CV_64F);
+    cv::Mat tnd = R - rtnd;
+    std::cout << "tnd: " << std::endl << tnd << std::endl;
+
+    cv::Mat t(3, 1, CV_64F);
+    cv::Mat n(1, 3, CV_64F);
+    cv::reduce(tnd, t, 1, cv::REDUCE_SUM);
+    cv::reduce(tnd, n, 0, cv::REDUCE_SUM);
+    std::cout << "t: " << std::endl << t << std::endl;
+    std::cout << "n: " << std::endl << n << std::endl;
+  }
 
   std::cout << "[INFO]: Find H inliers: " << h_inliers << std::endl;
 
@@ -89,19 +95,20 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
   std::cout << "[INFO]: Recover Rt, inliers: " << x3D_inliers << std::endl;
 
   if (x3D_inliers < x3D_inliers_threshold_) {
-    std::cout << "[WARNING]: Initialize failed for too few x3D inliers"
-              << std::endl;
-    return nullptr;
-  } else {
-    std::cout << "[INFO]: x3D_mean: " << x3D_mean.at<double>(0) << " "
-              << x3D_mean.at<double>(1) << " " << x3D_mean.at<double>(2) << " "
-              << std::endl;
+    std::cout << "[WARNING]: Initialize failed for too few x3D inliers: "
+              << x3D_inliers << std::endl;
+    // return nullptr;
   }
+
+  std::cout << "[INFO]: x3D_mean: " << x3D_mean.at<double>(0) << " "
+            << x3D_mean.at<double>(1) << " " << x3D_mean.at<double>(2) << " "
+            << std::endl;
 
   // 3. 利用天车高度9米的先验，得到尺度。
   double scale = 9 / x3D_mean.at<double>(2);
   t_h = t_h * scale;
 
+  std::cout << "[INFO]: R_h: " << std::endl << R_h << std::endl;
   std::cout << "[INFO]: t: " << t_h.at<double>(0) << " " << t_h.at<double>(1)
             << " " << t_h.at<double>(2) << std::endl;
   // cv::Mat t_normed = t / cv::norm(t);
@@ -129,10 +136,9 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
     x3D_idx++;
   }
 
-  frame1->Rcw_ = cv::Mat::eye(3, 3, CV_64F);
-  frame1->tcw_ = cv::Mat::zeros(3, 1, CV_64F);
-  frame2->Rcw_ = R_h;
-  frame2->tcw_ = t_h;
+  frame1->setPose(cv::Mat::eye(3, 3, CV_64F), cv::Mat::zeros(3, 1, CV_64F));
+  frame2->setPose(R_h, t_h);
+  std::cout << "[INFO]: twc: " << toString(frame2->getEigenTwc()) << std::endl;
   map->frames_.emplace_back(frame1);
   map->frames_.emplace_back(frame2);
 

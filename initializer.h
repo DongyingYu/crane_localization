@@ -91,5 +91,5 @@ public:
   // 初始化时，重投影地图点时，允许的误差最大值的平方(ORBSLAM2值为4)
   double square_projection_error_threshold_ = 4;
   // 初始化时，至少应当有100个地图点
-  int x3D_inliers_threshold_ = 100;
+  int x3D_inliers_threshold_ = 50;
 };

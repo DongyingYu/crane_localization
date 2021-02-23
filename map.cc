@@ -20,12 +20,14 @@
 #include "third_party/g2o/g2o/solvers/structure_only/structure_only_solver.h"
 #include "third_party/g2o/g2o/stuff/sampler.h"
 #include "third_party/g2o/g2o/types/sba/types_six_dof_expmap.h"
+#include "utils.h"
 #include <numeric>
 
 bool Map::trackNewFrame(Frame::Ptr cur_frame) {
   Frame::Ptr last_frame = frames_.back();
   std::vector<cv::DMatch> good_matches;
-  last_frame->matchWith(cur_frame, good_matches, true);
+  std::vector<cv::Point2f> points1, points2;
+  last_frame->matchWith(cur_frame, good_matches, points1, points2, true);
 
   // 特征点匹配
   int cnt_3d = 0, cnt_not_3d = 0;
@@ -55,4 +57,28 @@ bool Map::trackNewFrame(Frame::Ptr cur_frame) {
 
   // todo
   // 计算重投影误差，排除外点，之后，重新优化；或者采用类似orbslam2的方式，四次迭代，每次迭代中判断内点和外点
+}
+
+void Map::rotateFrameToXTranslation() {
+  Eigen::Vector3d twc = frames_.back()->getEigenTwc();
+  if (twc.norm() < std::numeric_limits<float>::epsilon()) {
+    std::cout << "[WARNING]: twc.norm() is too little: " << twc.norm()
+              << std::endl;
+    return;
+  }
+
+  // unfinished
+}
+
+void Map::printMap() const {
+  for (const auto &frame : frames_) {
+    std::cout << "Frame: " << frame->frame_id_ << std::endl;
+    std::cout << frame->Tcw_ << std::endl;
+  }
+  Eigen::Vector3d sum = Eigen::Vector3d::Zero();
+  for (const auto &mp : mappoints_) {
+    sum += mp->toEigenVector3d();
+  }
+  std::cout << "MapPoint mean: " << toString(sum / mappoints_.size())
+            << std::endl;
 }
