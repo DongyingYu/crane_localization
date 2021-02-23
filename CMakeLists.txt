@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 
 
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 add_compile_options(-g)
 add_compile_options(-O0)
 
@@ -19,7 +19,9 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/g2o
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/g2o/build
 )
 
 

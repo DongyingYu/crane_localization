@@ -31,7 +31,7 @@ cd ../../..
 #编译
 mkdir build
 cd build
-cmake ..
+cmake .. -DOpenCV_DIR="/usr/local/opencv341/share/OpenCV"
 make -j
 
 #运行(todo)

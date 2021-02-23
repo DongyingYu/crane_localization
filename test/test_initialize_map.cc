@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     skip_frames--;
   }
 
-  cv::Ptr<Frame> frame_cur, frame_prev;
+  Frame::Ptr frame_cur, frame_prev;
 
   if (transpose_image) {
     intrinsic = intrinsic.transpose();
@@ -39,14 +39,14 @@ int main(int argc, char **argv) {
   // std::vector
   int cnt = 0;
   double speed = 0;
-  std::list<cv::Ptr<Frame>> frames;
+  std::list<Frame::Ptr> frames;
   while (1) {
     capture >> img;
     if (transpose_image) {
       cv::transpose(img, img);
     }
     cv::resize(img, img, {0, 0}, scale_image, scale_image);
-    frame_cur = cv::makePtr<Frame>(img, intrinsic);
+    frame_cur = std::make_shared<Frame>(img, intrinsic);
 
     frames.emplace_back(frame_cur);
 

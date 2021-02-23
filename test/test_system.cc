@@ -19,8 +19,8 @@ Intrinsic intrinsic = Intrinsic(fx, fy, cx, cy).scale(0.5);
 int main(int argc, char **argv) {
   // config
   std::string video_file =
-      "/home/xt/Documents/data/DATASETS/ros_bag/BL-EX346HP-15M/crane/78.mp4";
-  int skip_frames = 1200;
+      "/home/ipsg/dataset_temp/78_cut.mp4";
+  int skip_frames = 0;
   double scale_image = 0.6;
   bool transpose_image = true;
 
