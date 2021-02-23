@@ -3,6 +3,14 @@ add_executable(test_undistort test_undistort.cc)
 target_link_libraries(test_undistort
   ${OpenCV_LIBS}
 )
+# undistort
+add_executable(test_undistort_fisheye 
+  test_undistort_fisheye.cc 
+  ../undistort.cc
+)
+target_link_libraries(test_undistort_fisheye
+  ${OpenCV_LIBS}
+)
 
 # initialize map
 add_executable(test_initialize_map
