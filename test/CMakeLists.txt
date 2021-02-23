@@ -11,6 +11,8 @@ add_executable(test_initialize_map
   ../initializer.cc
   ../map.cc
   ../optimizer.cc
+  ../utils.cc
+  ../mappoint.cc
 )
 
 file(GLOB g2o_libs ../third_party/g2o/lib/libg2o_*.so)
@@ -28,6 +30,8 @@ add_executable(test_system
   ../map.cc
   ../system.cc
   ../optimizer.cc
+  ../utils.cc
+  ../mappoint.cc
 )
 
 file(GLOB g2o_libs ../third_party/g2o/lib/libg2o_*.so)

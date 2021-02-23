@@ -11,6 +11,7 @@
 #pragma once
 #include "mappoint.h"
 #include <Eigen/Core>
+#include <Eigen/Dense>
 #include <iostream>
 #include <memory>
 #include <opencv2/core/core.hpp>
@@ -87,31 +88,28 @@ public:
    * @param debug_draw [IN] 是否画出匹配图
    */
   void matchWith(const Frame::Ptr frame, std::vector<cv::DMatch> &good_matches,
+                 std::vector<cv::Point2f> &points1,
+                 std::vector<cv::Point2f> &points2,
                  const bool &debug_draw = false);
 
-  inline Eigen::Matrix3d getEigenR() const {
-    Eigen::Matrix3d ret;
-    cv::cv2eigen(Rcw_, ret);
-    return ret;
-  }
+  Eigen::Matrix3d getEigenR() const;
+  Eigen::Vector3d getEigenT() const;
+  Eigen::Matrix3d getEigenRwc() const;
+  Eigen::Vector3d getEigenTwc() const;
 
-  inline Eigen::Vector3d getEigenT() const {
-    Eigen::Vector3d ret;
-    cv::cv2eigen(tcw_, ret);
-    return ret;
-  }
+  void setPose(const Eigen::Matrix4d &mat);
 
-  inline void setPose(const Eigen::Matrix4d &mat) {
-    cv::eigen2cv(mat, Tcw_);
-    Tcw_.rowRange(0, 3).colRange(0, 3).copyTo(Rcw_);
-    Tcw_.rowRange(0, 3).col(3).copyTo(tcw_);
-  }
+  void setPose(const cv::Mat &mat);
 
-  inline void setPose(const cv::Mat &mat) {
-    mat.copyTo(Tcw_);
-    Tcw_.rowRange(0, 3).colRange(0, 3).copyTo(Rcw_);
-    Tcw_.rowRange(0, 3).col(3).copyTo(tcw_);
-  }
+  void setPose(const cv::Mat &R, const cv::Mat &t);
+
+  /**
+   * @brief 切换世界坐标系，将世界坐标系src切换为dst，src和dst之间只差一个旋转
+   *        Rcd = Rcs * Rsd = Rcs * Rds.inverse()，Rds用四元数表示q_ds。
+   *
+   * @param[in] q_ds, 两个世界坐标系src、dst之间的旋转，P_dst = q_ds * P_src
+   */
+  void rotateWorld(const Eigen::Quaterniond &q_ds);
 
 public:
   // 相机内参
@@ -145,4 +143,10 @@ private:
    * @brief 仅供构造函数使用，进行初始化
    */
   void init();
+
+  /**
+   * @brief 判断特征点是否位于图像中心
+   */
+  bool isCentralKp(const cv::KeyPoint &kp,
+                   const double &half_center_factor = 0.2);
 };

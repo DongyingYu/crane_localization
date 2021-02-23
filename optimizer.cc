@@ -9,6 +9,8 @@
  *
  */
 #include "optimizer.h"
+#include "utils.h"
+#include <cmath> // for M_PI
 
 void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
                                      const int &n_iteration) {
@@ -164,7 +166,7 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
     auto v = static_cast<g2o::VertexSBAPointXYZ *>(
         optimizer.vertex(i + map->frames_.size()));
     Eigen::Vector3d evec = v->estimate();
-    map->mappoints_[i]->setValue(evec);
+    map->mappoints_[i]->fromEigenVector3d(evec);
     // std::cout << "mappoint " << i << " change ";
     // std::cout << evec - map->mappoints_[i]->toEigenVector3d() << std::endl;
   }
@@ -182,8 +184,6 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
   // delete solver;
   // solver = nullptr;
 }
-
-namespace g2o {}
 
 /**
  * @brief calculate the minimal rotation, which can convert src to dst.
@@ -211,10 +211,10 @@ G2oOptimizerForLinearMotion::calMinRotation(const Eigen::Vector3d &src,
   Eigen::AngleAxisd aa(theta, n);
   Eigen::Quaterniond q(aa);
 
-  std::cout << "[DEBUG]: src " << s << std::endl
+  std::cout << "[DEBUG]: src " << std::endl
             << src / s << std::endl
             << src << std::endl;
-  std::cout << "         dst " << d << std::endl
+  std::cout << "         dst " << std::endl
             << dst / d << std::endl
             << dst << std::endl;
   std::cout << "         rotated src " << std::endl << q * src / s << std::endl;
@@ -224,9 +224,8 @@ G2oOptimizerForLinearMotion::calMinRotation(const Eigen::Vector3d &src,
 
 void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
                                                       const int &n_iteration) {
-  // 初始旋转量
-  Eigen::Vector3d trans = map->frames_.back()->getEigenT();
-  Eigen::Quaterniond q_init = calMinRotation(trans, Eigen::Vector3d(1, 0, 0));
+
+  map->rotateFrameToXTranslation();
 
   // optimizer
   g2o::SparseOptimizer optimizer;
@@ -242,7 +241,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
   {
     auto v = new g2o::VertexSO3Expmap();
     v->setId(0);
-    v->setEstimate(q_init);
+    v->setEstimate(Eigen::Quaterniond(map->frames_.front()->getEigenR()));
     optimizer.addVertex(v);
   }
 
@@ -253,7 +252,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
     auto v = new g2o::VertexLineTranslation();
     v->setId(1 + i);
     v->setFixed(i == 0);
-    v->setEstimate((q_init * trans)[0]);
+    v->setEstimate(trans[0]);
     v->setMarginalized(true);
     optimizer.addVertex(v);
   }
