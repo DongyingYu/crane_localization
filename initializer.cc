@@ -12,7 +12,7 @@
 #include "utils.h"
 
 Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
-  const cv::Mat K = frame1->intrinsic_.K();
+  const cv::Mat K = frame1->un_intrinsic_.K();
   initialize(frame1, frame2, K);
 }
 
@@ -41,10 +41,11 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
   // todo: 增大误差阈值，因为没有矫正畸变参数
   ransac_status_.clear();
   cv::Mat H =
-      cv::findHomography(points1_, points2_, ransac_status_, cv::RANSAC);
+      cv::findHomography(points1_, points2_, ransac_status_, cv::RANSAC, 10.0);
   std::cout << "H: " << std::endl << H << std::endl;
   int h_inliers = std::accumulate(ransac_status_.begin(), ransac_status_.end(),
                                   0, [](int c1, int c2) { return c1 + c2; });
+  std::cout << "[INFO]: Find H inliers: " << h_inliers << std::endl;
 
   // 尝试手动分解H
   // K*(R-t*n/d)*K.inv() = H
@@ -63,9 +64,15 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
     cv::reduce(tnd, n, 0, cv::REDUCE_SUM);
     std::cout << "t: " << std::endl << t << std::endl;
     std::cout << "n: " << std::endl << n << std::endl;
-  }
 
-  std::cout << "[INFO]: Find H inliers: " << h_inliers << std::endl;
+    cv::Mat x3D_sum = cv::Mat::zeros(3, 1, CV_64F);
+    std::vector<uchar> mask;
+    std::vector<MapPoint::Ptr> x3Ds_tmp;
+    int inliners = checkRtn(R, t, n, K, x3D_sum, mask, x3Ds_tmp, false);
+    std::cout << "[INFO]: checkRt, inliers: " << inliners << "of " << h_inliers
+              << std::endl;
+    std::cout << "[INFO]: x3D_mean: " << (x3D_sum / inliners).t() << std::endl;
+  }
 
   // 2. 利用单应矩阵计算R和t，挑选出正确的R和t，，初始化地图点
   std::vector<cv::Mat> Rs, ts, normals;
@@ -120,7 +127,6 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
   Map::Ptr map = std::make_shared<Map>();
   map->mappoints_ = x3Ds;
   int x3D_idx = 0;
-  std::cout << x3Ds.size();
   for (int i = 0; i < inlier_mask.size(); ++i) {
     if (!inlier_mask[i]) {
       continue;
@@ -161,7 +167,7 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
 int Initializer::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
                           const cv::Mat &K, cv::Mat &x3D_sum,
                           std::vector<uchar> &inlier_mask,
-                          std::vector<MapPoint::Ptr> &x3Ds) {
+                          std::vector<MapPoint::Ptr> &x3Ds, bool verbose) {
 
   // 因为相机是俯视地面，法向量必须是大致沿z轴的（z轴分量绝对值最大）
   if (std::fabs(n.at<double>(2, 0)) <= std::fabs(n.at<double>(0, 0)) ||
@@ -200,6 +206,10 @@ int Initializer::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
           std::isfinite(x3D_C1.at<double>(1)) &&
           std::isfinite(x3D_C1.at<double>(2)) && x3D_C1.at<double>(2) > 0 &&
           x3D_C2.at<double>(2) > 0)) {
+      if (verbose) {
+        std::cout << "[WARNING]: invalid x3D " << j << ": in C1, " << x3D_C1.t()
+                  << " in C2, " << x3D_C2.t() << std::endl;
+      }
       continue;
     }
 
@@ -220,10 +230,12 @@ int Initializer::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
     e1s.emplace_back(e1);
     e2s.emplace_back(e2);
 
-    if (e1 > square_projection_error_threshold_) {
-      continue;
-    }
-    if (e2 > square_projection_error_threshold_) {
+    if (e1 > square_projection_error_threshold_ ||
+        e2 > square_projection_error_threshold_) {
+      if (verbose) {
+        std::cout << "[WARNING]: big reprojection error " << j << ": e1=" << e1
+                  << " e2=" << e2 << std::endl;
+      }
       continue;
     }
 

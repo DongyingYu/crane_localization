@@ -58,7 +58,7 @@ public:
   int checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
                const cv::Mat &K, cv::Mat &x3D_sum,
                std::vector<uchar> &inlier_mask,
-               std::vector<MapPoint::Ptr> &x3Ds);
+               std::vector<MapPoint::Ptr> &x3Ds, bool verbose = false);
 
   /**
    * @brief 三角化求空间点在相机1中的坐标
@@ -89,7 +89,7 @@ public:
   std::vector<uchar> ransac_status_;
 
   // 初始化时，重投影地图点时，允许的误差最大值的平方(ORBSLAM2值为4)
-  double square_projection_error_threshold_ = 4;
+  double square_projection_error_threshold_ = 10;
   // 初始化时，至少应当有100个地图点
   int x3D_inliers_threshold_ = 50;
 };

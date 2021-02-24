@@ -8,6 +8,7 @@
  * @copyright Copyright (c) 2021
  *
  */
+#include "frame.h"
 #include "undistort.h"
 #include <iostream>
 #include <opencv2/core/core.hpp>
@@ -30,6 +31,8 @@ double k2 = 1.0270395;
 double k3 = -2.00061705;
 double k4 = 1.64023946;
 
+Intrinsic intrinsic(fx, fy, cx, cy);
+
 int main() {
 
   std::string video_dir =
@@ -41,9 +44,9 @@ int main() {
 
   int i = 0;
   while (1) {
-    Mat frame;
-    capture >> frame;
-    if (frame.empty()) {
+    Mat img;
+    capture >> img;
+    if (img.empty()) {
       break;
     }
     i++;
@@ -51,15 +54,40 @@ int main() {
     //   continue;
     // }
 
-    cv::Mat undistorted_frame;
+    cv::Mat undistorted_img, undistorted_img_2;
 
-    undistorter.undistort(frame, undistorted_frame);
+    undistorter.undistort(img, undistorted_img);
 
-    resize(frame, frame, {0, 0}, 0.5, 0.5);
-    resize(undistorted_frame, undistorted_frame, {0, 0}, 0.5, 0.5);
-    imshow("ori", frame);
-    imshow("undistorted", undistorted_frame);
-    waitKey(31);
+    cv::fisheye::undistortImage(img, undistorted_img_2, undistorter.getK(),
+                                undistorter.getD(), undistorter.getNewK(),
+                                img.size());
+
+    Frame::Ptr frame = std::make_shared<Frame>(img, intrinsic);
+
+    for (auto &kp : frame->keypoints_) {
+      // kp.size *= 10;
+    }
+    undistorter.undistortPoint(frame->keypoints_, frame->un_keypoints_);
+
+    cv::Mat img_kp, un_img_kp, un_img_kp_2;
+    cv::drawKeypoints(frame->img_, frame->keypoints_, img_kp,
+                      cv::Scalar::all(-1),
+                      cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    cv::drawKeypoints(undistorted_img, frame->un_keypoints_, un_img_kp,
+                      cv::Scalar::all(-1),
+                      cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    cv::drawKeypoints(undistorted_img_2, frame->un_keypoints_, un_img_kp_2,
+                      cv::Scalar::all(-1),
+                      cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+    double draw_scale = 0.3;
+    resize(img_kp, img_kp, {0, 0}, draw_scale, draw_scale);
+    resize(un_img_kp, un_img_kp, {0, 0}, draw_scale, draw_scale);
+    resize(un_img_kp_2, un_img_kp_2, {0, 0}, draw_scale, draw_scale);
+    imshow("ori", img_kp);
+    imshow("undistorted", un_img_kp);
+    imshow("undistorted2", un_img_kp_2);
+    waitKey();
   }
   return 0;
 }
