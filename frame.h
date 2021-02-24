@@ -9,7 +9,9 @@
  *
  */
 #pragma once
+#include "intrinsic.h"
 #include "mappoint.h"
+#include "undistort.h"
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <iostream>
@@ -19,52 +21,6 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
-
-/**
- * @brief 相机内参(不包含畸变系数)
- */
-class Intrinsic {
-public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-
-  Intrinsic() {}
-
-  Intrinsic(const double &vfx, const double &vfy, const double &vcx,
-            const double &vcy)
-      : fx(vfx), fy(vfy), cx(vcx), cy(vcy) {}
-
-  /**
-   * @brief 返回缩放后的图像对应的内参
-   * @param s 缩放系数，s>1代表图像放大，s<1代表图像缩小。
-   */
-  inline Intrinsic scale(const double &s) {
-    return Intrinsic(fx * s, fy * s, cx * s, cy * s);
-  }
-
-  /**
-   * @brief 返回转置后的图像对应的内参
-   */
-  inline Intrinsic transpose() { return Intrinsic(fy, fx, cy, cx); }
-
-  /**
-   * @brief 获取内参矩阵
-   */
-  inline cv::Mat K() {
-    return (cv::Mat_<double>(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
-  }
-
-  inline Eigen::Matrix3d getEigenK() {
-    Eigen::Matrix3d ret;
-    cv::cv2eigen(K(), ret);
-    return ret;
-  }
-
-public:
-  double fx;
-  double fy;
-  double cx;
-  double cy;
-};
 
 /**
  * @brief 普通图像帧
@@ -79,6 +35,8 @@ public:
   // ctor
   Frame(const cv::Mat &img);
   Frame(const cv::Mat &img, const Intrinsic &intrinsic);
+  Frame(const cv::Mat &img, const Intrinsic &intrinsic,
+        const UndistorterFisheye::Ptr &undistorter);
 
   /**
    * @brief 与另一帧进行特征点匹配，并根据距离，进行简单筛选
@@ -98,9 +56,7 @@ public:
   Eigen::Vector3d getEigenTwc() const;
 
   void setPose(const Eigen::Matrix4d &mat);
-
   void setPose(const cv::Mat &mat);
-
   void setPose(const cv::Mat &R, const cv::Mat &t);
 
   /**
@@ -110,6 +66,8 @@ public:
    * @param[in] q_ds, 两个世界坐标系src、dst之间的旋转，P_dst = q_ds * P_src
    */
   void rotateWorld(const Eigen::Quaterniond &q_ds);
+
+  void debugDraw();
 
 public:
   // 相机内参
@@ -137,6 +95,12 @@ public:
   // id
   int frame_id_;
   static int total_frame_cnt_;
+
+  // 去畸变（todo 部分内容与相机内参相同，冗余，应当去除）
+  UndistorterFisheye::Ptr undistorter_;
+  Intrinsic un_intrinsic_;                 // 去畸变后的相机内参
+  std::vector<cv::KeyPoint> un_keypoints_; // 去畸变后的特征点
+  cv::Mat un_img_;                         // 去畸变后的图像
 
 private:
   /**
