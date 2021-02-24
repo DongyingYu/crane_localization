@@ -33,6 +33,10 @@ int main() {
   cv::Mat new_camera_matrix = cv::getOptimalNewCameraMatrix(
       camera_matrix, dist_coeffs, frame_size, 0, frame_size);
 
+  std::cout << "camera_matrix " << std::endl << camera_matrix << std::endl;
+  std::cout << "new_camera_matrix " << std::endl
+            << new_camera_matrix << std::endl;
+
   cv::Mat_<double> I = cv::Mat_<double>::eye(3, 3);
   cv::Mat map1 = cv::Mat::zeros(frame_size, CV_16SC2);
   cv::Mat map2 = cv::Mat::zeros(frame_size, CV_16UC1);

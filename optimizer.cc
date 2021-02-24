@@ -44,7 +44,7 @@ void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
     if (mp_idx < 0) {
       continue;
     }
-    auto kp = frame->keypoints_[i];
+    auto kp = frame->un_keypoints_[i];
     Eigen::Vector2d uv;
     uv << kp.pt.x, kp.pt.y;
 
@@ -54,10 +54,10 @@ void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
     e->setMeasurement(uv);
     e->setInformation(Eigen::Matrix2d::Identity());
 
-    e->fx = frame->intrinsic_.fx;
-    e->fy = frame->intrinsic_.fy;
-    e->cx = frame->intrinsic_.cx;
-    e->cy = frame->intrinsic_.cy;
+    e->fx = frame->un_intrinsic_.fx;
+    e->fy = frame->un_intrinsic_.fy;
+    e->cx = frame->un_intrinsic_.cx;
+    e->cy = frame->un_intrinsic_.cy;
 
     e->Xw = map->mappoints_[mp_idx]->toEigenVector3d();
 
@@ -127,7 +127,7 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
     for (const std::pair<int, int> &obs : map->mappoints_[i]->observations_) {
       int frame_id = obs.first;
       int keypoint_id = obs.second;
-      auto kp = map->frames_[frame_id]->keypoints_[keypoint_id];
+      auto kp = map->frames_[frame_id]->un_keypoints_[keypoint_id];
       Eigen::Vector2d uv;
       uv << kp.pt.x, kp.pt.y;
 
@@ -139,10 +139,10 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
       e->setMeasurement(uv);
       e->setInformation(Eigen::Matrix2d::Identity());
 
-      e->fx = map->frames_[frame_id]->intrinsic_.fx;
-      e->fy = map->frames_[frame_id]->intrinsic_.fy;
-      e->cx = map->frames_[frame_id]->intrinsic_.cx;
-      e->cy = map->frames_[frame_id]->intrinsic_.cy;
+      e->fx = map->frames_[frame_id]->un_intrinsic_.fx;
+      e->fy = map->frames_[frame_id]->un_intrinsic_.fy;
+      e->cx = map->frames_[frame_id]->un_intrinsic_.cx;
+      e->cy = map->frames_[frame_id]->un_intrinsic_.cy;
 
       optimizer.addEdge(e);
     }
@@ -266,11 +266,11 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
       int frame_id = obs.first;
       int keypoint_id = obs.second;
       Frame::Ptr frame = map->frames_[frame_id];
-      auto kp = frame->keypoints_[keypoint_id];
+      auto kp = frame->un_keypoints_[keypoint_id];
       Eigen::Vector2d uv(kp.pt.x, kp.pt.y);
 
       auto e = new g2o::EdgeSO3LinearMotionProjectXYZOnlyPose(
-          Xw, frame->intrinsic_.getEigenK());
+          Xw, frame->un_intrinsic_.getEigenK());
 
       e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(
                           optimizer.vertex(0)));

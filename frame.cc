@@ -14,33 +14,57 @@
 void Frame::init() {
   assert(!img_.empty());
 
-  // 计算Oriented FAST角点
+  // 1. 特征点计算
+  // 1.1 计算Oriented FAST角点
   std::vector<cv::KeyPoint> keypoints;
   detector_->detect(img_, keypoints);
 
-  // 去除左上角和右下角的字幕的干扰 (注：图片可能被转置了)
+  // 1.2去除部分不可用的特征点， (注：图片可能被转置了)
+  // ①左上角和右下角的字幕的干扰
   const double lf = (6.5 / 21.0);
   const double sf = (1.5 / 12.0);
   double x_s = img_.cols * (img_.cols > img_.rows ? lf : sf);
   double y_s = img_.rows * (img_.cols > img_.rows ? sf : lf);
 
+  auto isSubtitle = [&](const cv::KeyPoint &kp) {
+    return (kp.pt.x < x_s && kp.pt.y < y_s) ||
+           (kp.pt.x > img_.cols - x_s && kp.pt.y > img_.rows - y_s);
+  };
+
+  // ②因畸变导致长边两端的区域不可用(各约1/8)
+  const double outer_boarder_factor = 1.0 / 8;
+  auto isOuterBoarder = [&](const cv::KeyPoint &kp) {
+    if (img_.cols > img_.rows) {
+      return (kp.pt.x < img_.cols * outer_boarder_factor) ||
+             (kp.pt.x > img_.cols * (1 - outer_boarder_factor));
+    } else {
+      return (kp.pt.y < img_.rows * outer_boarder_factor) ||
+             (kp.pt.y > img_.rows * (1 - outer_boarder_factor));
+    }
+  };
+
   for (const cv::KeyPoint &kp : keypoints) {
-    if ((kp.pt.x < x_s && kp.pt.y < y_s) ||
-        (kp.pt.x > img_.cols - x_s && kp.pt.y > img_.rows - y_s)) {
+    if (isSubtitle(kp) || isOuterBoarder(kp)) {
       continue;
     } else {
       keypoints_.emplace_back(kp);
     }
   }
 
-  // BRIEF
+  // 2. 去畸变
+  if (undistorter_) {
+    undistorter_->undistortPoint(keypoints_, un_keypoints_);
+    un_intrinsic_ = undistorter_->getNewIntrinsic();
+    undistorter_->undistortImage(img_, un_img_);
+  }
+
+  // 3. 描述子计算（BRIEF）
   extrator_->compute(img_, keypoints_, descriptors_);
   std::cout << "[INFO]: keypoints_.size()=" << keypoints_.size();
   std::cout << " descriptors_.size()=" << descriptors_.size() << std::endl;
 
-  // 初始化
+  // 4. 其他初始化
   mappoint_idx_ = std::vector<int>(keypoints_.size(), -1);
-
   frame_id_ = Frame::total_frame_cnt_++;
 }
 
@@ -48,6 +72,12 @@ Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }
 
 Frame::Frame(const cv::Mat &img, const Intrinsic &intrinsic)
     : img_(img.clone()), intrinsic_(intrinsic) {
+  init();
+}
+
+Frame::Frame(const cv::Mat &img, const Intrinsic &intrinsic,
+             const UndistorterFisheye::Ptr &undistorter)
+    : img_(img.clone()), intrinsic_(intrinsic), undistorter_(undistorter) {
   init();
 }
 
@@ -77,19 +107,19 @@ void Frame::matchWith(const Frame::Ptr frame,
   for (const cv::DMatch &m : all_matches) {
     if (m.distance <= dmax * 0.6) {
       tmp_matches.emplace_back(m);
-      cv::Point2f pt1 = keypoints_[m.queryIdx].pt;
-      cv::Point2f pt2 = frame->keypoints_[m.trainIdx].pt;
+      cv::Point2f pt1 = un_keypoints_[m.queryIdx].pt;
+      cv::Point2f pt2 = frame->un_keypoints_[m.trainIdx].pt;
       pts1.emplace_back(pt1);
       pts2.emplace_back(pt2);
       pts_diff.emplace_back(pt1 - pt2);
     }
   }
   std::cout << "[INFO]: selected " << tmp_matches.size() << " matches from "
-            << all_matches.size() << std::endl;
+            << all_matches.size() << "by match distance." << std::endl;
 
   // 根据运动约束，检测配对点是否合理
   cv::Point2f ave, stddev;
-  calAveStddev(pts_diff, ave, stddev);
+  calAveStddev(pts_diff, ave, stddev, true);
   std::cout << "[INFO]: Point uv diff, ave " << ave << " stddev " << stddev
             << std::endl;
 
@@ -97,27 +127,32 @@ void Frame::matchWith(const Frame::Ptr frame,
   pts1.clear();
   pts2.clear();
   for (int i = 0; i < int(tmp_matches.size()); ++i) {
-    cv::Point2f diff = pts_diff[i];
-    if (std::abs(diff.y) > stddev.y || std::abs(diff.x) > 3 * stddev.x) {
+    cv::Point2f abs_diff =
+        cv::Point2d(std::abs(pts_diff[i].x), std::abs(pts_diff[i].y));
+    cv::Point2f ddiff = abs_diff - ave;
+    if (std::abs(ddiff.y) > 3 + 3 * stddev.y ||
+        std::abs(ddiff.x) > 3 + 3 * stddev.x) {
+      // if (std::abs(diff.y) > stddev.y) {
+      std::cout << "ddiff.x=" << ddiff.x << " ddiff.y=" << ddiff.y << std::endl;
       continue;
     }
     auto m = tmp_matches[i];
-    cv::Point2f pt1 = keypoints_[m.queryIdx].pt;
-    cv::Point2f pt2 = frame->keypoints_[m.trainIdx].pt;
+    cv::Point2f pt1 = un_keypoints_[m.queryIdx].pt;
+    cv::Point2f pt2 = frame->un_keypoints_[m.trainIdx].pt;
     better_matches.emplace_back(m);
     pts1.emplace_back(pt1);
     pts2.emplace_back(pt2);
   }
 
   std::cout << "[INFO]: selected " << better_matches.size() << " matches from "
-            << tmp_matches.size() << std::endl;
+            << tmp_matches.size() << "by stddev " << std::endl;
 
   pts_diff.clear();
   for (int i = 0; i < int(pts1.size()); ++i) {
     pts_diff.emplace_back(pts1[i] - pts2[i]);
   }
 
-  calAveStddev(pts_diff, ave, stddev);
+  calAveStddev(pts_diff, ave, stddev, true);
   std::cout << "[INFO]: Point uv diff, ave " << ave << " stddev " << stddev
             << std::endl;
 
@@ -126,10 +161,10 @@ void Frame::matchWith(const Frame::Ptr frame,
   points1.clear();
   points2.clear();
   for (const auto &m : better_matches) {
-    auto kp1 = keypoints_[m.queryIdx];
-    auto kp2 = frame->keypoints_[m.trainIdx];
+    auto kp1 = un_keypoints_[m.queryIdx];
+    auto kp2 = frame->un_keypoints_[m.trainIdx];
     // 0.5表示认为整个图像都可以，即无任何筛选
-    double half_center_factor = 0.45;
+    double half_center_factor = 0.5;
     if (isCentralKp(kp1, half_center_factor) &&
         isCentralKp(kp2, half_center_factor)) {
       good_matches.emplace_back(m);
@@ -139,7 +174,8 @@ void Frame::matchWith(const Frame::Ptr frame,
   }
 
   std::cout << "[INFO]: selected " << good_matches.size() << " matches from "
-            << better_matches.size() << std::endl;
+            << better_matches.size() << " by position(central is better)"
+            << std::endl;
 
   // debug draw
   if (debug_draw) {
@@ -149,7 +185,15 @@ void Frame::matchWith(const Frame::Ptr frame,
     cv::drawMatches(img_, keypoints_, frame->img_, frame->keypoints_,
                     good_matches, img_good_match);
     // cv::imshow("all_matches", img_match);
+    cv::resize(img_good_match, img_good_match, {0, 0}, 0.4, 0.4);
     cv::imshow("good_matches", img_good_match);
+
+    cv::Mat un_img_good_match;
+    cv::drawMatches(un_img_, un_keypoints_, frame->un_img_,
+                    frame->un_keypoints_, good_matches, un_img_good_match);
+    cv::resize(un_img_good_match, un_img_good_match, {0, 0}, 0.4, 0.4);
+    cv::imshow("undistorted_good_matches", un_img_good_match);
+    cv::waitKey();
   }
 }
 
@@ -222,6 +266,18 @@ bool Frame::isCentralKp(const cv::KeyPoint &kp,
     return true;
   }
   return false;
+}
+
+void Frame::debugDraw() {
+  std::cout << "[DEBUG]: debug draw" << std::endl;
+  std::vector<cv::DMatch> all_matches;
+  matcher_->match(descriptors_, descriptors_, all_matches);
+
+  cv::Mat mat;
+  cv::drawMatches(img_, keypoints_, un_img_, un_keypoints_, all_matches, mat);
+  cv::resize(mat, mat, {0, 0}, 0.4, 0.4);
+  cv::imshow("debug draw", mat);
+  cv::waitKey();
 }
 
 int Frame::total_frame_cnt_ = 0;

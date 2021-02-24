@@ -3,6 +3,16 @@ add_executable(test_undistort test_undistort.cc)
 target_link_libraries(test_undistort
   ${OpenCV_LIBS}
 )
+# undistort
+add_executable(test_undistort_fisheye 
+  test_undistort_fisheye.cc 
+  ../undistort.cc
+  ../frame.cc
+  ../utils.cc
+)
+target_link_libraries(test_undistort_fisheye
+  ${OpenCV_LIBS}
+)
 
 # initialize map
 add_executable(test_initialize_map
@@ -13,6 +23,7 @@ add_executable(test_initialize_map
   ../optimizer.cc
   ../utils.cc
   ../mappoint.cc
+  ../undistort.cc
 )
 
 file(GLOB g2o_libs ../third_party/g2o/lib/libg2o_*.so)
@@ -32,6 +43,7 @@ add_executable(test_system
   ../optimizer.cc
   ../utils.cc
   ../mappoint.cc
+  ../undistort.cc
 )
 
 file(GLOB g2o_libs ../third_party/g2o/lib/libg2o_*.so)
