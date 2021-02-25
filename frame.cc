@@ -11,6 +11,13 @@
 #include "frame.h"
 #include "utils.h"
 
+Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }
+
+Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model)
+    : img_(img.clone()), camera_model_(camera_model) {
+  init();
+}
+
 void Frame::init() {
   assert(!img_.empty());
 
@@ -52,10 +59,12 @@ void Frame::init() {
   }
 
   // 2. 去畸变
-  if (undistorter_) {
-    undistorter_->undistortPoint(keypoints_, un_keypoints_);
-    un_intrinsic_ = undistorter_->getNewIntrinsic();
-    undistorter_->undistortImage(img_, un_img_);
+  if (camera_model_) {
+    camera_model_->undistortKeyPoint(keypoints_, un_keypoints_);
+    camera_model_->undistortImage(img_, un_img_);
+  } else {
+    un_keypoints_ = keypoints;
+    un_img_ = img_.clone();
   }
 
   // 3. 描述子计算（BRIEF）
@@ -68,20 +77,7 @@ void Frame::init() {
   frame_id_ = Frame::total_frame_cnt_++;
 }
 
-Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }
-
-Frame::Frame(const cv::Mat &img, const Intrinsic &intrinsic)
-    : img_(img.clone()), intrinsic_(intrinsic) {
-  init();
-}
-
-Frame::Frame(const cv::Mat &img, const Intrinsic &intrinsic,
-             const UndistorterFisheye::Ptr &undistorter)
-    : img_(img.clone()), intrinsic_(intrinsic), undistorter_(undistorter) {
-  init();
-}
-
-void Frame::matchWith(const Frame::Ptr frame,
+int Frame::matchWith(const Frame::Ptr frame,
                       std::vector<cv::DMatch> &good_matches,
                       std::vector<cv::Point2f> &points1,
                       std::vector<cv::Point2f> &points2,
@@ -115,7 +111,7 @@ void Frame::matchWith(const Frame::Ptr frame,
     }
   }
   std::cout << "[INFO]: selected " << tmp_matches.size() << " matches from "
-            << all_matches.size() << "by match distance." << std::endl;
+            << all_matches.size() << " by match distance." << std::endl;
 
   // 根据运动约束，检测配对点是否合理
   cv::Point2f ave, stddev;
@@ -133,7 +129,8 @@ void Frame::matchWith(const Frame::Ptr frame,
     if (std::abs(ddiff.y) > 3 + 3 * stddev.y ||
         std::abs(ddiff.x) > 3 + 3 * stddev.x) {
       // if (std::abs(diff.y) > stddev.y) {
-      std::cout << "ddiff.x=" << ddiff.x << " ddiff.y=" << ddiff.y << std::endl;
+      std::cout << "[INFO]: outlier, ddiff.x=" << ddiff.x
+                << " ddiff.y=" << ddiff.y << std::endl;
       continue;
     }
     auto m = tmp_matches[i];
@@ -145,7 +142,7 @@ void Frame::matchWith(const Frame::Ptr frame,
   }
 
   std::cout << "[INFO]: selected " << better_matches.size() << " matches from "
-            << tmp_matches.size() << "by stddev " << std::endl;
+            << tmp_matches.size() << " by stddev " << std::endl;
 
   pts_diff.clear();
   for (int i = 0; i < int(pts1.size()); ++i) {
@@ -179,6 +176,8 @@ void Frame::matchWith(const Frame::Ptr frame,
 
   // debug draw
   if (debug_draw) {
+    std::cout << "[DEBUG]: debug draw for frame " << frame_id_ << " and "
+              << frame->frame_id_ << std::endl;
     cv::Mat img_match, img_good_match;
     cv::drawMatches(img_, keypoints_, frame->img_, frame->keypoints_,
                     all_matches, img_match);
@@ -195,6 +194,8 @@ void Frame::matchWith(const Frame::Ptr frame,
     cv::imshow("undistorted_good_matches", un_img_good_match);
     cv::waitKey();
   }
+
+  return good_matches.size();
 }
 
 Eigen::Matrix3d Frame::getEigenR() const {

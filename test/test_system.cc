@@ -9,51 +9,55 @@
  *
  */
 #include "system.h"
-
-double fx = 2428.05872198;
-double fy = 1439.05448033;
-double cx = 1439.05448033;
-double cy = 846.58407292;
-Intrinsic intrinsic = Intrinsic(fx, fy, cx, cy).scale(0.5);
+#include <yaml-cpp/yaml.h>
 
 int main(int argc, char **argv) {
-  // config
-  std::string video_file = "/home/ipsg/dataset_temp/78_cut.mp4";
-  int skip_frames = 0;
-  double scale_image = 0.6;
+  // 默认参数
+  std::string video_file =
+      "/home/xt/Documents/data/DATASETS/ros_bag/BL-EX346HP-15M/crane/78.mp4";
+  std::string yaml_file =
+      "/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/"
+      "crane_localization/conf/BL-EX346HP-15M.yaml";
+  int skip_frames = 1200;
+  // 从命令行获取参数
+  if (argc == 1) {
+  } else if (argc == 3) {
+    video_file = argv[1];
+    yaml_file = argv[2];
+  } else if (argc == 4) {
+    video_file = argv[1];
+    yaml_file = argv[2];
+    skip_frames = atoi(argv[3]);
+  } else {
+    std::cout << "Usage: exec video_file yaml_file" << std::endl;
+    std::cout << "       exec video_file yaml_file skip_frame" << std::endl;
+  }
+
+  std::cout << "[INFO]: video_file = " << video_file << std::endl;
+  std::cout << "[INFO]: yaml_file = " << yaml_file << std::endl;
+  std::cout << "[INFO]: skip_frame = " << skip_frames << std::endl;
+
+  // 内部处理时，将图片转置
   bool transpose_image = true;
+  // 测试所用的视频，被缩放了0.5倍，所以需将相机模型缩放0.5倍
+  double scale_camera_model = 0.5;
+  auto system = std::make_shared<System>(yaml_file, transpose_image, scale_camera_model);
 
   // skip some frames
   cv::Mat img;
   cv::VideoCapture capture(video_file);
-  while (skip_frames > 0) {
+  while (skip_frames-- > 0) {
     capture >> img;
-    skip_frames--;
   }
 
-  if (transpose_image) {
-    intrinsic = intrinsic.transpose();
-  }
-  intrinsic = intrinsic.scale(scale_image);
-
-  auto system = std::make_shared<System>(intrinsic);
-
-  // std::vector
   int cnt = 0;
-  while (1) {
-    cnt++;
-    if (cnt % 15 != 0) {
-      continue;
-    }
+  for (int cnt = 0;; ++cnt) {
     capture >> img;
-    if (transpose_image) {
-      cv::transpose(img, img);
-    }
-    cv::resize(img, img, {0, 0}, scale_image, scale_image);
-    Frame::Ptr frame_cur = std::make_shared<Frame>(img, intrinsic);
-
+    // if (cnt % 3 != 0) {
+    //   continue;
+    // }
     std::cout << "[INFO]: insert new frame " << cnt << std::endl;
-    system->insertNewFrame(frame_cur);
+    system->insertNewImage(img);
 
     cv::waitKey();
   }

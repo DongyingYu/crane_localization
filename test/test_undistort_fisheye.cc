@@ -9,7 +9,7 @@
  *
  */
 #include "frame.h"
-#include "undistort.h"
+#include "camera_model.h"
 #include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d.hpp>
@@ -50,9 +50,6 @@ int main() {
       break;
     }
     i++;
-    // if (i < 1200) {
-    //   continue;
-    // }
 
     cv::Mat undistorted_img, undistorted_img_2;
 

@@ -12,8 +12,8 @@
 #include "utils.h"
 
 Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
-  const cv::Mat K = frame1->un_intrinsic_.K();
-  initialize(frame1, frame2, K);
+  const cv::Mat K = frame1->camera_model_->getNewK();
+  return initialize(frame1, frame2, K);
 }
 
 Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
@@ -51,7 +51,7 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
   // K*(R-t*n/d)*K.inv() = H
   // rtnd = K.inv() * H * K
   // tnd = R - rtnd
-  {
+  if (0) {
     cv::Mat rtnd = K.inv() * H * K;
     std::cout << "rtnd: " << std::endl << rtnd << std::endl;
     cv::Mat R = cv::Mat::eye(3, 3, CV_64F);
@@ -147,7 +147,7 @@ Map::Ptr Initializer::initialize(Frame::Ptr frame1, Frame::Ptr frame2,
   std::cout << "[INFO]: twc: " << toString(frame2->getEigenTwc()) << std::endl;
   map->frames_.emplace_back(frame1);
   map->frames_.emplace_back(frame2);
-
+  std::cout << "[INFO]: Initialize map finished " << std::endl;
   return map;
 }
 

@@ -15,6 +15,14 @@ find_package(Eigen3 REQUIRED)
 message(STATUS "Eigen3:")
 message(STATUS "    include path: ${EIGEN3_INCLUDE_DIR}")
 
+# find yaml cpp lib
+find_library(YAML_CPP_LIBRARIES yaml-cpp)
+if(NOT YAML_CPP_LIBRARIES)
+  # If yaml-cpp not found in the system, try finding it as a user CMake-generated project
+  find_package(yaml-cpp REQUIRED)
+  include_directories(${YAML_CPP_INCLUDE_DIRS})
+endif(NOT YAML_CPP_LIBRARIES)
+
 include_directories(
   ${OpenCV_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}

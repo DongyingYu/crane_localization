@@ -9,9 +9,8 @@
  *
  */
 #pragma once
-#include "intrinsic.h"
+#include "camera_model.h"
 #include "mappoint.h"
-#include "undistort.h"
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <iostream>
@@ -34,9 +33,7 @@ public:
 
   // ctor
   Frame(const cv::Mat &img);
-  Frame(const cv::Mat &img, const Intrinsic &intrinsic);
-  Frame(const cv::Mat &img, const Intrinsic &intrinsic,
-        const UndistorterFisheye::Ptr &undistorter);
+  Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model);
 
   /**
    * @brief 与另一帧进行特征点匹配，并根据距离，进行简单筛选
@@ -44,8 +41,9 @@ public:
    * @param frame [IN] 另一帧图像
    * @param good_matches [OUT] 好的匹配
    * @param debug_draw [IN] 是否画出匹配图
+   * @return int 返回配对的特征点对数，即good_matches.size()
    */
-  void matchWith(const Frame::Ptr frame, std::vector<cv::DMatch> &good_matches,
+  int matchWith(const Frame::Ptr frame, std::vector<cv::DMatch> &good_matches,
                  std::vector<cv::Point2f> &points1,
                  std::vector<cv::Point2f> &points2,
                  const bool &debug_draw = false);
@@ -70,17 +68,17 @@ public:
   void debugDraw();
 
 public:
-  // 相机内参
-  Intrinsic intrinsic_;
-
   // 图片，特征点，描述符
   cv::Mat img_;
+  cv::Mat un_img_; // 去畸变后的图像
   std::vector<cv::KeyPoint> keypoints_;
+  std::vector<cv::KeyPoint> un_keypoints_; // 去畸变后的特征点
   cv::Mat descriptors_;
 
   // 特征点对应的3D空间点
   std::vector<int> mappoint_idx_;
 
+  // 特征点、描述符、匹配相关
   static cv::Ptr<cv::FeatureDetector> detector_;
   static cv::Ptr<cv::DescriptorExtractor> extrator_;
   static cv::Ptr<cv::DescriptorMatcher> matcher_;
@@ -96,11 +94,8 @@ public:
   int frame_id_;
   static int total_frame_cnt_;
 
-  // 去畸变（todo 部分内容与相机内参相同，冗余，应当去除）
-  UndistorterFisheye::Ptr undistorter_;
-  Intrinsic un_intrinsic_;                 // 去畸变后的相机内参
-  std::vector<cv::KeyPoint> un_keypoints_; // 去畸变后的特征点
-  cv::Mat un_img_;                         // 去畸变后的图像
+  // 相机模型（包含畸变模型）
+  CameraModel::Ptr camera_model_;
 
 private:
   /**

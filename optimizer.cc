@@ -54,10 +54,11 @@ void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
     e->setMeasurement(uv);
     e->setInformation(Eigen::Matrix2d::Identity());
 
-    e->fx = frame->un_intrinsic_.fx;
-    e->fy = frame->un_intrinsic_.fy;
-    e->cx = frame->un_intrinsic_.cx;
-    e->cy = frame->un_intrinsic_.cy;
+    std::vector<double> intr_vec = frame->camera_model_->getIntrinsicVec();
+    e->fx = intr_vec[0];
+    e->fy = intr_vec[1];
+    e->cx = intr_vec[2];
+    e->cy = intr_vec[3];
 
     e->Xw = map->mappoints_[mp_idx]->toEigenVector3d();
 
@@ -106,6 +107,7 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
   optimizer.setAlgorithm(solver);
 
   // camera vertex
+  std::cout << "[DEBUG]: g2o ba map: map->frames_.size() = " << map->frames_.size() << std::endl; 
   for (int i = 0; i < map->frames_.size(); ++i) {
     auto v = new g2o::VertexSE3Expmap();
     v->setId(i);
@@ -139,10 +141,12 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
       e->setMeasurement(uv);
       e->setInformation(Eigen::Matrix2d::Identity());
 
-      e->fx = map->frames_[frame_id]->un_intrinsic_.fx;
-      e->fy = map->frames_[frame_id]->un_intrinsic_.fy;
-      e->cx = map->frames_[frame_id]->un_intrinsic_.cx;
-      e->cy = map->frames_[frame_id]->un_intrinsic_.cy;
+      std::vector<double> intr_vec =
+          map->frames_[frame_id]->camera_model_->getIntrinsicVec();
+      e->fx = intr_vec[0];
+      e->fy = intr_vec[1];
+      e->cx = intr_vec[2];
+      e->cy = intr_vec[3];
 
       optimizer.addEdge(e);
     }
@@ -159,7 +163,6 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
     auto v = static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(i));
     Eigen::Matrix4d emat = v->estimate().to_homogeneous_matrix();
     map->frames_[i]->setPose(emat);
-    std::cout << "frame " << i << std::endl << emat << std::endl;
   }
   // mappoints
   for (int i = 0; i < map->mappoints_.size(); ++i) {
@@ -269,8 +272,9 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
       auto kp = frame->un_keypoints_[keypoint_id];
       Eigen::Vector2d uv(kp.pt.x, kp.pt.y);
 
-      auto e = new g2o::EdgeSO3LinearMotionProjectXYZOnlyPose(
-          Xw, frame->un_intrinsic_.getEigenK());
+      Eigen::Matrix3d K;
+      cv::cv2eigen(frame->camera_model_->getNewK(), K);
+      auto e = new g2o::EdgeSO3LinearMotionProjectXYZOnlyPose(Xw, K);
 
       e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(
                           optimizer.vertex(0)));
