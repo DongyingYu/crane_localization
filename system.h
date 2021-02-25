@@ -11,7 +11,7 @@
 #pragma once
 #include "camera_model.h"
 #include "frame.h"
-#include "initializer.h"
+#include "map.h"
 #include <chrono>
 #include <list>
 #include <mutex>
@@ -50,9 +50,6 @@ public:
   std::mutex input_mutex_;
   std::list<Frame::Ptr> input_frames_;
 
-  // 地图相关
-  // 地图初始化
-  Initializer::Ptr initializer_ = std::make_shared<Initializer>();
   // 当前地图
   std::mutex map_mutex_;
   Map::Ptr cur_map_ = nullptr;

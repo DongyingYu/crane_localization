@@ -53,6 +53,11 @@ public:
   Eigen::Matrix3d getEigenRwc() const;
   Eigen::Vector3d getEigenTwc() const;
 
+  /**
+   * @brief 获取投影矩阵 K[R, t]，大小为3行4列
+   */
+  cv::Mat getProjectionMatrix();
+
   void setPose(const Eigen::Matrix4d &mat);
   void setPose(const cv::Mat &mat);
   void setPose(const cv::Mat &R, const cv::Mat &t);

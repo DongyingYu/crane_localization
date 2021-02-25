@@ -78,10 +78,10 @@ void Frame::init() {
 }
 
 int Frame::matchWith(const Frame::Ptr frame,
-                      std::vector<cv::DMatch> &good_matches,
-                      std::vector<cv::Point2f> &points1,
-                      std::vector<cv::Point2f> &points2,
-                      const bool &debug_draw) {
+                     std::vector<cv::DMatch> &good_matches,
+                     std::vector<cv::Point2f> &points1,
+                     std::vector<cv::Point2f> &points2,
+                     const bool &debug_draw) {
 
   // 匹配特征点
   std::vector<cv::DMatch> all_matches;
@@ -213,6 +213,11 @@ Eigen::Vector3d Frame::getEigenT() const {
 Eigen::Matrix3d Frame::getEigenRwc() const { return getEigenR().inverse(); }
 Eigen::Vector3d Frame::getEigenTwc() const {
   return -getEigenR().inverse() * getEigenT();
+}
+
+cv::Mat Frame::getProjectionMatrix() {
+  cv::Mat P = camera_model_->getNewK() * Tcw_.rowRange(0, 3);
+  return P;
 }
 
 void Frame::setPose(const Eigen::Matrix4d &mat) {

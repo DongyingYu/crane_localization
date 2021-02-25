@@ -1,5 +1,4 @@
 #include "frame.h"
-#include "initializer.h"
 #include "optimizer.h"
 #include "utils.h"
 #include <opencv2/features2d.hpp>

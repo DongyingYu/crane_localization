@@ -50,6 +50,8 @@ System::System(const std::string &yaml_file, const bool &transpose_image,
     camera_model_->transpose();
   }
 
+  // 其他初始化
+  cur_map_ = std::make_shared<Map>();
   thread_ = std::thread(&System::run, this);
 }
 
@@ -84,17 +86,13 @@ void System::run() {
       // 只有一帧，啥事也不干
       continue;
     }
-    if (!cur_map_) {
-      Map::Ptr cur_map = initializer_->initialize(last_frame_, cur_frame_);
+    if (!cur_map_->checkInitialized()) {
+      cur_map_->initialize(last_frame_, cur_frame_);
       std::cout << "[INFO]: The map before g2o" << std::endl;
-      cur_map->printMap();
-      G2oOptimizer::mapBundleAdjustment(cur_map);
+      cur_map_->printMap();
+      G2oOptimizer::mapBundleAdjustment(cur_map_);
       std::cout << "[INFO]: The map after g2o" << std::endl;
-      cur_map->printMap();
-      {
-        std::unique_lock<std::mutex> lock(map_mutex_);
-        cur_map_ = cur_map;
-      }
+      cur_map_->printMap();
     } else {
       std::cout << "[INFO]: track new frame with cur_map: "
                 << cur_frame_->frame_id_ << std::endl;

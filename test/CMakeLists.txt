@@ -21,7 +21,6 @@ message(STATUS "g2o_libs: ${g2o_libs}")
 # add_executable(test_initialize_map
 #   test_initialize_map.cc
 #   ../frame.cc
-#   ../initializer.cc
 #   ../map.cc
 #   ../optimizer.cc
 #   ../utils.cc
@@ -38,7 +37,6 @@ message(STATUS "g2o_libs: ${g2o_libs}")
 add_executable(test_system
   test_system.cc
   ../frame.cc
-  ../initializer.cc
   ../map.cc
   ../system.cc
   ../optimizer.cc
