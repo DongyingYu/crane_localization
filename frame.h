@@ -10,7 +10,6 @@
  */
 #pragma once
 #include "camera_model.h"
-#include "mappoint.h"
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <iostream>
@@ -48,16 +47,34 @@ public:
                  std::vector<cv::Point2f> &points2,
                  const bool &debug_draw = false);
 
-  Eigen::Matrix3d getEigenR() const;
-  Eigen::Vector3d getEigenT() const;
-  Eigen::Matrix3d getEigenRwc() const;
-  Eigen::Vector3d getEigenTwc() const;
+  /**
+   * @brief 将地图点投影到当前帧
+   * 
+   * @param[in] x3D 地图点的世界坐标
+   * @return cv::Point2f 投影到相机上的像素坐标
+   */
+  cv::Point2f project(const cv::Mat &x3D);
+
+  cv::Point2f project(const double &x, const double &y, const double &z);
+
+  /**
+   * @brief 检查地图点在当前相机位姿下，深度是否为正
+   * 
+   * @param[in] x3D 地图点的世界坐标
+   * @return true 深度为正，否则为负
+   */
+  bool checkDepthValid(const cv::Mat &x3D);
 
   /**
    * @brief 获取投影矩阵 K[R, t]，大小为3行4列
    */
   cv::Mat getProjectionMatrix();
 
+  // 位姿相关的get/set函数
+  Eigen::Matrix3d getEigenR() const;
+  Eigen::Vector3d getEigenT() const;
+  Eigen::Matrix3d getEigenRwc() const;
+  Eigen::Vector3d getEigenTwc() const;
   void setPose(const Eigen::Matrix4d &mat);
   void setPose(const cv::Mat &mat);
   void setPose(const cv::Mat &R, const cv::Mat &t);
@@ -70,8 +87,10 @@ public:
    */
   void rotateWorld(const Eigen::Quaterniond &q_ds);
 
+  // debug
   void debugDraw();
-
+  int debugCountMappoints();
+  
 public:
   // 图片，特征点，描述符
   cv::Mat img_;

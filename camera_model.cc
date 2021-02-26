@@ -38,6 +38,13 @@ void CameraModelPinholeEqui::init() {
   cv::fisheye::estimateNewCameraMatrixForUndistortRectify(
       K_, D_, img_size_, cv::Matx33d::eye(), newK_, 1);
 
+  new_intr_vec_ = {
+      newK_.at<double>(0, 0),
+      newK_.at<double>(1, 1),
+      newK_.at<double>(0, 2),
+      newK_.at<double>(1, 2),
+  };
+
   cv::Mat_<double> I = cv::Mat_<double>::eye(3, 3);
   map1_ = cv::Mat::zeros(img_size_, CV_16SC2);
   map2_ = cv::Mat::zeros(img_size_, CV_16UC1);
@@ -116,6 +123,10 @@ void CameraModelPinholeEqui::undistort(const cv::Mat &img, cv::Mat &un_img) {
                "cv::fisheye::undistortImage instead."
             << std::endl;
   cv::remap(img, un_img, map1_, map2_, cv::INTER_LINEAR, cv::BORDER_CONSTANT);
+}
+
+std::vector<double> CameraModelPinholeEqui::getNewIntrinsicVec() const {
+  return new_intr_vec_;
 }
 
 cv::Mat CameraModelPinholeEqui::getD() const { return D_; }

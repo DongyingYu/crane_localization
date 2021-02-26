@@ -38,6 +38,7 @@ public:
                                  std::vector<cv::KeyPoint> &un_kps) = 0;
 
   std::vector<double> getIntrinsicVec() const;
+  virtual std::vector<double> getNewIntrinsicVec() const = 0;
 
   virtual cv::Mat getD() const = 0;
 
@@ -75,16 +76,18 @@ public:
 
   void undistort(const cv::Mat &img, cv::Mat &un_img);
 
-  cv::Mat getD() const;
+  std::vector<double> getNewIntrinsicVec() const override;
 
-  cv::Mat getK() const;
+  cv::Mat getD() const override;
 
-  cv::Mat getNewK() const;
+  cv::Mat getK() const override;
 
+  cv::Mat getNewK() const override;
 
 private:
   cv::Mat K_, newK_, D_;
   cv::Mat map1_, map2_;
+  std::vector<double> new_intr_vec_;
 
   // scale和scaled函数，需要调整和优化，scaled函数暂不对外
   CameraModelPinholeEqui scaled(const double &scale_factor);

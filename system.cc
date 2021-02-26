@@ -93,16 +93,17 @@ void System::run() {
       G2oOptimizer::mapBundleAdjustment(cur_map_);
       std::cout << "[INFO]: The map after g2o" << std::endl;
       cur_map_->printMap();
+      // G2oOptimizerForLinearMotion::mapBundleAdjustment(cur_map_);
+      // std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
+      // cur_map_->printMap();
     } else {
       std::cout << "[INFO]: track new frame with cur_map: "
                 << cur_frame_->frame_id_ << std::endl;
       cur_map_->trackNewFrame(cur_frame_);
 
-      if (cur_frame_->frame_id_ - cur_map_->frames_.back()->frame_id_ >= 1) {
-        cur_map_->frames_.emplace_back(cur_frame_);
-        G2oOptimizer::mapBundleAdjustment(cur_map_);
-        cur_map_->printMap();
-      }
+      cur_map_->frames_.emplace_back(cur_frame_);
+      G2oOptimizer::mapBundleAdjustment(cur_map_);
+      cur_map_->printMap();
     }
   }
 }

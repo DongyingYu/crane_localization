@@ -35,6 +35,8 @@ void Map::clear() {
 }
 
 bool Map::trackNewFrame(Frame::Ptr curr_frame) {
+  std::cout << "[TRACK]: track new frame " << curr_frame->frame_id_
+            << std::endl;
   Frame::Ptr last_frame = frames_.back();
 
   // 1. 特征点匹配
@@ -51,10 +53,12 @@ bool Map::trackNewFrame(Frame::Ptr curr_frame) {
   // 2. 使用PnP给出当前帧的相机位姿
   int cnt_3d = 0;
   for (const cv::DMatch &m : good_matches) {
-    int x3D_idx = last_frame->mappoint_idx_[m.queryIdx];
-    if (x3D_idx >= 0) {
+    int mp_idx = last_frame->mappoint_idx_[m.queryIdx];
+    if (mp_idx >= 0) {
       cnt_3d++;
-      curr_frame->mappoint_idx_[m.trainIdx] = x3D_idx;
+      curr_frame->mappoint_idx_[m.trainIdx] = mp_idx;
+      auto obs = std::pair<int, int>(curr_frame->frame_id_, m.trainIdx);
+      mappoints_[mp_idx]->observations_.emplace_back(obs);
     } else {
       ;
     }
@@ -69,21 +73,57 @@ bool Map::trackNewFrame(Frame::Ptr curr_frame) {
 
   // 3. 将剩余配对特征点三角化
   for (const cv::DMatch &m : good_matches) {
-    int x3D_idx = last_frame->mappoint_idx_[m.queryIdx];
-    if (x3D_idx >= 0) {
+    int mp_idx = last_frame->mappoint_idx_[m.queryIdx];
+    if (mp_idx >= 0) {
       ;
     } else {
-      cv::KeyPoint kp1 = last_frame->keypoints_[m.queryIdx];
-      cv::KeyPoint kp2 = curr_frame->keypoints_[m.trainIdx];
+      cv::KeyPoint kp1 = last_frame->un_keypoints_[m.queryIdx];
+      cv::KeyPoint kp2 = curr_frame->un_keypoints_[m.trainIdx];
       cv::Mat x3D;
       triangulate(kp1, kp2, P1, P2, x3D);
+
+      // 判断是否为有效的地图点
+      bool is_finite = std::isfinite(x3D.at<double>(0)) &&
+                       std::isfinite(x3D.at<double>(1)) &&
+                       std::isfinite(x3D.at<double>(2));
+      bool is_depth_valid = true;
+      // last_frame->checkDepthValid(x3D) && curr_frame->checkDepthValid(x3D);
+
+      if (!(is_finite && is_depth_valid)) {
+        std::cout << "[WARNING]: invalid x3D " << x3D.t() << std::endl;
+        continue;
+      }
+
+      cv::Point2f proj_pt1 = last_frame->project(x3D);
+      cv::Point2f proj_pt2 = curr_frame->project(x3D);
+      float e1 = squareUvError(proj_pt1 - kp1.pt);
+      float e2 = squareUvError(proj_pt2 - kp2.pt);
+      if (e1 > 2 * square_projection_error_threshold_ ||
+          e2 > 2 * square_projection_error_threshold_) {
+        std::cout << "[WARNING]: big reprojection error "
+                  << ": e1=" << e1 << " e2=" << e2 << std::endl;
+        continue;
+      }
+
+      auto mp = std::make_shared<MapPoint>(x3D.at<double>(0), x3D.at<double>(1),
+                                           x3D.at<double>(2));
+      auto obs1 = std::pair<int, int>(last_frame->frame_id_, m.queryIdx);
+      auto obs2 = std::pair<int, int>(curr_frame->frame_id_, m.trainIdx);
+      mp->observations_.emplace_back(obs1);
+      mp->observations_.emplace_back(obs2);
+      int mp_idx = insertMapPoint(mp);
+      last_frame->mappoint_idx_[m.queryIdx] = mp_idx;
+      curr_frame->mappoint_idx_[m.trainIdx] = mp_idx;
     }
   }
 
+  G2oOptimizer::optimizeFramePose(curr_frame, this, 10);
+  // G2oOptimizer::mapBundleAdjustment(curr_frame, this, 10);
+  // std::cout << "[INFO]: trackNewFrame ba " << curr_frame->frame_id_
+  //          << std::endl;
   // todo
   // 计算重投影误差，排除外点，之后，重新优化；或者采用类似orbslam2的方式，四次迭代，每次迭代中判断内点和外点
 }
-
 
 bool Map::checkInitialized() {
   int n_mps = 0, n_frames = 0;
@@ -111,21 +151,44 @@ void Map::rotateFrameToXTranslation() {
 
 void Map::printMap() const {
   for (const auto &frame : frames_) {
-    std::cout << "Frame: " << frame->frame_id_ << std::endl;
+    std::cout << "[INFO]: Frame: " << frame->frame_id_ << std::endl;
     std::cout << frame->Tcw_ << std::endl;
+    std::vector<cv::Point2f> diffs;
+    std::vector<double> chi2s;
+    for (int i = 0; i < frame->mappoint_idx_.size(); ++i) {
+      int mp_idx = frame->mappoint_idx_[i];
+      if (mp_idx < 0) {
+        continue;
+      }
+      const auto &mp = mappoints_[mp_idx];
+      cv::Point2f proj = frame->project(mp->x_, mp->y_, mp->z_);
+      cv::Point2f pt = frame->un_keypoints_[i].pt;
+      cv::Point2f diff = pt - proj;
+      diffs.emplace_back(diff);
+      chi2s.emplace_back(diff.x * diff.x + diff.y * diff.y);
+    }
+    cv::Point2f ave, stddev;
+    calAveStddev(diffs, ave, stddev, true);
+    std::cout << "        reprojection error: ave=" << ave
+              << " stddev=" << stddev << std::endl;
+    statistic(chi2s, "       chi2s");
   }
+
+  Eigen::Vector3d mp_sum = Eigen::Vector3d::Zero();
+  for (const auto &mp : mappoints_) {
+    mp_sum += mp->toEigenVector3d();
+  }
+  Eigen::Vector3d mp_ave = mp_sum / mappoints_.size();
+  std::cout << "[INFO]: MapPoint size " << mappoints_.size()
+            << " mean: " << toString(mp_ave) << std::endl;
+
   Eigen::Vector3d twc1 = frames_.back()->getEigenTwc();
   std::cout << "[INFO]: twc of the last frame " << toString(twc1) << std::endl;
 
-  Eigen::Vector3d sum = Eigen::Vector3d::Zero();
-  for (const auto &mp : mappoints_) {
-    sum += mp->toEigenVector3d();
-  }
-  std::cout << "[INFO]: MapPoint mean: " << toString(sum / mappoints_.size())
+  double scale = 9 / mp_ave[2];
+  std::cout << "[INFO]: scaled twc of the last frame " << toString(twc1 * scale)
+            << std::endl
             << std::endl;
-
-  std::cout << "[INFO]: twc of the last frame "
-            << toString(twc1 * 9 * (sum / mappoints_.size())[2]) << std::endl;
 }
 
 bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
@@ -142,8 +205,7 @@ bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
 
   // todo: 增大误差阈值，因为没有矫正畸变参数
   std::vector<uchar> ransac_status;
-  cv::Mat H =
-      cv::findHomography(points1, points2, ransac_status, cv::RANSAC, 10.0);
+  cv::Mat H = cv::findHomography(points1, points2, ransac_status, cv::RANSAC);
   std::cout << "H: " << std::endl << H << std::endl;
   int h_inliers = std::accumulate(ransac_status.begin(), ransac_status.end(), 0,
                                   [](int c1, int c2) { return c1 + c2; });
@@ -236,12 +298,18 @@ bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
     const cv::DMatch &m = good_matches[i];
     int kp_idx1 = m.queryIdx;
     int kp_idx2 = m.trainIdx;
-    auto obs1 = std::pair<int, int>(0, kp_idx1);
-    auto obs2 = std::pair<int, int>(1, kp_idx2);
+    auto obs1 = std::pair<int, int>(frame1->frame_id_, kp_idx1);
+    auto obs2 = std::pair<int, int>(frame2->frame_id_, kp_idx2);
     mappoints[mp_idx]->observations_.emplace_back(obs1);
     mappoints[mp_idx]->observations_.emplace_back(obs2);
     frame1->mappoint_idx_[kp_idx1] = mp_idx;
+    // std::cout << "frame: " << frame1->frame_id_
+    //           << " mappoints: " << frame1->debugCountMappoints() <<
+    //           std::endl;
     frame2->mappoint_idx_[kp_idx2] = mp_idx;
+    // std::cout << "frame: " << frame2->frame_id_
+    //           << " mappoints: " << frame2->debugCountMappoints() <<
+    //           std::endl;
     mp_idx++;
   }
 
@@ -316,11 +384,9 @@ int Map::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
 
     // 计算空间点的投影误差，误差平方值应当在允许范围之内
     auto proj_pt1 = project(x3D_C1, K);
-    double e1 = (pt1.x - proj_pt1.x) * (pt1.x - proj_pt1.x) +
-                (pt1.y - proj_pt1.y) * (pt1.y - proj_pt1.y);
+    double e1 = squareUvError(pt1 - proj_pt1);
     auto proj_pt2 = project(x3D_C2, K);
-    double e2 = (pt2.x - proj_pt2.x) * (pt2.x - proj_pt2.x) +
-                (pt2.y - proj_pt2.y) * (pt2.y - proj_pt2.y);
+    double e2 = squareUvError(pt2 - proj_pt2);
 
     e1s.emplace_back(e1);
     e2s.emplace_back(e2);
@@ -367,6 +433,20 @@ void Map::triangulate(const cv::Point2f &pt1, const cv::Point2f &pt2,
   cv::SVD::compute(A, w, u, vt, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
   x3D = vt.row(3).t();
   x3D = x3D.rowRange(0, 3) / x3D.at<double>(3);
+}
+
+float Map::squareUvError(const cv::Point2f &uv_error) {
+  return uv_error.x * uv_error.x + uv_error.y * uv_error.y;
+}
+
+int Map::insertMapPoint(const MapPoint::Ptr &mp) {
+  int mp_idx;
+  {
+    std::unique_lock<std::mutex> lock(mutex_mappoints_);
+    mp_idx = mappoints_.size();
+    mappoints_.emplace_back(mp);
+  }
+  return mp_idx;
 }
 
 cv::Point2f Map::project(const cv::Mat &x3D, const cv::Mat K) {

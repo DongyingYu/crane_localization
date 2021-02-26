@@ -126,7 +126,7 @@ int Frame::matchWith(const Frame::Ptr frame,
     cv::Point2f abs_diff =
         cv::Point2d(std::abs(pts_diff[i].x), std::abs(pts_diff[i].y));
     cv::Point2f ddiff = abs_diff - ave;
-    if (std::abs(ddiff.y) > 3 + 3 * stddev.y ||
+    if (std::abs(ddiff.y) > 1 + 3 * stddev.y ||
         std::abs(ddiff.x) > 3 + 3 * stddev.x) {
       // if (std::abs(diff.y) > stddev.y) {
       std::cout << "[INFO]: outlier, ddiff.x=" << ddiff.x
@@ -192,10 +192,28 @@ int Frame::matchWith(const Frame::Ptr frame,
                     frame->un_keypoints_, good_matches, un_img_good_match);
     cv::resize(un_img_good_match, un_img_good_match, {0, 0}, 0.4, 0.4);
     cv::imshow("undistorted_good_matches", un_img_good_match);
-    cv::waitKey();
   }
 
   return good_matches.size();
+}
+
+cv::Point2f Frame::project(const cv::Mat &x3D) {
+  cv::Mat ret = camera_model_->getNewK() * (Rcw_ * x3D + tcw_);
+  ret = ret / ret.at<double>(2);
+  return cv::Point2f(ret.at<double>(0), ret.at<double>(1));
+}
+
+cv::Point2f Frame::project(const double &x, const double &y, const double &z) {
+  cv::Mat x3D(3, 1, CV_64F);
+  x3D.at<double>(0) = x;
+  x3D.at<double>(1) = y;
+  x3D.at<double>(2) = z;
+  return project(x3D);
+}
+
+bool Frame::checkDepthValid(const cv::Mat &x3D) {
+  cv::Mat x3Dc = Rcw_ * x3D + tcw_;
+  return x3Dc.at<double>(2) > 0;
 }
 
 Eigen::Matrix3d Frame::getEigenR() const {
@@ -284,6 +302,16 @@ void Frame::debugDraw() {
   cv::resize(mat, mat, {0, 0}, 0.4, 0.4);
   cv::imshow("debug draw", mat);
   cv::waitKey();
+}
+
+int Frame::debugCountMappoints() {
+  int cnt = 0;
+  for (const int &i : mappoint_idx_) {
+    if (i >= 0) {
+      cnt++;
+    }
+  }
+  return cnt;
 }
 
 int Frame::total_frame_cnt_ = 0;

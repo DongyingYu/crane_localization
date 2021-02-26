@@ -76,6 +76,22 @@ private:
                    const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D);
 
   /**
+   * @brief 计算像素误差平方和
+   * 
+   * @param[in] uv_error 像素误差
+   * @return float 范围误差平方和
+   */
+  float squareUvError(const cv::Point2f &uv_error);
+
+  /**
+   * @brief 插入地图点
+   * 
+   * @param[in] mp 地图点
+   * @return int 返回插入地图点的索引id
+   */
+  int insertMapPoint(const MapPoint::Ptr &mp);
+
+  /**
    * @brief 检查R, t, n是否正确(目前没有检查法向量)
    *
    * @param R 旋转

@@ -42,7 +42,7 @@ public:
    * @param[in out] map 待优化的地图
    * @param[in] n_iteration 迭代次数
    */
-  static void mapBundleAdjustment(Map::Ptr map, const int &n_iteration = 10);
+  static void mapBundleAdjustment(Map::Ptr map, const int &n_iteration = 25);
 };
 
 namespace g2o {
@@ -119,9 +119,16 @@ public:
     const VertexLineTranslation *v2 =
         static_cast<VertexLineTranslation *>(_vertices[1]);
     SE3Quat se3quat(v1->estimate(), Vector3(v2->estimate(), 0, 0));
-
+    // std::cout << "[DEBUG]: SE3Quat: " << se3quat << std::endl;
     // 计算像素误差
-    _error = obs - cam_project(se3quat.map(Xw));
+    Vector3 Xc = se3quat.map(Xw);
+    Vector2 proj = cam_project(Xc);
+    _error = obs - proj;
+    // std::cout << "[DEBUG]: Xw: " << Xw.transpose() << std::endl;
+    // std::cout << "[DEBUG]: Xc: " << Xc.transpose() << std::endl;
+    // std::cout << "[DEBUG]: obs: " << obs.transpose() << std::endl;
+    // std::cout << "[DEBUG]: proj: " << proj.transpose() << std::endl;
+    // std::cout << "[DEBUG]: _error: " << _error.transpose() << std::endl;
   }
 
   void linearizeOplus() {
@@ -156,6 +163,7 @@ public:
     Vector2 res;
     res[0] = fx * trans_xyz[0] / trans_xyz[2] + cx;
     res[1] = fx * trans_xyz[1] / trans_xyz[2] + cy;
+    return res;
   }
 
   Vector3 Xw;
