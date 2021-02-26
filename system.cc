@@ -8,7 +8,6 @@
  * @copyright Copyright (c) 2021
  *
  */
-
 #include "system.h"
 #include "optimizer.h"
 
@@ -27,6 +26,9 @@ void System::run() {
     if (!last_frame_) {
       // 只有一帧，啥事也不干
       continue;
+    }
+    if(1){
+      //添加初始定位代码
     }
     if (!cur_map_) {
       cv::Mat R, t;

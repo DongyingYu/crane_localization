@@ -32,3 +32,5 @@
 *.app
 
 build
+# 词典文件
+Vocabulary/

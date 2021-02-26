@@ -9,7 +9,7 @@
 
 ## 依赖
 
-opencv （在4.1.0上测试通过，3.2.0应该也可以，暂未测试）
+opencv （在4.1.0上测试通过，3.4.1测试通过，3.2.0应该也可以，暂未测试）
 
 ## 运行
 
@@ -26,12 +26,16 @@ make -j
 cd ../../..
 
 #编译DBoW2(todo)
-
+mkdir build
+cd build
+cmake -D OpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..
+make -j
+cd ../../..
 
 #编译
 mkdir build
 cd build
-cmake .. -DOpenCV_DIR="/usr/local/opencv341/share/OpenCV"
+cmake -D OpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..
 make -j
 
 #运行(todo)
@@ -70,5 +74,11 @@ export LD_LIBRARY_PATH=${g2o_path}
 
 ./test/test_system
 
+
+# DBoW2相似性评估
+./test/test_DBoW2
+
+# 词典训练
+./test/test_trainingVoc
 
 ```

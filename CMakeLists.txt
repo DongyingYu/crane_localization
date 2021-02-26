@@ -22,7 +22,9 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/g2o
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/g2o/build
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/DBoW2
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/DBoW2/DBoW2
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/DBoW2/DUtils
 )
-
 
 add_subdirectory(test)

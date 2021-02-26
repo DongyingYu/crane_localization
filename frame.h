@@ -15,12 +15,16 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <iostream>
+#include <fstream>
 #include <memory>
+#include "third_party/DBoW2/DBoW2/BowVector.h"
+#include "third_party/DBoW2/DBoW2/FeatureVector.h"
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
+#include "ORBVocabulary.h"
 
 /**
  * @brief 普通图像帧
@@ -33,10 +37,12 @@ public:
   using Ptr = std::shared_ptr<Frame>;
 
   // ctor
+  Frame();
   Frame(const cv::Mat &img);
   Frame(const cv::Mat &img, const Intrinsic &intrinsic);
   Frame(const cv::Mat &img, const Intrinsic &intrinsic,
         const UndistorterFisheye::Ptr &undistorter);
+  Frame(const cv::Mat &img,  ORBVocabulary* voc);
 
   /**
    * @brief 与另一帧进行特征点匹配，并根据距离，进行简单筛选
@@ -68,6 +74,20 @@ public:
   void rotateWorld(const Eigen::Quaterniond &q_ds);
 
   void debugDraw();
+
+    // 描述子格式转换
+  std::vector<cv::Mat> toDescriptorVector();
+
+    // Compute Bag of Words representation.
+  void computeBoW();
+
+    // 相似性得分计算
+  float computeScore(const DBoW2::BowVector &v1, const DBoW2::BowVector &v2);
+
+  DBoW2::BowVector getBowVoc();
+
+  // 创建词典
+  void createVocabulary(ORBVocabulary &voc, std::string &filename, const std::vector<std::vector<cv::Mat>> &descriptors);
 
 public:
   // 相机内参
@@ -101,6 +121,16 @@ public:
   Intrinsic un_intrinsic_;                 // 去畸变后的相机内参
   std::vector<cv::KeyPoint> un_keypoints_; // 去畸变后的特征点
   cv::Mat un_img_;                         // 去畸变后的图像
+
+  // Vocabulary used for relocalization.
+  ORBVocabulary* pORBvocabulary;
+
+  // Bag of Words Vector structures.
+  DBoW2::BowVector bow_vec_;
+  DBoW2::FeatureVector feat_vec_;
+
+  // 相似性得分
+  float score_;
 
 private:
   /**
