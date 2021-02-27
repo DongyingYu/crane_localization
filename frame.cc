@@ -244,6 +244,14 @@ void Frame::setPose(const Eigen::Matrix4d &mat) {
   Tcw_.rowRange(0, 3).col(3).copyTo(tcw_);
 }
 
+void Frame::setPose(const Eigen::Matrix3d &R, const Eigen::Vector3d &t) {
+  cv::eigen2cv(R, Rcw_);
+  cv::eigen2cv(t, tcw_);
+  Tcw_ = cv::Mat::zeros(4, 4, CV_64F);
+  Rcw_.copyTo(Tcw_.rowRange(0, 3).colRange(0, 3));
+  tcw_.copyTo(Tcw_.rowRange(0, 3).col(3));
+}
+
 void Frame::setPose(const cv::Mat &mat) {
   mat.copyTo(Tcw_);
   Tcw_.rowRange(0, 3).colRange(0, 3).copyTo(Rcw_);

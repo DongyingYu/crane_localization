@@ -76,6 +76,7 @@ public:
   Eigen::Matrix3d getEigenRwc() const;
   Eigen::Vector3d getEigenTwc() const;
   void setPose(const Eigen::Matrix4d &mat);
+  void setPose(const Eigen::Matrix3d &R, const Eigen::Vector3d &t);
   void setPose(const cv::Mat &mat);
   void setPose(const cv::Mat &R, const cv::Mat &t);
 

@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
         Eigen::Vector3d twc1 = map->frames_.back()->getEigenTwc();
         std::cout << "[INFO]: twc after g2o: " << toString(twc1) << std::endl;
 
-        G2oOptimizerForLinearMotion::mapBundleAdjustment(map);
+        G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(map);
         Eigen::Vector3d twc2 = map->frames_.back()->getEigenTwc();
         std::cout << "[INFO]: twc after constrained g2o: " << toString(twc2)
                   << std::endl;

@@ -43,6 +43,7 @@ add_executable(test_system
   ../utils.cc
   ../mappoint.cc
   ../camera_model.cc
+  ../g2o_types_linear_motion.cc
 )
 
 target_link_libraries(test_system

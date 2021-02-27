@@ -275,8 +275,8 @@ G2oOptimizerForLinearMotion::calMinRotation(const Eigen::Vector3d &src,
   return q;
 }
 
-void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
-                                                      const int &n_iteration) {
+void G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(
+    Map::Ptr map, const int &n_iteration) {
 
   // map->rotateFrameToXTranslation();
 
@@ -300,7 +300,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
     optimizer.addVertex(v);
   }
 
-  using EdgeVec = std::vector<g2o::EdgeSO3LinearMotionProjectXYZOnlyPose *>;
+  using EdgeVec = std::vector<g2o::EdgeLinearMotionOnlyPose *>;
   EdgeVec edges_all;
   std::unordered_map<int, EdgeVec> edges_frame;
 
@@ -341,7 +341,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
 
       Eigen::Matrix3d K;
       cv::cv2eigen(frame->camera_model_->getNewK(), K);
-      auto e = new g2o::EdgeSO3LinearMotionProjectXYZOnlyPose(Xw, K);
+      auto e = new g2o::EdgeLinearMotionOnlyPose(Xw, K);
       e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(
                           optimizer.vertex(0)));
       e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(
@@ -394,5 +394,191 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
     }
     statistic(chi2s, "frame " + std::to_string(frame_id) +
                          ": edges' chi2 before optimize");
+  }
+}
+
+void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
+                                                      const int &n_iteration) {
+
+  // map->rotateFrameToXTranslation();
+
+  // optimizer
+  g2o::SparseOptimizer optimizer;
+  optimizer.setVerbose(true);
+  using BlockSolverType = g2o::BlockSolverX;
+  using LinearSolverType =
+      g2o::LinearSolverEigen<BlockSolverType::PoseMatrixType>;
+  auto solver = new g2o::OptimizationAlgorithmLevenberg(
+      g2o::make_unique<BlockSolverType>(g2o::make_unique<LinearSolverType>()));
+  optimizer.setAlgorithm(solver);
+
+  // 顶点类型1：公共的旋转量
+  {
+    auto v = new g2o::VertexSO3Expmap();
+    v->setId(0);
+    auto q = Eigen::Quaterniond(map->frames_.front()->getEigenR());
+    std::cout << "[DEBUG]: shared rotation: " << toString(q) << std::endl;
+    v->setEstimate(q);
+    optimizer.addVertex(v);
+  }
+
+  using EdgeVec = std::vector<g2o::EdgeLinearMotion *>;
+  EdgeVec edges_all;
+  std::unordered_map<int, EdgeVec> edges_frame;
+
+  // 顶点类型2：每一帧的平移量（设定为x方向）
+  int frame_id_max = -1;
+  for (int i = 0; i < map->frames_.size(); ++i) {
+    int frame_id = map->frames_[i]->frame_id_;
+    frame_id_max = std::max(frame_id_max, frame_id);
+    edges_frame[frame_id] = EdgeVec();
+
+    Eigen::Vector3d trans = map->frames_[i]->getEigenT();
+    std::cout << "[DEBUG]: trans of frame " << frame_id << ": "
+              << toString(trans) << std::endl;
+
+    auto v = new g2o::VertexLineTranslation();
+    v->setId(1 + frame_id);
+    v->setFixed(frame_id == 0);
+    v->setEstimate(trans[0]);
+    optimizer.addVertex(v);
+  }
+
+  // 顶点类型3：地图点
+  for (int i = 0; i < map->mappoints_.size(); ++i) {
+    int id = frame_id_max + 1 + 1 + i;
+    auto v = new g2o::VertexSBAPointXYZ();
+    v->setId(id);
+    v->setEstimate(map->mappoints_[i]->toEigenVector3d());
+    v->setMarginalized(true);
+    optimizer.addVertex(v);
+
+    MapPoint::Ptr &mp = map->mappoints_[i];
+    Eigen::Vector3d Xw = mp->toEigenVector3d();
+
+    for (const std::pair<int, int> &obs : mp->observations_) {
+      int frame_id = obs.first;
+      if (!optimizer.vertex(frame_id + 1)) {
+        std::cout << "[WARNING]: some observations not used in g2o"
+                  << std::endl;
+        continue;
+      }
+      int keypoint_id = obs.second;
+      Frame::Ptr frame = map->frames_[frame_id];
+      assert(frame_id == frame->frame_id_);
+      auto kp = frame->un_keypoints_[keypoint_id];
+      Eigen::Vector2d uv(kp.pt.x, kp.pt.y);
+
+      Eigen::Matrix3d K;
+      cv::cv2eigen(frame->camera_model_->getNewK(), K);
+
+      auto e = new g2o::EdgeLinearMotion(K);
+      e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(
+                          optimizer.vertex(0)));
+      e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(
+                          optimizer.vertex(1 + frame_id)));
+      e->setVertex(2, dynamic_cast<g2o::OptimizableGraph::Vertex *>(
+                          optimizer.vertex(id)));
+      e->setMeasurement(uv);
+      e->setInformation(Eigen::Matrix2d::Identity());
+
+      edges_frame[frame_id].emplace_back(e);
+      edges_all.emplace_back(e);
+      optimizer.addEdge(e);
+    }
+  }
+
+  // optimize
+  optimizer.initializeOptimization();
+  {
+    std::vector<double> chi2s;
+    for (auto &e : edges_all) {
+      e->computeError();
+      chi2s.emplace_back(e->chi2());
+    }
+    statistic(chi2s, "edges' chi2 before optimize");
+  }
+  for (auto &it : edges_frame) {
+    int frame_id = it.first;
+    EdgeVec edges = it.second;
+    std::vector<double> chi2s;
+    for (auto &e : edges) {
+      chi2s.emplace_back(e->chi2());
+    }
+    statistic(chi2s, "frame " + std::to_string(frame_id) +
+                         ": edges' chi2 before optimize");
+  }
+
+  optimizer.optimize(n_iteration);
+
+  {
+    std::vector<double> chi2s;
+    for (auto &e : edges_all) {
+      chi2s.emplace_back(e->chi2());
+    }
+    statistic(chi2s, "edges' chi2 after optimize");
+  }
+  for (auto &it : edges_frame) {
+    int frame_id = it.first;
+    EdgeVec edges = it.second;
+    std::vector<double> chi2s;
+    for (auto &e : edges) {
+      chi2s.emplace_back(e->chi2());
+    }
+    statistic(chi2s, "frame " + std::to_string(frame_id) +
+                         ": edges' chi2 before optimize");
+  }
+
+  // optimize result
+  Eigen::Matrix3d rotation;
+  {
+    auto v = static_cast<g2o::VertexSO3Expmap *>(optimizer.vertex(0));
+    rotation = v->estimate().toRotationMatrix();
+  }
+
+  // camera pose
+  for (int i = 0; i < map->frames_.size(); ++i) {
+    int frame_id = map->frames_[i]->frame_id_;
+    auto v = static_cast<g2o::VertexLineTranslation *>(
+        optimizer.vertex(frame_id + 1));
+    Eigen::Vector3d trans = Eigen::Vector3d(0, 0, 0);
+    trans[0] = v->estimate();
+    map->frames_[i]->setPose(rotation, trans);
+  }
+
+  // mappoints
+  for (int i = 0; i < map->mappoints_.size(); ++i) {
+    auto &mp = map->mappoints_[i];
+    int id = frame_id_max + 1 + 1+ i;
+    auto v = static_cast<g2o::VertexSBAPointXYZ *>(optimizer.vertex(id));
+    Eigen::Vector3d evec = v->estimate();
+
+    // 输出第一个数据，做debug用
+    if (i == 0) {
+      Frame::Ptr frame = map->frames_.front();
+      cv::Point2f proj_before = frame->project(mp->x_, mp->y_, mp->z_);
+      cv::Point2f proj_after = frame->project(evec[0], evec[1], evec[2]);
+
+      std::cout << "mp: before " << mp->toEigenVector3d().transpose()
+                << std::endl;
+      std::cout << "mp: after " << evec.transpose() << std::endl;
+
+      int kp_idx = -1;
+      for (const auto &obs : mp->observations_) {
+        if (obs.first == frame->frame_id_) {
+          kp_idx = obs.second;
+          break;
+        }
+      }
+      if (kp_idx < 0) {
+        std::cout << "[ERROR]: not found kp " << std::endl;
+        exit(-1);
+      }
+      std::cout << "uv: un_kp.pt " << frame->un_keypoints_[kp_idx].pt
+                << std::endl;
+      std::cout << "uv: proj before " << proj_before << std::endl;
+      std::cout << "uv: proj after " << proj_after << std::endl << std::endl;
+    }
+    mp->fromEigenVector3d(evec);
   }
 }
