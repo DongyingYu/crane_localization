@@ -56,7 +56,7 @@ System::System(const std::string &yaml_file, const bool &transpose_image,
 }
 
 bool System::isInputQueueEmpty() {
-  std::unique_lock<std::mutex> lock(input_mutex_);
+  std::unique_lock<std::mutex> lock(mutex_input_);
   return input_frames_.empty();
 }
 
@@ -66,7 +66,7 @@ void System::insertNewImage(const cv::Mat &img) {
     cv::transpose(img, image);
   }
   Frame::Ptr frame = std::make_shared<Frame>(image, camera_model_);
-  std::unique_lock<std::mutex> lock(input_mutex_);
+  std::unique_lock<std::mutex> lock(mutex_input_);
   input_frames_.emplace_back(frame);
 }
 
@@ -77,7 +77,7 @@ void System::run() {
       continue;
     }
     {
-      std::unique_lock<std::mutex> lock(input_mutex_);
+      std::unique_lock<std::mutex> lock(mutex_input_);
       last_frame_ = cur_frame_;
       cur_frame_ = input_frames_.front();
       input_frames_.pop_front();
@@ -102,10 +102,10 @@ void System::run() {
       cv::waitKey();
     } else {
       std::cout << "[INFO]: track new frame with cur_map: "
-                << cur_frame_->frame_id_ << std::endl;
+                << cur_frame_->getFrameId() << std::endl;
       cur_map_->trackNewFrame(cur_frame_);
 
-      cur_map_->frames_.emplace_back(cur_frame_);
+      cur_map_->insertFrame(cur_frame_);
       G2oOptimizerForLinearMotion::mapBundleAdjustment(cur_map_);
       std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
       cur_map_->printMap();

@@ -14,6 +14,7 @@
 #include <Eigen/Dense>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/features2d/features2d.hpp>
@@ -54,7 +55,7 @@ public:
    * @return cv::Point2f 投影到相机上的像素坐标
    */
   cv::Point2f project(const cv::Mat &x3D);
-
+  cv::Point2f project(const Eigen::Vector3d &mappoint);
   cv::Point2f project(const double &x, const double &y, const double &z);
 
   /**
@@ -65,20 +66,33 @@ public:
    */
   bool checkDepthValid(const cv::Mat &x3D);
 
-  /**
-   * @brief 获取投影矩阵 K[R, t]，大小为3行4列
-   */
-  cv::Mat getProjectionMatrix();
+  // 特征点 access
+  std::vector<cv::KeyPoint> getUnKeyPoints() const;
+  cv::KeyPoint getUnKeyPoints(const int &keypoint_idx) const;
 
-  // 位姿相关的get/set函数
-  Eigen::Matrix3d getEigenR() const;
-  Eigen::Vector3d getEigenT() const;
-  Eigen::Matrix3d getEigenRwc() const;
-  Eigen::Vector3d getEigenTwc() const;
+  // 地图点索引 access
+  std::vector<int> getMappointIdx() const;
+  int getMappointIdx(const int &keypoint_idx) const;
+  void setMappointIdx(const int &keypoint_idx, const int &mappoint_idx);
+
+  // 位姿相关 access
+  Eigen::Matrix3d getEigenRot();
+  Eigen::Vector3d getEigenTrans();
+  Eigen::Matrix3d getEigenRotWc();
+  Eigen::Vector3d getEigenTransWc();
+  cv::Mat getPose();
   void setPose(const Eigen::Matrix4d &mat);
   void setPose(const Eigen::Matrix3d &R, const Eigen::Vector3d &t);
   void setPose(const cv::Mat &mat);
   void setPose(const cv::Mat &R, const cv::Mat &t);
+
+  // frame id access
+  int getFrameId() const;
+
+  /**
+   * @brief 获取投影矩阵 K[R, t]，大小为3行4列
+   */
+  cv::Mat getProjectionMatrix();
 
   /**
    * @brief 切换世界坐标系，将世界坐标系src切换为dst，src和dst之间只差一个旋转
@@ -92,7 +106,15 @@ public:
   void debugDraw(const double &scale_image = 1.0);
   int debugCountMappoints();
 
-public:
+  // 特征点、描述符、匹配相关
+  static cv::Ptr<cv::FeatureDetector> detector_;
+  static cv::Ptr<cv::DescriptorExtractor> extrator_;
+  static cv::Ptr<cv::DescriptorMatcher> matcher_;
+
+  // 相机模型（包含畸变模型）
+  CameraModel::Ptr camera_model_;
+
+private:
   // 图片，特征点，描述符
   cv::Mat img_;
   cv::Mat un_img_; // 去畸变后的图像
@@ -103,14 +125,10 @@ public:
   // 特征点对应的3D空间点
   std::vector<int> mappoint_idx_;
 
-  // 特征点、描述符、匹配相关
-  static cv::Ptr<cv::FeatureDetector> detector_;
-  static cv::Ptr<cv::DescriptorExtractor> extrator_;
-  static cv::Ptr<cv::DescriptorMatcher> matcher_;
-
   // 代码中Tcw，表示位姿T^w_c。
   // 假设：点在相机坐标系下的值P_c，点在世界坐标系下的坐标值P_w，则
   // P_c = T^w_c * P_w；代码中即：Pc = Tcw * Pw。
+  std::mutex mutex_pose_;
   cv::Mat Tcw_;
   cv::Mat Rcw_;
   cv::Mat tcw_;
@@ -118,9 +136,6 @@ public:
   // id
   int frame_id_;
   static int total_frame_cnt_;
-
-  // 相机模型（包含畸变模型）
-  CameraModel::Ptr camera_model_;
 
 private:
   /**

@@ -203,11 +203,11 @@ cv::Point2f Frame::project(const cv::Mat &x3D) {
   return cv::Point2f(ret.at<double>(0), ret.at<double>(1));
 }
 
-cv::Point2f Frame::project(const double &x, const double &y, const double &z) {
+cv::Point2f Frame::project(const Eigen::Vector3d &mappoint) {
   cv::Mat x3D(3, 1, CV_64F);
-  x3D.at<double>(0) = x;
-  x3D.at<double>(1) = y;
-  x3D.at<double>(2) = z;
+  x3D.at<double>(0) = mappoint[0];
+  x3D.at<double>(1) = mappoint[1];
+  x3D.at<double>(2) = mappoint[2];
   return project(x3D);
 }
 
@@ -216,35 +216,64 @@ bool Frame::checkDepthValid(const cv::Mat &x3D) {
   return x3Dc.at<double>(2) > 0;
 }
 
-Eigen::Matrix3d Frame::getEigenR() const {
+std::vector<cv::KeyPoint> Frame::getUnKeyPoints() const {
+  return un_keypoints_;
+}
+
+cv::KeyPoint Frame::getUnKeyPoints(const int &keypoint_idx) const {
+  return un_keypoints_[keypoint_idx];
+}
+
+std::vector<int> Frame::getMappointIdx() const { return mappoint_idx_; }
+
+int Frame::getMappointIdx(const int &keypoint_idx) const {
+  return mappoint_idx_[keypoint_idx];
+}
+
+void Frame::setMappointIdx(const int &keypoint_idx, const int &mappoint_idx) {
+  mappoint_idx_[keypoint_idx] = mappoint_idx;
+}
+
+Eigen::Matrix3d Frame::getEigenRot() {
   Eigen::Matrix3d ret;
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   cv::cv2eigen(Rcw_, ret);
   return ret;
 }
 
-Eigen::Vector3d Frame::getEigenT() const {
+Eigen::Vector3d Frame::getEigenTrans() {
   Eigen::Vector3d ret;
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   cv::cv2eigen(tcw_, ret);
   return ret;
 }
 
-Eigen::Matrix3d Frame::getEigenRwc() const { return getEigenR().inverse(); }
-Eigen::Vector3d Frame::getEigenTwc() const {
-  return -getEigenR().inverse() * getEigenT();
+Eigen::Matrix3d Frame::getEigenRotWc() { return getEigenRot().inverse(); }
+
+Eigen::Vector3d Frame::getEigenTransWc() {
+  return -getEigenRot().inverse() * getEigenTrans();
+}
+
+cv::Mat Frame::getPose() {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
+  return Tcw_;
 }
 
 cv::Mat Frame::getProjectionMatrix() {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   cv::Mat P = camera_model_->getNewK() * Tcw_.rowRange(0, 3);
   return P;
 }
 
 void Frame::setPose(const Eigen::Matrix4d &mat) {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   cv::eigen2cv(mat, Tcw_);
   Tcw_.rowRange(0, 3).colRange(0, 3).copyTo(Rcw_);
   Tcw_.rowRange(0, 3).col(3).copyTo(tcw_);
 }
 
 void Frame::setPose(const Eigen::Matrix3d &R, const Eigen::Vector3d &t) {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   cv::eigen2cv(R, Rcw_);
   cv::eigen2cv(t, tcw_);
   Tcw_ = cv::Mat::zeros(4, 4, CV_64F);
@@ -253,12 +282,14 @@ void Frame::setPose(const Eigen::Matrix3d &R, const Eigen::Vector3d &t) {
 }
 
 void Frame::setPose(const cv::Mat &mat) {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   mat.copyTo(Tcw_);
   Tcw_.rowRange(0, 3).colRange(0, 3).copyTo(Rcw_);
   Tcw_.rowRange(0, 3).col(3).copyTo(tcw_);
 }
 
 void Frame::setPose(const cv::Mat &R, const cv::Mat &t) {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   R.copyTo(Rcw_);
   t.copyTo(tcw_);
   Tcw_ = cv::Mat::zeros(4, 4, CV_64F);
@@ -268,8 +299,8 @@ void Frame::setPose(const cv::Mat &R, const cv::Mat &t) {
 
 void Frame::rotateWorld(const Eigen::Quaterniond &q_ds) {
   Eigen::Isometry3d Tcs = Eigen::Isometry3d::Identity();
-  Tcs.rotate(getEigenR());
-  Tcs.pretranslate(getEigenT());
+  Tcs.rotate(getEigenRot());
+  Tcs.pretranslate(getEigenTrans());
 
   Eigen::Isometry3d Tsc = Tcs.inverse();
   std::cout << "Tcs: " << std::endl << Tcs.matrix() << std::endl;
@@ -288,6 +319,8 @@ void Frame::rotateWorld(const Eigen::Quaterniond &q_ds) {
 
   setPose(Tcd.matrix());
 }
+
+int Frame::getFrameId() const { return frame_id_; }
 
 bool Frame::isCentralKp(const cv::KeyPoint &kp,
                         const double &half_center_factor) {

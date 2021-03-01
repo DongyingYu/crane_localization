@@ -47,11 +47,11 @@ public:
 
 public:
   // 数据输入
-  std::mutex input_mutex_;
+  std::mutex mutex_input_;
   std::list<Frame::Ptr> input_frames_;
 
   // 当前地图
-  std::mutex map_mutex_;
+  std::mutex mutex_map;
   Map::Ptr cur_map_ = nullptr;
   // 历史地图
   std::vector<Map::Ptr> maps_;

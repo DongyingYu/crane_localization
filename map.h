@@ -45,16 +45,30 @@ public:
   bool checkInitialized();
 
   /**
+   * @brief 插入地图点
+   * @param[in] mp 地图点
+   * @return int 返回插入地图点的索引id
+   */
+  int insertMapPoint(const MapPoint::Ptr &mp);
+
+  bool removeMapPoint(const int &mp_idx);
+  MapPoint::Ptr getMapPoint(const int &mp_idx);
+  // bool setMapPointValue(const int &mp_idx, const Eigen::Vector3d & vec);
+
+  void insertFrame(const Frame::Ptr &frame);
+
+  /**
    * @brief 旋转相机的pose，使得每一帧的旋转都相同，且平移量在X轴
    */
   void rotateFrameToXTranslation();
 
   // debug
-  void printMap() const;
+  void printMap();
 
 public:
   std::mutex mutex_mappoints_;
   std::vector<MapPoint::Ptr> mappoints_;
+  std::set<int> available_mp_idx_;
 
   std::mutex mutex_frames_;
   std::vector<Frame::Ptr> frames_;
@@ -77,19 +91,11 @@ private:
 
   /**
    * @brief 计算像素误差平方和
-   * 
+   *
    * @param[in] uv_error 像素误差
    * @return float 范围误差平方和
    */
   float squareUvError(const cv::Point2f &uv_error);
-
-  /**
-   * @brief 插入地图点
-   * 
-   * @param[in] mp 地图点
-   * @return int 返回插入地图点的索引id
-   */
-  int insertMapPoint(const MapPoint::Ptr &mp);
 
   /**
    * @brief 检查R, t, n是否正确(目前没有检查法向量)

@@ -12,6 +12,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <memory> // for shared_ptr etc.
+#include <mutex>
 #include <vector>
 
 class MapPoint {
@@ -22,7 +23,7 @@ public:
 
   MapPoint(float x, float y, float z) : x_(x), y_(y), z_(z) {}
 
-  Eigen::Vector3d toEigenVector3d() const;
+  Eigen::Vector3d toEigenVector3d();
 
   void fromEigenVector3d(const Eigen::Vector3d &vec);
 
@@ -32,6 +33,8 @@ public:
   // osb.second: keypoint idx in this frame
   std::vector<std::pair<int, int>> observations_;
 
+private:
+  std::mutex mutex_;
   float x_;
   float y_;
   float z_;

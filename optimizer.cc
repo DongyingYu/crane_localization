@@ -30,18 +30,18 @@ void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
     // camera vertex
     auto v = new g2o::VertexSE3Expmap();
     v->setId(0);
-    v->setEstimate(g2o::SE3Quat(frame->getEigenR(), frame->getEigenT()));
+    v->setEstimate(g2o::SE3Quat(frame->getEigenRot(), frame->getEigenTrans()));
     optimizer.addVertex(v);
   }
 
   // edges
   int mp_cnt = 0;
-  for (int i = 0; i < frame->mappoint_idx_.size(); ++i) {
-    int mp_idx = frame->mappoint_idx_[i];
+  for (int i = 0; i < frame->getMappointIdx().size(); ++i) {
+    int mp_idx = frame->getMappointIdx(i);
     if (mp_idx < 0) {
       continue;
     }
-    auto kp = frame->un_keypoints_[i];
+    auto kp = frame->getUnKeyPoints(i);
     Eigen::Vector2d uv;
     uv << kp.pt.x, kp.pt.y;
 
@@ -57,7 +57,7 @@ void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
     e->cx = intr_vec[2];
     e->cy = intr_vec[3];
 
-    e->Xw = map->mappoints_[mp_idx]->toEigenVector3d();
+    e->Xw = map->getMapPoint(mp_idx)->toEigenVector3d();
 
     optimizer.addEdge(e);
   }
@@ -71,10 +71,10 @@ void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
   Eigen::Matrix4d mat = v->estimate().to_homogeneous_matrix();
 
   std::cout << "[INFO]: before optimization frame->Tcw_: " << std::endl;
-  std::cout << frame->Tcw_ << std::endl;
+  std::cout << frame->getPose() << std::endl;
   frame->setPose(mat);
   std::cout << "[INFO]: after optimization frame->Tcw_: " << std::endl;
-  std::cout << frame->Tcw_ << std::endl;
+  std::cout << frame->getPose() << std::endl;
 
   // // release resource
   // for (int i=0; i<int(optimizer.vertices().size()); ++i) {
@@ -111,32 +111,36 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
   int frame_id_max = -1;
   for (int i = 0; i < map->frames_.size(); ++i) {
     auto v = new g2o::VertexSE3Expmap();
-    int frame_id = map->frames_[i]->frame_id_;
+    int frame_id = map->frames_[i]->getFrameId();
     frame_id_max = std::max(frame_id_max, frame_id);
     v->setId(frame_id);
     v->setFixed(frame_id == 0);
-    v->setEstimate(g2o::SE3Quat(map->frames_[i]->getEigenR(),
-                                map->frames_[i]->getEigenT()));
+    v->setEstimate(g2o::SE3Quat(map->frames_[i]->getEigenRot(),
+                                map->frames_[i]->getEigenTrans()));
     optimizer.addVertex(v);
   }
 
   std::vector<g2o::EdgeSE3ProjectXYZ *> edges;
   // mappoint vertex and e
   for (int i = 0; i < map->mappoints_.size(); ++i) {
+    auto mp = map->getMapPoint(i);
+    if (!mp) {
+      continue;
+    }
     int id = frame_id_max + 1 + i;
     auto v = new g2o::VertexSBAPointXYZ();
     v->setId(id);
-    v->setEstimate(map->mappoints_[i]->toEigenVector3d());
+    v->setEstimate(mp->toEigenVector3d());
     v->setMarginalized(true);
     optimizer.addVertex(v);
 
-    for (const std::pair<int, int> &obs : map->mappoints_[i]->observations_) {
+    for (const std::pair<int, int> &obs : mp->observations_) {
       int frame_id = obs.first;
       if (!optimizer.vertex(frame_id)) {
         continue;
       }
       int keypoint_id = obs.second;
-      auto kp = map->frames_[frame_id]->un_keypoints_[keypoint_id];
+      auto kp = map->frames_[frame_id]->getUnKeyPoints(keypoint_id);
       Eigen::Vector2d uv;
       uv << kp.pt.x, kp.pt.y;
 
@@ -182,7 +186,7 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
 
   // camera pose
   for (int i = 0; i < map->frames_.size(); ++i) {
-    int frame_id = map->frames_[i]->frame_id_;
+    int frame_id = map->frames_[i]->getFrameId();
 
     auto v = static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(frame_id));
     Eigen::Matrix4d emat = v->estimate().to_homogeneous_matrix();
@@ -190,7 +194,10 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
   }
   // mappoints
   for (int i = 0; i < map->mappoints_.size(); ++i) {
-    auto &mp = map->mappoints_[i];
+    auto mp = map->getMapPoint(i);
+    if (!mp) {
+      continue;
+    }
     int id = frame_id_max + 1 + i;
     auto v = static_cast<g2o::VertexSBAPointXYZ *>(optimizer.vertex(id));
     Eigen::Vector3d evec = v->estimate();
@@ -198,8 +205,8 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
     // 输出第一个数据，做debug用
     if (i == 0) {
       Frame::Ptr frame = map->frames_.front();
-      cv::Point2f proj_before = frame->project(mp->x_, mp->y_, mp->z_);
-      cv::Point2f proj_after = frame->project(evec[0], evec[1], evec[2]);
+      cv::Point2f proj_before = frame->project(mp->toEigenVector3d());
+      cv::Point2f proj_after = frame->project(evec);
 
       std::cout << "mp: before " << mp->toEigenVector3d().transpose()
                 << std::endl;
@@ -207,7 +214,7 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
 
       int kp_idx = -1;
       for (const auto &obs : mp->observations_) {
-        if (obs.first == frame->frame_id_) {
+        if (obs.first == frame->getFrameId()) {
           kp_idx = obs.second;
           break;
         }
@@ -216,7 +223,7 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
         std::cout << "[ERROR]: not found kp " << std::endl;
         exit(-1);
       }
-      std::cout << "uv: un_kp.pt " << frame->un_keypoints_[kp_idx].pt
+      std::cout << "uv: un_kp.pt " << frame->getUnKeyPoints(kp_idx).pt
                 << std::endl;
       std::cout << "uv: proj before " << proj_before << std::endl;
       std::cout << "uv: proj after " << proj_after << std::endl << std::endl;
@@ -294,7 +301,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(
   {
     auto v = new g2o::VertexSO3Expmap();
     v->setId(0);
-    auto q = Eigen::Quaterniond(map->frames_.front()->getEigenR());
+    auto q = Eigen::Quaterniond(map->frames_.front()->getEigenRot());
     std::cout << "[DEBUG]: shared rotation: " << toString(q) << std::endl;
     v->setEstimate(q);
     optimizer.addVertex(v);
@@ -306,10 +313,10 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(
 
   // 顶点类型2：每一帧的平移量（设定为x方向）
   for (int i = 0; i < map->frames_.size(); ++i) {
-    int frame_id = map->frames_[i]->frame_id_;
+    int frame_id = map->frames_[i]->getFrameId();
     edges_frame[frame_id] = EdgeVec();
 
-    Eigen::Vector3d trans = map->frames_[i]->getEigenT();
+    Eigen::Vector3d trans = map->frames_[i]->getEigenTrans();
     std::cout << "[DEBUG]: trans of frame " << frame_id << ": "
               << toString(trans) << std::endl;
 
@@ -323,7 +330,10 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(
 
   // 边
   for (int i = 0; i < map->mappoints_.size(); ++i) {
-    MapPoint::Ptr &mp = map->mappoints_[i];
+    MapPoint::Ptr mp = map->getMapPoint(i);
+    if (!mp) {
+      continue;
+    }
     Eigen::Vector3d Xw = mp->toEigenVector3d();
 
     for (const std::pair<int, int> &obs : mp->observations_) {
@@ -335,8 +345,8 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(
       }
       int keypoint_id = obs.second;
       Frame::Ptr frame = map->frames_[frame_id];
-      assert(frame_id == frame->frame_id_);
-      auto kp = frame->un_keypoints_[keypoint_id];
+      assert(frame_id == frame->getFrameId());
+      auto kp = frame->getUnKeyPoints(keypoint_id);
       Eigen::Vector2d uv(kp.pt.x, kp.pt.y);
 
       Eigen::Matrix3d K;
@@ -416,7 +426,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
   {
     auto v = new g2o::VertexSO3Expmap();
     v->setId(0);
-    auto q = Eigen::Quaterniond(map->frames_.front()->getEigenR());
+    auto q = Eigen::Quaterniond(map->frames_.front()->getEigenRot());
     std::cout << "[DEBUG]: shared rotation: " << toString(q) << std::endl;
     v->setEstimate(q);
     optimizer.addVertex(v);
@@ -429,11 +439,11 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
   // 顶点类型2：每一帧的平移量（设定为x方向）
   int frame_id_max = -1;
   for (int i = 0; i < map->frames_.size(); ++i) {
-    int frame_id = map->frames_[i]->frame_id_;
+    int frame_id = map->frames_[i]->getFrameId();
     frame_id_max = std::max(frame_id_max, frame_id);
     edges_frame[frame_id] = EdgeVec();
 
-    Eigen::Vector3d trans = map->frames_[i]->getEigenT();
+    Eigen::Vector3d trans = map->frames_[i]->getEigenTrans();
     std::cout << "[DEBUG]: trans of frame " << frame_id << ": "
               << toString(trans) << std::endl;
 
@@ -446,14 +456,17 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
 
   // 顶点类型3：地图点
   for (int i = 0; i < map->mappoints_.size(); ++i) {
+    auto mp = map->getMapPoint(i);
+    if (!mp) {
+      continue;
+    }
     int id = frame_id_max + 1 + 1 + i;
     auto v = new g2o::VertexSBAPointXYZ();
     v->setId(id);
-    v->setEstimate(map->mappoints_[i]->toEigenVector3d());
+    v->setEstimate(mp->toEigenVector3d());
     v->setMarginalized(true);
     optimizer.addVertex(v);
 
-    MapPoint::Ptr &mp = map->mappoints_[i];
     Eigen::Vector3d Xw = mp->toEigenVector3d();
 
     for (const std::pair<int, int> &obs : mp->observations_) {
@@ -465,8 +478,8 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
       }
       int keypoint_id = obs.second;
       Frame::Ptr frame = map->frames_[frame_id];
-      assert(frame_id == frame->frame_id_);
-      auto kp = frame->un_keypoints_[keypoint_id];
+      assert(frame_id == frame->getFrameId());
+      auto kp = frame->getUnKeyPoints(keypoint_id);
       Eigen::Vector2d uv(kp.pt.x, kp.pt.y);
 
       Eigen::Matrix3d K;
@@ -538,7 +551,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
 
   // camera pose
   for (int i = 0; i < map->frames_.size(); ++i) {
-    int frame_id = map->frames_[i]->frame_id_;
+    int frame_id = map->frames_[i]->getFrameId();
     auto v = static_cast<g2o::VertexLineTranslation *>(
         optimizer.vertex(frame_id + 1));
     Eigen::Vector3d trans = Eigen::Vector3d(0, 0, 0);
@@ -548,16 +561,19 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
 
   // mappoints
   for (int i = 0; i < map->mappoints_.size(); ++i) {
-    auto &mp = map->mappoints_[i];
-    int id = frame_id_max + 1 + 1+ i;
+    auto mp = map->getMapPoint(i);
+    if (!mp) {
+      continue;
+    }
+    int id = frame_id_max + 1 + 1 + i;
     auto v = static_cast<g2o::VertexSBAPointXYZ *>(optimizer.vertex(id));
     Eigen::Vector3d evec = v->estimate();
 
     // 输出第一个数据，做debug用
     if (i == 0) {
       Frame::Ptr frame = map->frames_.front();
-      cv::Point2f proj_before = frame->project(mp->x_, mp->y_, mp->z_);
-      cv::Point2f proj_after = frame->project(evec[0], evec[1], evec[2]);
+      cv::Point2f proj_before = frame->project(mp->toEigenVector3d());
+      cv::Point2f proj_after = frame->project(evec);
 
       std::cout << "mp: before " << mp->toEigenVector3d().transpose()
                 << std::endl;
@@ -565,7 +581,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
 
       int kp_idx = -1;
       for (const auto &obs : mp->observations_) {
-        if (obs.first == frame->frame_id_) {
+        if (obs.first == frame->getFrameId()) {
           kp_idx = obs.second;
           break;
         }
@@ -574,7 +590,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
         std::cout << "[ERROR]: not found kp " << std::endl;
         exit(-1);
       }
-      std::cout << "uv: un_kp.pt " << frame->un_keypoints_[kp_idx].pt
+      std::cout << "uv: un_kp.pt " << frame->getUnKeyPoints(kp_idx).pt
                 << std::endl;
       std::cout << "uv: proj before " << proj_before << std::endl;
       std::cout << "uv: proj after " << proj_after << std::endl << std::endl;

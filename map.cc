@@ -27,6 +27,7 @@ void Map::clear() {
   {
     std::unique_lock<std::mutex> lock(mutex_mappoints_);
     mappoints_.clear();
+    available_mp_idx_.clear();
   }
   {
     std::unique_lock<std::mutex> lock(mutex_frames_);
@@ -35,7 +36,7 @@ void Map::clear() {
 }
 
 bool Map::trackNewFrame(Frame::Ptr curr_frame) {
-  std::cout << "[TRACK]: track new frame " << curr_frame->frame_id_
+  std::cout << "[TRACK]: track new frame " << curr_frame->getFrameId()
             << std::endl;
   Frame::Ptr last_frame = frames_.back();
 
@@ -53,19 +54,22 @@ bool Map::trackNewFrame(Frame::Ptr curr_frame) {
   // 2. 使用PnP给出当前帧的相机位姿
   int cnt_3d = 0;
   for (const cv::DMatch &m : good_matches) {
-    int mp_idx = last_frame->mappoint_idx_[m.queryIdx];
+    int mp_idx = last_frame->getMappointIdx(m.queryIdx);
     if (mp_idx >= 0) {
       cnt_3d++;
-      curr_frame->mappoint_idx_[m.trainIdx] = mp_idx;
-      auto obs = std::pair<int, int>(curr_frame->frame_id_, m.trainIdx);
-      mappoints_[mp_idx]->observations_.emplace_back(obs);
+      curr_frame->setMappointIdx(m.trainIdx, mp_idx);
+      auto obs = std::pair<int, int>(curr_frame->getFrameId(), m.trainIdx);
+      {
+        std::unique_lock<std::mutex> lock(mutex_mappoints_);
+        mappoints_[mp_idx]->observations_.emplace_back(obs);
+      }
     } else {
       ;
     }
   }
   std::cout << "[INFO]: cnt_3d=" << cnt_3d << " cnt_not_3d=" << n_match - cnt_3d
             << std::endl;
-  curr_frame->setPose(last_frame->Tcw_);
+  curr_frame->setPose(last_frame->getPose());
   G2oOptimizer::optimizeFramePose(curr_frame, this, 10);
 
   cv::Mat P1 = last_frame->getProjectionMatrix();
@@ -73,12 +77,12 @@ bool Map::trackNewFrame(Frame::Ptr curr_frame) {
 
   // 3. 将剩余配对特征点三角化
   for (const cv::DMatch &m : good_matches) {
-    int mp_idx = last_frame->mappoint_idx_[m.queryIdx];
+    int mp_idx = last_frame->getMappointIdx(m.queryIdx);
     if (mp_idx >= 0) {
       ;
     } else {
-      cv::KeyPoint kp1 = last_frame->un_keypoints_[m.queryIdx];
-      cv::KeyPoint kp2 = curr_frame->un_keypoints_[m.trainIdx];
+      cv::KeyPoint kp1 = last_frame->getUnKeyPoints(m.queryIdx);
+      cv::KeyPoint kp2 = curr_frame->getUnKeyPoints(m.trainIdx);
       cv::Mat x3D;
       triangulate(kp1, kp2, P1, P2, x3D);
 
@@ -107,19 +111,19 @@ bool Map::trackNewFrame(Frame::Ptr curr_frame) {
 
       auto mp = std::make_shared<MapPoint>(x3D.at<double>(0), x3D.at<double>(1),
                                            x3D.at<double>(2));
-      auto obs1 = std::pair<int, int>(last_frame->frame_id_, m.queryIdx);
-      auto obs2 = std::pair<int, int>(curr_frame->frame_id_, m.trainIdx);
+      auto obs1 = std::pair<int, int>(last_frame->getFrameId(), m.queryIdx);
+      auto obs2 = std::pair<int, int>(curr_frame->getFrameId(), m.trainIdx);
       mp->observations_.emplace_back(obs1);
       mp->observations_.emplace_back(obs2);
       int mp_idx = insertMapPoint(mp);
-      last_frame->mappoint_idx_[m.queryIdx] = mp_idx;
-      curr_frame->mappoint_idx_[m.trainIdx] = mp_idx;
+      last_frame->setMappointIdx(m.queryIdx, mp_idx);
+      curr_frame->setMappointIdx(m.trainIdx, mp_idx);
     }
   }
 
   G2oOptimizer::optimizeFramePose(curr_frame, this, 10);
   // G2oOptimizer::mapBundleAdjustment(curr_frame, this, 10);
-  // std::cout << "[INFO]: trackNewFrame ba " << curr_frame->frame_id_
+  // std::cout << "[INFO]: trackNewFrame ba " << curr_frame->getFrameId()
   //          << std::endl;
   // todo
   // 计算重投影误差，排除外点，之后，重新优化；或者采用类似orbslam2的方式，四次迭代，每次迭代中判断内点和外点
@@ -139,7 +143,7 @@ bool Map::checkInitialized() {
 }
 
 void Map::rotateFrameToXTranslation() {
-  Eigen::Vector3d twc = frames_.back()->getEigenTwc();
+  Eigen::Vector3d twc = frames_.back()->getEigenTransWc();
   if (twc.norm() < std::numeric_limits<float>::epsilon()) {
     std::cout << "[WARNING]: twc.norm() is too little: " << twc.norm()
               << std::endl;
@@ -149,20 +153,22 @@ void Map::rotateFrameToXTranslation() {
   // unfinished
 }
 
-void Map::printMap() const {
+void Map::printMap() {
+  std::unique_lock<std::mutex> lock_frames(mutex_frames_);
+  std::unique_lock<std::mutex> lock_mappoints(mutex_mappoints_);
   for (const auto &frame : frames_) {
-    std::cout << "[INFO]: Frame: " << frame->frame_id_ << std::endl;
-    std::cout << frame->Tcw_ << std::endl;
+    std::cout << "[INFO]: Frame: " << frame->getFrameId() << std::endl;
+    std::cout << frame->getPose() << std::endl;
     std::vector<cv::Point2f> diffs;
     std::vector<double> chi2s;
-    for (int i = 0; i < frame->mappoint_idx_.size(); ++i) {
-      int mp_idx = frame->mappoint_idx_[i];
+    for (int i = 0; i < frame->getMappointIdx().size(); ++i) {
+      int mp_idx = frame->getMappointIdx(i);
       if (mp_idx < 0) {
         continue;
       }
       const auto &mp = mappoints_[mp_idx];
-      cv::Point2f proj = frame->project(mp->x_, mp->y_, mp->z_);
-      cv::Point2f pt = frame->un_keypoints_[i].pt;
+      cv::Point2f proj = frame->project(mp->toEigenVector3d());
+      cv::Point2f pt = frame->getUnKeyPoints(i).pt;
       cv::Point2f diff = pt - proj;
       diffs.emplace_back(diff);
       chi2s.emplace_back(diff.x * diff.x + diff.y * diff.y);
@@ -182,8 +188,8 @@ void Map::printMap() const {
   std::cout << "[INFO]: MapPoint size " << mappoints_.size()
             << " mean: " << toString(mp_ave) << std::endl;
 
-  Eigen::Vector3d twc1 = frames_.back()->getEigenTwc();
-  Eigen::Vector3d tcw1 = frames_.back()->getEigenT();
+  Eigen::Vector3d twc1 = frames_.back()->getEigenTransWc();
+  Eigen::Vector3d tcw1 = frames_.back()->getEigenTrans();
   double scale = 9 / mp_ave[2];
   std::cout << "[INFO]: scaled tcw of the last frame " << toString(tcw1 * scale)
             << std::endl;
@@ -286,11 +292,10 @@ bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
   // 4. 初始化地图，建立特征点与地图点之间的关联
   frame1->setPose(cv::Mat::eye(3, 3, CV_64F), cv::Mat::zeros(3, 1, CV_64F));
   frame2->setPose(R_h, t_h);
-  std::cout << "[INFO]: twc: " << toString(frame2->getEigenTwc()) << std::endl;
+  std::cout << "[INFO]: twc: " << toString(frame2->getEigenTransWc()) << std::endl;
   frames_.emplace_back(frame1);
   frames_.emplace_back(frame2);
 
-  mappoints_ = mappoints;
   int mp_idx = 0;
   for (int i = 0; i < mask.size(); ++i) {
     if (!mask[i]) {
@@ -299,19 +304,23 @@ bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
     const cv::DMatch &m = good_matches[i];
     int kp_idx1 = m.queryIdx;
     int kp_idx2 = m.trainIdx;
-    auto obs1 = std::pair<int, int>(frame1->frame_id_, kp_idx1);
-    auto obs2 = std::pair<int, int>(frame2->frame_id_, kp_idx2);
+    auto obs1 = std::pair<int, int>(frame1->getFrameId(), kp_idx1);
+    auto obs2 = std::pair<int, int>(frame2->getFrameId(), kp_idx2);
     mappoints[mp_idx]->observations_.emplace_back(obs1);
     mappoints[mp_idx]->observations_.emplace_back(obs2);
-    frame1->mappoint_idx_[kp_idx1] = mp_idx;
-    // std::cout << "frame: " << frame1->frame_id_
+    frame1->setMappointIdx(kp_idx1, mp_idx);
+    // std::cout << "frame: " << frame1->getFrameId()
     //           << " mappoints: " << frame1->debugCountMappoints() <<
     //           std::endl;
-    frame2->mappoint_idx_[kp_idx2] = mp_idx;
-    // std::cout << "frame: " << frame2->frame_id_
+    frame2->setMappointIdx(kp_idx2, mp_idx);
+    // std::cout << "frame: " << frame2->getFrameId()
     //           << " mappoints: " << frame2->debugCountMappoints() <<
     //           std::endl;
     mp_idx++;
+  }
+  {
+    std::unique_lock<std::mutex> lock(mutex_mappoints_);
+    mappoints_ = mappoints;
   }
 
   std::cout << "[INFO]: Initialize map finished " << std::endl;
@@ -444,10 +453,47 @@ int Map::insertMapPoint(const MapPoint::Ptr &mp) {
   int mp_idx;
   {
     std::unique_lock<std::mutex> lock(mutex_mappoints_);
-    mp_idx = mappoints_.size();
-    mappoints_.emplace_back(mp);
+    if (available_mp_idx_.empty()) {
+      mp_idx = mappoints_.size();
+      mappoints_.emplace_back(mp);
+    } else {
+      mp_idx = *available_mp_idx_.begin();
+      if (mp_idx >= mappoints_.size()) {
+        std::cerr << "[ERROR]: Out of Boundary when insert MapPoint: " << mp_idx
+                  << std::endl;
+        exit(-1);
+      }
+      if (mappoints_[mp_idx]) {
+        std::cout << "[WARNing]: MapPoint " << mp_idx
+                  << " is not empty, please check!" << std::endl;
+      }
+      mappoints_[mp_idx] = mp;
+    }
   }
   return mp_idx;
+}
+
+bool Map::removeMapPoint(const int &mp_idx) {
+  std::unique_lock<std::mutex> lock(mutex_mappoints_);
+  if (mappoints_[mp_idx] &&
+      available_mp_idx_.end() == available_mp_idx_.find(mp_idx)) {
+    mappoints_[mp_idx].reset();
+    available_mp_idx_.insert(mp_idx);
+    return true;
+  }
+  std::cout << "[WARNING]: MapPoint " << mp_idx
+            << " has already been removed, please check!" << std::endl;
+  return false;
+}
+
+MapPoint::Ptr Map::getMapPoint(const int &mp_idx) {
+  std::unique_lock<std::mutex> lock(mutex_mappoints_);
+  return mappoints_[mp_idx];
+}
+
+void Map::insertFrame(const Frame::Ptr &frame) {
+  std::unique_lock<std::mutex> lock(mutex_frames_);
+  frames_.emplace_back(frame);
 }
 
 cv::Point2f Map::project(const cv::Mat &x3D, const cv::Mat K) {

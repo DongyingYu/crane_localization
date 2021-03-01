@@ -103,16 +103,12 @@ int main(int argc, char** argv) {
     frame->debugDraw(draw_scale);
 
     camera_model->undistort(img, un_img);
-    // camera_model.undistortKeyPoint(frame->keypoints_, frame->un_keypoints_);
 
     cv::Mat img_kp, un_img_kp, un_img_kp_2;
-    // cv::drawKeypoints(frame->img_, frame->keypoints_, img_kp,
-    //                   cv::Scalar::all(-1),
-    //                   cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-    cv::drawKeypoints(un_img, frame->un_keypoints_, un_img_kp,
+    cv::drawKeypoints(un_img, frame->getUnKeyPoints(), un_img_kp,
                       cv::Scalar::all(-1),
                       cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-    // cv::drawKeypoints(un_img_2, frame->un_keypoints_, un_img_kp_2,
+    // cv::drawKeypoints(un_img_2, frame->getUnKeyPoints(), un_img_kp_2,
     //                   cv::Scalar::all(-1),
     //                   cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
