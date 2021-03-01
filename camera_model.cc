@@ -35,8 +35,10 @@ void CameraModelPinholeEqui::init() {
 
   D_ = cv::Mat(dist_coef_.size(), 1, CV_64F, &dist_coef_);
 
+
+  cv::Mat_<double> I = cv::Mat_<double>::eye(3, 3);
   cv::fisheye::estimateNewCameraMatrixForUndistortRectify(
-      K_, D_, img_size_, cv::Matx33d::eye(), newK_, 1);
+      K_, D_, img_size_, I, newK_, 1);
 
   new_intr_vec_ = {
       newK_.at<double>(0, 0),
@@ -45,7 +47,6 @@ void CameraModelPinholeEqui::init() {
       newK_.at<double>(1, 2),
   };
 
-  cv::Mat_<double> I = cv::Mat_<double>::eye(3, 3);
   map1_ = cv::Mat::zeros(img_size_, CV_16SC2);
   map2_ = cv::Mat::zeros(img_size_, CV_16UC1);
   cv::fisheye::initUndistortRectifyMap(K_, D_, I, newK_, img_size_,

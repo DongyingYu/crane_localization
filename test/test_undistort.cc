@@ -60,11 +60,12 @@ int main() {
     cv::remap(frame, undistorted_frame, map1, map2, cv::INTER_LINEAR,
               cv::BORDER_CONSTANT);
 
-    resize(frame, frame, {0, 0}, 0.5, 0.5);
-    resize(undistorted_frame, undistorted_frame, {0, 0}, 0.5, 0.5);
+    double scale_factor = 0.4;
+    resize(frame, frame, {0, 0}, scale_factor, scale_factor);
+    resize(undistorted_frame, undistorted_frame, {0, 0}, scale_factor, scale_factor);
     imshow("ori", frame);
     imshow("undistorted", undistorted_frame);
-    waitKey(31);
+    waitKey();
   }
   return 0;
 }

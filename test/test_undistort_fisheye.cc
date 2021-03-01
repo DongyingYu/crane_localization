@@ -8,82 +8,120 @@
  * @copyright Copyright (c) 2021
  *
  */
-#include "frame.h"
 #include "camera_model.h"
+#include "frame.h"
 #include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/xfeatures2d.hpp>
 #include <vector>
+#include <yaml-cpp/yaml.h>
 using namespace std;
 using namespace cv;
 using namespace cv::xfeatures2d;
 
-int width = 2560;
-int height = 1440;
-double fx = 2052.01136163;
-double fy = 2299.88726199;
-double cx = 1308.23302753;
-double cy = 713.03063759;
-double k1 = -0.47040093;
-double k2 = 1.0270395;
-double k3 = -2.00061705;
-double k4 = 1.64023946;
+int main(int argc, char** argv) {
+  // 默认参数
+  std::string video_file =
+      "/home/xt/Documents/data/DATASETS/ros_bag/BL-EX346HP-15M/"
+      "192.168.1.146_01_20210205105528697.mp4";
+  // std::string video_file =
+  // "/home/xt/Documents/data/DATASETS/ros_bag/BL-EX346HP-15M/crane/78.mp4";
+  std::string yaml_file =
+      "/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/"
+      "crane_localization/conf/BL-EX346HP-15M.yaml";
+  int skip_frames = 1200;
+  // 从命令行获取参数
+  if (argc == 1) {
+  } else if (argc == 3) {
+    video_file = argv[1];
+    yaml_file = argv[2];
+  } else if (argc == 4) {
+    video_file = argv[1];
+    yaml_file = argv[2];
+    skip_frames = atoi(argv[3]);
+  } else {
+    std::cout << "Usage: exec video_file yaml_file" << std::endl;
+    std::cout << "       exec video_file yaml_file skip_frame" << std::endl;
+  }
+  std::cout << "[INFO]: video_file = " << video_file << std::endl;
+  std::cout << "[INFO]: yaml_file = " << yaml_file << std::endl;
+  std::cout << "[INFO]: skip_frame = " << skip_frames << std::endl;
 
-Intrinsic intrinsic(fx, fy, cx, cy);
+  // 读取相机内参，创建相机参数模型
+  YAML::Node node = YAML::LoadFile(yaml_file);
+  if (!node) {
+    std::cout << "[ERROR]: Open yaml failed " << yaml_file << std::endl;
+    exit(-1);
+  }
+  CameraModel::Ptr camera_model;
+  // 相机模型和畸变模型
+  if (node["cam0"]) {
+    YAML::Node cam = node["cam0"];
+    std::string camera = cam["camera_model"].as<std::string>();
+    std::string distortion = cam["distortion_model"].as<std::string>();
+    auto intrinsics = cam["intrinsics"].as<std::vector<double>>();
+    auto dist_coef = cam["distortion_coeffs"].as<std::vector<double>>();
+    auto resolution = cam["resolution"].as<std::vector<int>>();
+    cv::Size img_size = cv::Size(resolution[0], resolution[1]);
+    if (camera == "pinhole" && distortion == "equidistant") {
+      camera_model = std::make_shared<CameraModelPinholeEqui>(
+          intrinsics, img_size, dist_coef);
+    } else {
+      std::cout << "[ERROR]: unsupported Camera model" << std::endl;
+      exit(-1);
+    }
+  } else {
+    std::cout << "[ERROR]: failed to read camera param from " << yaml_file
+              << std::endl;
+    exit(-1);
+  }
 
-int main() {
-
-  std::string video_dir =
-      "/home/xt/Documents/data/DATASETS/ros_bag/BL-EX346HP-15M/";
-  std::string video_file = video_dir + "192.168.1.146_01_20210205105528697.mp4";
   VideoCapture capture(video_file);
-
-  UndistorterFisheye undistorter(width, height, fx, fy, cx, cy, k1, k2, k3, k4);
 
   int i = 0;
   while (1) {
     Mat img;
     capture >> img;
     if (img.empty()) {
+      std::cout << "[ERROR]: No image from video capture" << std::endl;
       break;
     }
     i++;
 
-    cv::Mat undistorted_img, undistorted_img_2;
+    cv::Mat un_img, un_img_2;
 
-    undistorter.undistort(img, undistorted_img);
 
-    cv::fisheye::undistortImage(img, undistorted_img_2, undistorter.getK(),
-                                undistorter.getD(), undistorter.getNewK(),
-                                img.size());
+    // cv::fisheye::undistortImage(img, un_img_2, undistorter.getK(),
+    //                             undistorter.getD(), undistorter.getNewK(),
+    //                             img.size());
 
-    Frame::Ptr frame = std::make_shared<Frame>(img, intrinsic);
-
-    for (auto &kp : frame->keypoints_) {
-      // kp.size *= 10;
-    }
-    undistorter.undistortPoint(frame->keypoints_, frame->un_keypoints_);
-
-    cv::Mat img_kp, un_img_kp, un_img_kp_2;
-    cv::drawKeypoints(frame->img_, frame->keypoints_, img_kp,
-                      cv::Scalar::all(-1),
-                      cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-    cv::drawKeypoints(undistorted_img, frame->un_keypoints_, un_img_kp,
-                      cv::Scalar::all(-1),
-                      cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-    cv::drawKeypoints(undistorted_img_2, frame->un_keypoints_, un_img_kp_2,
-                      cv::Scalar::all(-1),
-                      cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    Frame::Ptr frame = std::make_shared<Frame>(img, camera_model);
 
     double draw_scale = 0.3;
-    resize(img_kp, img_kp, {0, 0}, draw_scale, draw_scale);
+    frame->debugDraw(draw_scale);
+
+    camera_model->undistort(img, un_img);
+    // camera_model.undistortKeyPoint(frame->keypoints_, frame->un_keypoints_);
+
+    cv::Mat img_kp, un_img_kp, un_img_kp_2;
+    // cv::drawKeypoints(frame->img_, frame->keypoints_, img_kp,
+    //                   cv::Scalar::all(-1),
+    //                   cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    cv::drawKeypoints(un_img, frame->un_keypoints_, un_img_kp,
+                      cv::Scalar::all(-1),
+                      cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    // cv::drawKeypoints(un_img_2, frame->un_keypoints_, un_img_kp_2,
+    //                   cv::Scalar::all(-1),
+    //                   cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+    // resize(img_kp, img_kp, {0, 0}, draw_scale, draw_scale);
     resize(un_img_kp, un_img_kp, {0, 0}, draw_scale, draw_scale);
-    resize(un_img_kp_2, un_img_kp_2, {0, 0}, draw_scale, draw_scale);
-    imshow("ori", img_kp);
+    // resize(un_img_kp_2, un_img_kp_2, {0, 0}, draw_scale, draw_scale);
+    // imshow("ori", img_kp);
     imshow("undistorted", un_img_kp);
-    imshow("undistorted2", un_img_kp_2);
+    // // imshow("undistorted2", un_img_kp_2);
     waitKey();
   }
   return 0;

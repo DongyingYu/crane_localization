@@ -43,13 +43,13 @@ public:
    * @return int 返回配对的特征点对数，即good_matches.size()
    */
   int matchWith(const Frame::Ptr frame, std::vector<cv::DMatch> &good_matches,
-                 std::vector<cv::Point2f> &points1,
-                 std::vector<cv::Point2f> &points2,
-                 const bool &debug_draw = false);
+                std::vector<cv::Point2f> &points1,
+                std::vector<cv::Point2f> &points2,
+                const bool &debug_draw = false);
 
   /**
    * @brief 将地图点投影到当前帧
-   * 
+   *
    * @param[in] x3D 地图点的世界坐标
    * @return cv::Point2f 投影到相机上的像素坐标
    */
@@ -59,7 +59,7 @@ public:
 
   /**
    * @brief 检查地图点在当前相机位姿下，深度是否为正
-   * 
+   *
    * @param[in] x3D 地图点的世界坐标
    * @return true 深度为正，否则为负
    */
@@ -89,9 +89,9 @@ public:
   void rotateWorld(const Eigen::Quaterniond &q_ds);
 
   // debug
-  void debugDraw();
+  void debugDraw(const double &scale_image = 1.0);
   int debugCountMappoints();
-  
+
 public:
   // 图片，特征点，描述符
   cv::Mat img_;

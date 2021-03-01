@@ -93,9 +93,9 @@ void System::run() {
       G2oOptimizer::mapBundleAdjustment(cur_map_, 10);
       std::cout << "[INFO]: The map after g2o" << std::endl;
       cur_map_->printMap();
-      G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(cur_map_);
-      std::cout << "[INFO]: The map after g2o LinearMotion only pose" << std::endl;
-      cur_map_->printMap();
+      // G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(cur_map_);
+      // std::cout << "[INFO]: The map after g2o LinearMotion only pose" << std::endl;
+      // cur_map_->printMap();
       G2oOptimizerForLinearMotion::mapBundleAdjustment(cur_map_);
       std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
       cur_map_->printMap();
@@ -106,7 +106,8 @@ void System::run() {
       cur_map_->trackNewFrame(cur_frame_);
 
       cur_map_->frames_.emplace_back(cur_frame_);
-      G2oOptimizer::mapBundleAdjustment(cur_map_);
+      G2oOptimizerForLinearMotion::mapBundleAdjustment(cur_map_);
+      std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
       cur_map_->printMap();
     }
   }

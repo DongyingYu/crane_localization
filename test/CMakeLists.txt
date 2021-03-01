@@ -3,16 +3,17 @@ add_executable(test_undistort test_undistort.cc)
 target_link_libraries(test_undistort
   ${OpenCV_LIBS}
 )
-# # undistort
-# add_executable(test_undistort_fisheye 
-#   test_undistort_fisheye.cc 
-#   ../undistort.cc
-#   ../frame.cc
-#   ../utils.cc
-# )
-# target_link_libraries(test_undistort_fisheye
-#   ${OpenCV_LIBS}
-# )
+# undistort
+add_executable(test_undistort_fisheye 
+  test_undistort_fisheye.cc 
+  ../camera_model.cc
+  ../frame.cc
+  ../utils.cc
+)
+target_link_libraries(test_undistort_fisheye
+  ${OpenCV_LIBS}
+  ${YAML_CPP_LIBRARIES}
+)
 
 file(GLOB g2o_libs ../third_party/g2o/lib/libg2o_*.so)
 message(STATUS "g2o_libs: ${g2o_libs}")

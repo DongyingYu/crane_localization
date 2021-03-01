@@ -55,16 +55,7 @@ make -j
 注：需修改g2o_path，以及用于测试的mp4视频的路径
 
 ```bash
-# 单目初始化
-./test/test_initializer
-
-# 单目初始化+初始化地图ba
-g2o_path=/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/crane_localization/third_party/g2o/lib
-export LD_LIBRARY_PATH=${g2o_path}
-
-./test/test_initialize_map
-
-# 定位系统（未完成）
+# 定位系统
 g2o_path=/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/crane_localization/third_party/g2o/lib
 export LD_LIBRARY_PATH=${g2o_path}
 

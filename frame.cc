@@ -300,14 +300,14 @@ bool Frame::isCentralKp(const cv::KeyPoint &kp,
   return false;
 }
 
-void Frame::debugDraw() {
+void Frame::debugDraw(const double &scale_image) {
   std::cout << "[DEBUG]: debug draw" << std::endl;
   std::vector<cv::DMatch> all_matches;
   matcher_->match(descriptors_, descriptors_, all_matches);
 
   cv::Mat mat;
   cv::drawMatches(img_, keypoints_, un_img_, un_keypoints_, all_matches, mat);
-  cv::resize(mat, mat, {0, 0}, 0.4, 0.4);
+  cv::resize(mat, mat, {0, 0}, scale_image, scale_image);
   cv::imshow("debug draw", mat);
   cv::waitKey();
 }
@@ -324,7 +324,7 @@ int Frame::debugCountMappoints() {
 
 int Frame::total_frame_cnt_ = 0;
 
-cv::Ptr<cv::FeatureDetector> Frame::detector_ = cv::ORB::create();
-cv::Ptr<cv::DescriptorExtractor> Frame::extrator_ = cv::ORB::create();
+cv::Ptr<cv::FeatureDetector> Frame::detector_ = cv::ORB::create(1000);
+cv::Ptr<cv::DescriptorExtractor> Frame::extrator_ = cv::ORB::create(1000);
 cv::Ptr<cv::DescriptorMatcher> Frame::matcher_ =
     cv::DescriptorMatcher::create("BruteForce-Hamming");

@@ -183,9 +183,10 @@ void Map::printMap() const {
             << " mean: " << toString(mp_ave) << std::endl;
 
   Eigen::Vector3d twc1 = frames_.back()->getEigenTwc();
-  std::cout << "[INFO]: twc of the last frame " << toString(twc1) << std::endl;
-
+  Eigen::Vector3d tcw1 = frames_.back()->getEigenT();
   double scale = 9 / mp_ave[2];
+  std::cout << "[INFO]: scaled tcw of the last frame " << toString(tcw1 * scale)
+            << std::endl;
   std::cout << "[INFO]: scaled twc of the last frame " << toString(twc1 * scale)
             << std::endl
             << std::endl;
