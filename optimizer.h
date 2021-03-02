@@ -62,8 +62,11 @@ public:
   static void mapBundleAdjustmentOnlyPose(Map::Ptr map,
                                           const int &n_iteration = 10);
 
-  static void mapBundleAdjustment(Map::Ptr map,
-                                          const int &n_iteration = 10);
+  static void mapBundleAdjustment(Map::Ptr map, const int &n_iteration = 10);
 
-  
+  static void optimize(
+      std::map<size_t, std::pair<Frame::Ptr, bool>> &frames,
+      std::map<size_t, std::pair<MapPoint::Ptr, bool>> &mps,
+      std::map<size_t, std::vector<std::pair<size_t, size_t>>> &observations,
+      const int &n_iteration = 10);
 };

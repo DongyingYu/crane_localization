@@ -320,7 +320,13 @@ void Frame::rotateWorld(const Eigen::Quaterniond &q_ds) {
   setPose(Tcd.matrix());
 }
 
-int Frame::getFrameId() const { return frame_id_; }
+size_t Frame::getFrameId() const { return frame_id_; }
+
+Eigen::Matrix3d Frame::getEigenNewK() const {
+  Eigen::Matrix3d ret;
+  cv::cv2eigen(camera_model_->getNewK(), ret);
+  return ret;
+}
 
 bool Frame::isCentralKp(const cv::KeyPoint &kp,
                         const double &half_center_factor) {
@@ -345,6 +351,13 @@ void Frame::debugDraw(const double &scale_image) {
   cv::waitKey();
 }
 
+void Frame::debugPrintPose() {
+  Eigen::Quaterniond q(getEigenRot());
+  Eigen::Vector3d t = getEigenTrans();
+  std::cout << "[INFO]: Frame " << frame_id_ << ": " << toString(q) << ", "
+            << toString(t) << std::endl;
+}
+
 int Frame::debugCountMappoints() {
   int cnt = 0;
   for (const int &i : mappoint_idx_) {
@@ -355,7 +368,7 @@ int Frame::debugCountMappoints() {
   return cnt;
 }
 
-int Frame::total_frame_cnt_ = 0;
+size_t Frame::total_frame_cnt_ = 0;
 
 cv::Ptr<cv::FeatureDetector> Frame::detector_ = cv::ORB::create(1000);
 cv::Ptr<cv::DescriptorExtractor> Frame::extrator_ = cv::ORB::create(1000);

@@ -47,31 +47,68 @@ public:
   /**
    * @brief 插入地图点
    * @param[in] mp 地图点
-   * @return int 返回插入地图点的索引id
    */
-  int insertMapPoint(const MapPoint::Ptr &mp);
+  void insertMapPoint(const MapPoint::Ptr &mp);
 
-  bool removeMapPoint(const int &mp_idx);
-  MapPoint::Ptr getMapPoint(const int &mp_idx);
-  // bool setMapPointValue(const int &mp_idx, const Eigen::Vector3d & vec);
+  size_t removeMapPointById(const size_t &mp_idx);
+
+  MapPoint::Ptr getMapPointById(const int &mp_idx);
+
+  size_t getMapPointSize();
 
   void insertFrame(const Frame::Ptr &frame);
+
+  void insertKeyFrame(const Frame::Ptr &frame);
 
   /**
    * @brief 旋转相机的pose，使得每一帧的旋转都相同，且平移量在X轴
    */
   void rotateFrameToXTranslation();
 
-  // debug
-  void printMap();
+  /**
+   * @brief 获取与新的一帧相关的帧、地图点，用于该帧和该帧相关的地图点的优化
+   *
+   * @param[in] frame
+   * @param[out] frames_data
+   * @param[out] mps_data
+   * @param[out] obs_data
+   * @param[in] sliding_window
+   */
+  void requestG2oInputForFrame(
+      const Frame::Ptr frame,
+      std::map<size_t, std::pair<Frame::Ptr, bool>> &frames_data,
+      std::map<size_t, std::pair<MapPoint::Ptr, bool>> &mps_data,
+      std::map<size_t, std::vector<std::pair<size_t, size_t>>> &obs_data,
+      const size_t &sliding_window = 5);
+
+  /**
+   * @brief 获取G2oInput，用于关键帧滑窗优化
+   *
+   * @param[out] frames_data
+   * @param[out] mps_data
+   * @param[out] obs_data
+   * @param[in] sliding_window
+   */
+  void requestG2oInputKeyFrameBa(
+      std::map<size_t, std::pair<Frame::Ptr, bool>> &frames_data,
+      std::map<size_t, std::pair<MapPoint::Ptr, bool>> &mps_data,
+      std::map<size_t, std::vector<std::pair<size_t, size_t>>> &obs_data,
+      const size_t &sliding_window = 5);
+
+  /**
+   * @brief 统计输出当前map的信息，包括每一帧的pose，地图点的坐标均值，等等
+   */
+  void debugPrintMap();
 
 public:
   std::mutex mutex_mappoints_;
-  std::vector<MapPoint::Ptr> mappoints_;
-  std::set<int> available_mp_idx_;
+  std::map<size_t, MapPoint::Ptr> mappoints_;
 
   std::mutex mutex_frames_;
-  std::vector<Frame::Ptr> frames_;
+  std::vector<Frame::Ptr> recent_frames_;
+
+  std::mutex mutex_keyframes_;
+  std::map<size_t, Frame::Ptr> keyframes_;
 
 private:
   /**

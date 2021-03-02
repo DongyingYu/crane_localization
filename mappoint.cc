@@ -10,6 +10,10 @@
  */
 #include "mappoint.h"
 
+MapPoint::MapPoint(float x, float y, float z) : x_(x), y_(y), z_(z) {
+  mp_id_ = total_mp_cnt_++;
+}
+
 Eigen::Vector3d MapPoint::toEigenVector3d() {
 
   Eigen::Vector3d ret;
@@ -32,3 +36,12 @@ void MapPoint::rotate(const Eigen::Quaterniond &q) {
   p = q * p;
   fromEigenVector3d(p);
 }
+
+size_t MapPoint::getId() const { return mp_id_; }
+
+std::vector<std::pair<size_t, size_t>> MapPoint::getObservation() {
+  std::unique_lock<std::mutex> lock(mutex_observation_);
+  return observations_;
+}
+
+size_t MapPoint::total_mp_cnt_ = 0;

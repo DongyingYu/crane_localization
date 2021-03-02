@@ -87,7 +87,10 @@ public:
   void setPose(const cv::Mat &R, const cv::Mat &t);
 
   // frame id access
-  int getFrameId() const;
+  size_t getFrameId() const;
+
+  // 获取去畸变后的K
+  Eigen::Matrix3d getEigenNewK() const;
 
   /**
    * @brief 获取投影矩阵 K[R, t]，大小为3行4列
@@ -104,6 +107,7 @@ public:
 
   // debug
   void debugDraw(const double &scale_image = 1.0);
+  void debugPrintPose();
   int debugCountMappoints();
 
   // 特征点、描述符、匹配相关
@@ -134,8 +138,8 @@ private:
   cv::Mat tcw_;
 
   // id
-  int frame_id_;
-  static int total_frame_cnt_;
+  size_t frame_id_;
+  static size_t total_frame_cnt_;
 
 private:
   /**

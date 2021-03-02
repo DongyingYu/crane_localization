@@ -80,11 +80,11 @@ int main(int argc, char **argv) {
       Eigen::Vector3d ave_twc(0, 0, 0);
       if (map) {
         G2oOptimizer::mapBundleAdjustment(map);
-        Eigen::Vector3d twc1 = map->frames_.back()->getEigenTransWc();
+        Eigen::Vector3d twc1 = map->recent_frames_.back()->getEigenTransWc();
         std::cout << "[INFO]: twc after g2o: " << toString(twc1) << std::endl;
 
         G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(map);
-        Eigen::Vector3d twc2 = map->frames_.back()->getEigenTransWc();
+        Eigen::Vector3d twc2 = map->recent_frames_.back()->getEigenTransWc();
         std::cout << "[INFO]: twc after constrained g2o: " << toString(twc2)
                   << std::endl;
         ave_twc += twc1 / (frames.size() - 1);

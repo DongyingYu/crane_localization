@@ -89,26 +89,30 @@ void System::run() {
     if (!cur_map_->checkInitialized()) {
       cur_map_->initialize(last_frame_, cur_frame_);
       std::cout << "[INFO]: The map before g2o" << std::endl;
-      cur_map_->printMap();
+      cur_map_->debugPrintMap();
       G2oOptimizer::mapBundleAdjustment(cur_map_, 10);
       std::cout << "[INFO]: The map after g2o" << std::endl;
-      cur_map_->printMap();
+      cur_map_->debugPrintMap();
       // G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(cur_map_);
       // std::cout << "[INFO]: The map after g2o LinearMotion only pose" << std::endl;
-      // cur_map_->printMap();
+      // cur_map_->debugPrintMap();
       G2oOptimizerForLinearMotion::mapBundleAdjustment(cur_map_);
       std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
-      cur_map_->printMap();
-      cv::waitKey();
+      cur_map_->debugPrintMap();
     } else {
       std::cout << "[INFO]: track new frame with cur_map: "
                 << cur_frame_->getFrameId() << std::endl;
       cur_map_->trackNewFrame(cur_frame_);
 
       cur_map_->insertFrame(cur_frame_);
-      G2oOptimizerForLinearMotion::mapBundleAdjustment(cur_map_);
+
+      std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
+      std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
+      std::map<size_t, std::vector<std::pair<size_t, size_t>>> observations_data;
+      cur_map_->requestG2oInputForFrame(cur_frame_, frames_data, mps_data, observations_data);
+      G2oOptimizerForLinearMotion::optimize(frames_data, mps_data, observations_data);
       std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
-      cur_map_->printMap();
+      cur_map_->debugPrintMap();
     }
   }
 }
