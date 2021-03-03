@@ -9,8 +9,7 @@
 
 ## 依赖
 
-opencv （在4.1.0上测试通过，3.4.1测试通过，3.2.0应该也可以，暂未测试）
-
+opencv （在4.1.0上测试通过，3.4.1测试通过）
 Eigen >= 3.3 (for g2o)
 
 ## 运行
@@ -65,7 +64,7 @@ make -j
 g2o_path=/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/crane_localization/third_party/g2o/lib
 export LD_LIBRARY_PATH=${g2o_path}
 
-./test/test_system
+./test/test_system <video_file> <config_yaml> <skip_frames>
 
 
 # DBoW2相似性评估

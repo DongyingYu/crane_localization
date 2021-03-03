@@ -65,7 +65,6 @@ add_executable(test_DBoW2
   test_DBoW2.cc
   ../frame.cc
   ../utils.cc
-  ../undistort.cc
   ../localization.cc
 )
 
@@ -80,7 +79,6 @@ add_executable(test_trainingVoc
   test_trainingVoc.cc
   ../frame.cc
   ../utils.cc
-  ../undistort.cc
 )
 
 message(STATUS "dbow2_lib: ${dbow2_lib}")
