@@ -564,7 +564,7 @@ void G2oOptimizerForLinearMotion::optimize(
   const bool &fixed = frames.begin()->second.second;
   auto q = Eigen::Quaterniond(frame->getEigenRot());
   // std::cout << "[DEBUG]: shared rotation: " << toString(q) << std::endl;
-  v_rot->setFixed(fixed);
+  // v_rot->setFixed(fixed);
   v_rot->setEstimate(q);
   optimizer.addVertex(v_rot);
 
@@ -624,6 +624,11 @@ void G2oOptimizerForLinearMotion::optimize(
         e->setVertex(2, dynamic_cast<GOV *>(optimizer.vertex(id)));
         e->setMeasurement(uv);
         e->setInformation(Eigen::Matrix2d::Identity());
+
+        g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+        e->setRobustKernel(rk);
+        rk->setDelta(25);
+
         edges_data[frame_id].emplace_back(e);
         optimizer.addEdge(e);
       }

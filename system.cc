@@ -92,26 +92,39 @@ void System::run() {
       G2oOptimizer::mapBundleAdjustment(cur_map_, 10);
       std::cout << "[INFO]: The map after g2o" << std::endl;
       cur_map_->debugPrintMap();
-      // G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(cur_map_);
-      // std::cout << "[INFO]: The map after g2o LinearMotion only pose" << std::endl;
-      // cur_map_->debugPrintMap();
       G2oOptimizerForLinearMotion::mapBundleAdjustment(cur_map_);
       std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
       cur_map_->debugPrintMap();
     } else {
       std::cout << "[INFO]: track new frame with cur_map: "
                 << cur_frame_->getFrameId() << std::endl;
-      cur_map_->trackNewFrame(cur_frame_);
+      cur_map_->trackNewFrameByKeyFrame(cur_frame_);
 
-      cur_map_->insertFrame(cur_frame_);
-
-      std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
-      std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
-      std::map<size_t, std::vector<std::pair<size_t, size_t>>> observations_data;
-      cur_map_->requestG2oInputForFrame(cur_frame_, frames_data, mps_data, observations_data);
-      G2oOptimizerForLinearMotion::optimize(frames_data, mps_data, observations_data);
       std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
       cur_map_->debugPrintMap();
+
+      // 判断是否插入关键帧
+      if (cur_map_->checkIsNewKeyFrame(cur_frame_)) {
+        cur_map_->insertKeyFrame(cur_frame_);
+        std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
+        std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
+        std::map<size_t, std::vector<std::pair<size_t, size_t>>>
+            observations_data;
+        cur_map_->requestG2oInputKeyFrameBa(frames_data, mps_data,
+                                            observations_data);
+        G2oOptimizerForLinearMotion::optimize(frames_data, mps_data,
+                                              observations_data, 50);
+        // 计算优化后的地图点的平均z值，计算尺度
+        Eigen::Vector3d ave_kf_mp = Eigen::Vector3d::Zero();
+        for(auto &it : mps_data) {
+          auto &mp = it.second.first;
+          ave_kf_mp += mp->toEigenVector3d();
+        }
+        ave_kf_mp /= mps_data.size();
+        cur_map_->ave_kf_mp_ = ave_kf_mp;
+        double scale = Map::kCraneHeight / ave_kf_mp[2];
+        cur_map_->setScale(scale);
+      }
     }
   }
 }

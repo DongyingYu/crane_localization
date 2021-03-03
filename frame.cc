@@ -399,7 +399,7 @@ void Frame::debugDraw(const double &scale_image) {
   cv::drawMatches(img_, keypoints_, un_img_, un_keypoints_, all_matches, mat);
   cv::resize(mat, mat, {0, 0}, scale_image, scale_image);
   cv::imshow("debug draw", mat);
-  cv::waitKey();
+  // cv::waitKey();
 }
 
 void Frame::debugPrintPose() {

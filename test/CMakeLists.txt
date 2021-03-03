@@ -81,7 +81,6 @@ add_executable(test_trainingVoc
   ../utils.cc
 )
 
-message(STATUS "dbow2_lib: ${dbow2_lib}")
 target_link_libraries(test_trainingVoc
   ${OpenCV_LIBS}
   ${dbow2_lib}
