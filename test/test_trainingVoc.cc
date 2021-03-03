@@ -16,7 +16,7 @@ std::vector<std::string> loadImages(const std::string &strIndexFilename);
 int main(int argc, char** argv)
 {
     std::cout << "Reading images ... " << std::endl;
-    Frame::Ptr load_image = std::make_shared<Frame>();
+    //Frame::Ptr load_image = std::make_shared<Frame>();
     std::vector<std::string> imageIndex;
     imageIndex = loadImages("/home/ipsg/dataset_temp/image_save/rgb.txt");
     std::vector<cv::Mat> images;
@@ -51,8 +51,7 @@ int main(int argc, char** argv)
 
     ORBVocabulary voc(k, levels, weight,score);
     std::string vocName = "/home/ipsg/crane_localization/Vocabulary/MyVoc.txt";
-    Frame::Ptr a = std::make_shared<Frame>();
-    a->createVocabulary(voc,vocName,features);
+    Frame::createVocabulary(voc,vocName,features);
 
 
     return 0;

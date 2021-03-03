@@ -39,7 +39,7 @@ public:
   Frame();
   Frame(const cv::Mat &img);
   Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model);
-
+  Frame(const cv::Mat &img, ORBVocabulary* voc);
   /**
    * @brief 与另一帧进行特征点匹配，并根据距离，进行简单筛选
    *
@@ -53,15 +53,6 @@ public:
                 std::vector<cv::Point2f> &points2,
                 const bool &debug_draw = false);
 
-  Eigen::Matrix3d getEigenR() const;
-  Eigen::Vector3d getEigenT() const;
-  Eigen::Matrix3d getEigenRwc() const;
-  Eigen::Vector3d getEigenTwc() const;
-
-  void setPose(const Eigen::Matrix4d &mat);
-  void setPose(const cv::Mat &mat);
-  void setPose(const cv::Mat &R, const cv::Mat &t);
-
   /**
    * @brief 切换世界坐标系，将世界坐标系src切换为dst，src和dst之间只差一个旋转
    *        Rcd = Rcs * Rsd = Rcs * Rds.inverse()，Rds用四元数表示q_ds。
@@ -69,8 +60,6 @@ public:
    * @param[in] q_ds, 两个世界坐标系src、dst之间的旋转，P_dst = q_ds * P_src
    */
   void rotateWorld(const Eigen::Quaterniond &q_ds);
-
-  void debugDraw();
 
     // 描述子格式转换
   std::vector<cv::Mat> toDescriptorVector();
@@ -84,7 +73,7 @@ public:
   DBoW2::BowVector getBowVoc();
 
   // 创建词典
-  void createVocabulary(ORBVocabulary &voc, std::string &filename, const std::vector<std::vector<cv::Mat>> &descriptors);
+  static void createVocabulary(ORBVocabulary &voc, std::string &filename, const std::vector<std::vector<cv::Mat>> &descriptors);
 
 
   /**
@@ -136,13 +125,6 @@ public:
    */
   cv::Mat getProjectionMatrix();
 
-  /**
-   * @brief 切换世界坐标系，将世界坐标系src切换为dst，src和dst之间只差一个旋转
-   *        Rcd = Rcs * Rsd = Rcs * Rds.inverse()，Rds用四元数表示q_ds。
-   *
-   * @param[in] q_ds, 两个世界坐标系src、dst之间的旋转，P_dst = q_ds * P_src
-   */
-  void rotateWorld(const Eigen::Quaterniond &q_ds);
 
   // debug
   void debugDraw(const double &scale_image = 1.0);
@@ -157,7 +139,8 @@ public:
   // 相机模型（包含畸变模型）
   CameraModel::Ptr camera_model_;
 
-private:
+//private:
+public:
   // 图片，特征点，描述符
   cv::Mat img_;
   cv::Mat un_img_; // 去畸变后的图像
@@ -180,11 +163,6 @@ private:
   size_t frame_id_;
   static size_t total_frame_cnt_;
 
-  // 去畸变（todo 部分内容与相机内参相同，冗余，应当去除）
-  UndistorterFisheye::Ptr undistorter_;
-  Intrinsic un_intrinsic_;                 // 去畸变后的相机内参
-  std::vector<cv::KeyPoint> un_keypoints_; // 去畸变后的特征点
-  cv::Mat un_img_;                         // 去畸变后的图像
 
   // Vocabulary used for relocalization.
   ORBVocabulary* pORBvocabulary;

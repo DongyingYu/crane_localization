@@ -18,6 +18,8 @@ Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model)
   init();
 }
 
+Frame::Frame(const cv::Mat &img, ORBVocabulary* voc) : pORBvocabulary(voc), img_(img.clone()) { init(); }
+
 void Frame::init() {
   assert(!img_.empty());
 
@@ -368,6 +370,7 @@ void Frame::createVocabulary(ORBVocabulary &voc, std::string &filename, const st
   std::cout << " Saving vocabulary ... " << std::endl;
   voc.saveToTextFile(filename);
   std::cout << " saved to file: " << filename << std::endl; 
+}
 size_t Frame::getFrameId() const { return frame_id_; }
 
 Eigen::Matrix3d Frame::getEigenNewK() const {

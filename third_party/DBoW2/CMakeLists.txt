@@ -24,7 +24,8 @@ set(SRCS_DUTILS
   DUtils/Random.cpp
   DUtils/Timestamp.cpp)
 
-find_package(OpenCV 3.3.1 QUIET)
+#find_package(OpenCV 3.3.1 QUIET)
+find_package(OpenCV QUIET)
 if(NOT OpenCV_FOUND)
    find_package(OpenCV 2.4.8 QUIET)
    if(NOT OpenCV_FOUND)
