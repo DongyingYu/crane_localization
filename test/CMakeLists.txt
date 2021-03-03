@@ -11,49 +11,49 @@ message(STATUS "g2o_libs: ${g2o_libs}")
 # undistort
 add_executable(test_undistort_fisheye 
   test_undistort_fisheye.cc 
-  ../undistort.cc
+  ../camera_model.cc
   ../frame.cc
   ../utils.cc
 )
 target_link_libraries(test_undistort_fisheye
   ${OpenCV_LIBS}
   ${dbow2_lib}
+  ${YAML_CPP_LIBRARIES}
 )
 
-# initialize map
-add_executable(test_initialize_map
-  test_initialize_map.cc
-  ../frame.cc
-  ../initializer.cc
-  ../map.cc
-  ../optimizer.cc
-  ../utils.cc
-  ../mappoint.cc
-  ../undistort.cc
-)
 
-target_link_libraries(test_initialize_map
-  ${OpenCV_LIBS}
-  ${g2o_libs}
-  ${dbow2_lib}
-)
+# # initialize map
+# add_executable(test_initialize_map
+#   test_initialize_map.cc
+#   ../frame.cc
+#   ../map.cc
+#   ../optimizer.cc
+#   ../utils.cc
+#   ../mappoint.cc
+#   ../camera_model.cc
+# )
+
+# target_link_libraries(test_initialize_map
+#   ${OpenCV_LIBS}
+#   ${g2o_libs}
+# )
 
 # system
 add_executable(test_system
   test_system.cc
   ../frame.cc
-  ../initializer.cc
   ../map.cc
   ../system.cc
   ../optimizer.cc
   ../utils.cc
   ../mappoint.cc
-  ../undistort.cc
+  ../camera_model.cc
+  ../g2o_types_linear_motion.cc
 )
 
-message(STATUS "g2o_libs: ${g2o_libs}")
 target_link_libraries(test_system
   ${OpenCV_LIBS}
+  ${YAML_CPP_LIBRARIES}
   ${g2o_libs}
   ${dbow2_lib}
   pthread

@@ -17,11 +17,11 @@
 
 void statistic(const std::vector<double> &data, const std::string &name) {
   int cnt = 0;
-  double ave = 0, min_v = 0, max_v = 0;
+  double ave = 0, min_v = 0, max_v = 0, sum = 0;
 
   if (!data.empty()) {
     cnt = data.size();
-    double sum = std::accumulate(data.begin(), data.end(), 0.0);
+    sum = std::accumulate(data.begin(), data.end(), 0.0);
     auto mm = std::minmax_element(data.begin(), data.end());
     ave = sum / data.size();
     min_v = *mm.first;
@@ -29,7 +29,8 @@ void statistic(const std::vector<double> &data, const std::string &name) {
   }
 
   std::cout << "[INFO]: " << name << " cnt: " << cnt << " min: " << min_v
-            << " max: " << max_v << " ave: " << ave << std::endl;
+            << " max: " << max_v << " ave: " << ave << " sum: " << sum
+            << std::endl;
 }
 
 void calAveStddev(const std::vector<double> &data, double &ave,

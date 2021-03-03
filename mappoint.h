@@ -12,6 +12,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <memory> // for shared_ptr etc.
+#include <mutex>
 #include <vector>
 
 class MapPoint {
@@ -20,19 +21,30 @@ public:
 
   using Ptr = std::shared_ptr<MapPoint>;
 
-  MapPoint(float x, float y, float z) : x_(x), y_(y), z_(z) {}
+  MapPoint(float x, float y, float z);
 
-  Eigen::Vector3d toEigenVector3d() const;
+  Eigen::Vector3d toEigenVector3d();
 
   void fromEigenVector3d(const Eigen::Vector3d &vec);
 
   void rotate(const Eigen::Quaterniond &q);
 
-  // obs.first: frame idx in map.frames_
-  // osb.second: keypoint idx in this frame
-  std::vector<std::pair<int, int>> observations_;
+  size_t getId() const;
 
+  std::vector<std::pair<size_t, size_t>> getObservation();
+
+  // obs.first: frame_id
+  // osb.second: keypoint index in frame with frame_id
+  std::mutex mutex_observation_;
+  std::vector<std::pair<size_t, size_t>> observations_;
+
+private:
+  std::mutex mutex_;
   float x_;
   float y_;
   float z_;
+
+  // id
+  size_t mp_id_;
+  static size_t total_mp_cnt_;
 };

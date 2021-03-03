@@ -11,6 +11,13 @@
 #include "frame.h"
 #include "utils.h"
 
+Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }
+
+Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model)
+    : img_(img.clone()), camera_model_(camera_model) {
+  init();
+}
+
 void Frame::init() {
   assert(!img_.empty());
 
@@ -52,10 +59,12 @@ void Frame::init() {
   }
 
   // 2. 去畸变
-  if (undistorter_) {
-    undistorter_->undistortPoint(keypoints_, un_keypoints_);
-    un_intrinsic_ = undistorter_->getNewIntrinsic();
-    undistorter_->undistortImage(img_, un_img_);
+  if (camera_model_) {
+    camera_model_->undistortKeyPoint(keypoints_, un_keypoints_);
+    camera_model_->undistortImage(img_, un_img_);
+  } else {
+    un_keypoints_ = keypoints;
+    un_img_ = img_.clone();
   }
 
   // 3. 描述子计算（BRIEF）
@@ -68,28 +77,11 @@ void Frame::init() {
   frame_id_ = Frame::total_frame_cnt_++;
 }
 
-Frame::Frame(){}
-
-Frame::Frame(const cv::Mat &img, ORBVocabulary* voc) : pORBvocabulary(voc), img_(img.clone()) { init(); }
-
-Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }
-
-Frame::Frame(const cv::Mat &img, const Intrinsic &intrinsic)
-    : img_(img.clone()), intrinsic_(intrinsic) {
-  init();
-}
-
-Frame::Frame(const cv::Mat &img, const Intrinsic &intrinsic,
-             const UndistorterFisheye::Ptr &undistorter)
-    : img_(img.clone()), intrinsic_(intrinsic), undistorter_(undistorter) {
-  init();
-}
-
-void Frame::matchWith(const Frame::Ptr frame,
-                      std::vector<cv::DMatch> &good_matches,
-                      std::vector<cv::Point2f> &points1,
-                      std::vector<cv::Point2f> &points2,
-                      const bool &debug_draw) {
+int Frame::matchWith(const Frame::Ptr frame,
+                     std::vector<cv::DMatch> &good_matches,
+                     std::vector<cv::Point2f> &points1,
+                     std::vector<cv::Point2f> &points2,
+                     const bool &debug_draw) {
 
   // 匹配特征点
   std::vector<cv::DMatch> all_matches;
@@ -119,7 +111,7 @@ void Frame::matchWith(const Frame::Ptr frame,
     }
   }
   std::cout << "[INFO]: selected " << tmp_matches.size() << " matches from "
-            << all_matches.size() << "by match distance." << std::endl;
+            << all_matches.size() << " by match distance." << std::endl;
 
   // 根据运动约束，检测配对点是否合理
   cv::Point2f ave, stddev;
@@ -134,10 +126,11 @@ void Frame::matchWith(const Frame::Ptr frame,
     cv::Point2f abs_diff =
         cv::Point2d(std::abs(pts_diff[i].x), std::abs(pts_diff[i].y));
     cv::Point2f ddiff = abs_diff - ave;
-    if (std::abs(ddiff.y) > 3 + 3 * stddev.y ||
+    if (std::abs(ddiff.y) > 1 + 3 * stddev.y ||
         std::abs(ddiff.x) > 3 + 3 * stddev.x) {
       // if (std::abs(diff.y) > stddev.y) {
-      std::cout << "ddiff.x=" << ddiff.x << " ddiff.y=" << ddiff.y << std::endl;
+      std::cout << "[INFO]: outlier, ddiff.x=" << ddiff.x
+                << " ddiff.y=" << ddiff.y << std::endl;
       continue;
     }
     auto m = tmp_matches[i];
@@ -149,7 +142,7 @@ void Frame::matchWith(const Frame::Ptr frame,
   }
 
   std::cout << "[INFO]: selected " << better_matches.size() << " matches from "
-            << tmp_matches.size() << "by stddev " << std::endl;
+            << tmp_matches.size() << " by stddev " << std::endl;
 
   pts_diff.clear();
   for (int i = 0; i < int(pts1.size()); ++i) {
@@ -183,6 +176,8 @@ void Frame::matchWith(const Frame::Ptr frame,
 
   // debug draw
   if (debug_draw) {
+    std::cout << "[DEBUG]: debug draw for frame " << frame_id_ << " and "
+              << frame->frame_id_ << std::endl;
     cv::Mat img_match, img_good_match;
     cv::drawMatches(img_, keypoints_, frame->img_, frame->keypoints_,
                     all_matches, img_match);
@@ -197,40 +192,104 @@ void Frame::matchWith(const Frame::Ptr frame,
                     frame->un_keypoints_, good_matches, un_img_good_match);
     cv::resize(un_img_good_match, un_img_good_match, {0, 0}, 0.4, 0.4);
     cv::imshow("undistorted_good_matches", un_img_good_match);
-    cv::waitKey();
   }
+
+  return good_matches.size();
 }
 
-Eigen::Matrix3d Frame::getEigenR() const {
+cv::Point2f Frame::project(const cv::Mat &x3D) {
+  cv::Mat ret = camera_model_->getNewK() * (Rcw_ * x3D + tcw_);
+  ret = ret / ret.at<double>(2);
+  return cv::Point2f(ret.at<double>(0), ret.at<double>(1));
+}
+
+cv::Point2f Frame::project(const Eigen::Vector3d &mappoint) {
+  cv::Mat x3D(3, 1, CV_64F);
+  x3D.at<double>(0) = mappoint[0];
+  x3D.at<double>(1) = mappoint[1];
+  x3D.at<double>(2) = mappoint[2];
+  return project(x3D);
+}
+
+bool Frame::checkDepthValid(const cv::Mat &x3D) {
+  cv::Mat x3Dc = Rcw_ * x3D + tcw_;
+  return x3Dc.at<double>(2) > 0;
+}
+
+std::vector<cv::KeyPoint> Frame::getUnKeyPoints() const {
+  return un_keypoints_;
+}
+
+cv::KeyPoint Frame::getUnKeyPoints(const int &keypoint_idx) const {
+  return un_keypoints_[keypoint_idx];
+}
+
+std::vector<int> Frame::getMappointIdx() const { return mappoint_idx_; }
+
+int Frame::getMappointIdx(const int &keypoint_idx) const {
+  return mappoint_idx_[keypoint_idx];
+}
+
+void Frame::setMappointIdx(const int &keypoint_idx, const int &mappoint_idx) {
+  mappoint_idx_[keypoint_idx] = mappoint_idx;
+}
+
+Eigen::Matrix3d Frame::getEigenRot() {
   Eigen::Matrix3d ret;
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   cv::cv2eigen(Rcw_, ret);
   return ret;
 }
 
-Eigen::Vector3d Frame::getEigenT() const {
+Eigen::Vector3d Frame::getEigenTrans() {
   Eigen::Vector3d ret;
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   cv::cv2eigen(tcw_, ret);
   return ret;
 }
 
-Eigen::Matrix3d Frame::getEigenRwc() const { return getEigenR().inverse(); }
-Eigen::Vector3d Frame::getEigenTwc() const {
-  return -getEigenR().inverse() * getEigenT();
+Eigen::Matrix3d Frame::getEigenRotWc() { return getEigenRot().inverse(); }
+
+Eigen::Vector3d Frame::getEigenTransWc() {
+  return -getEigenRot().inverse() * getEigenTrans();
+}
+
+cv::Mat Frame::getPose() {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
+  return Tcw_;
+}
+
+cv::Mat Frame::getProjectionMatrix() {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
+  cv::Mat P = camera_model_->getNewK() * Tcw_.rowRange(0, 3);
+  return P;
 }
 
 void Frame::setPose(const Eigen::Matrix4d &mat) {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   cv::eigen2cv(mat, Tcw_);
   Tcw_.rowRange(0, 3).colRange(0, 3).copyTo(Rcw_);
   Tcw_.rowRange(0, 3).col(3).copyTo(tcw_);
 }
 
+void Frame::setPose(const Eigen::Matrix3d &R, const Eigen::Vector3d &t) {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
+  cv::eigen2cv(R, Rcw_);
+  cv::eigen2cv(t, tcw_);
+  Tcw_ = cv::Mat::zeros(4, 4, CV_64F);
+  Rcw_.copyTo(Tcw_.rowRange(0, 3).colRange(0, 3));
+  tcw_.copyTo(Tcw_.rowRange(0, 3).col(3));
+}
+
 void Frame::setPose(const cv::Mat &mat) {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   mat.copyTo(Tcw_);
   Tcw_.rowRange(0, 3).colRange(0, 3).copyTo(Rcw_);
   Tcw_.rowRange(0, 3).col(3).copyTo(tcw_);
 }
 
 void Frame::setPose(const cv::Mat &R, const cv::Mat &t) {
+  std::unique_lock<std::mutex> lock(mutex_pose_);
   R.copyTo(Rcw_);
   t.copyTo(tcw_);
   Tcw_ = cv::Mat::zeros(4, 4, CV_64F);
@@ -240,8 +299,8 @@ void Frame::setPose(const cv::Mat &R, const cv::Mat &t) {
 
 void Frame::rotateWorld(const Eigen::Quaterniond &q_ds) {
   Eigen::Isometry3d Tcs = Eigen::Isometry3d::Identity();
-  Tcs.rotate(getEigenR());
-  Tcs.pretranslate(getEigenT());
+  Tcs.rotate(getEigenRot());
+  Tcs.pretranslate(getEigenTrans());
 
   Eigen::Isometry3d Tsc = Tcs.inverse();
   std::cout << "Tcs: " << std::endl << Tcs.matrix() << std::endl;
@@ -309,6 +368,12 @@ void Frame::createVocabulary(ORBVocabulary &voc, std::string &filename, const st
   std::cout << " Saving vocabulary ... " << std::endl;
   voc.saveToTextFile(filename);
   std::cout << " saved to file: " << filename << std::endl; 
+size_t Frame::getFrameId() const { return frame_id_; }
+
+Eigen::Matrix3d Frame::getEigenNewK() const {
+  Eigen::Matrix3d ret;
+  cv::cv2eigen(camera_model_->getNewK(), ret);
+  return ret;
 }
 
 bool Frame::isCentralKp(const cv::KeyPoint &kp,
@@ -322,21 +387,38 @@ bool Frame::isCentralKp(const cv::KeyPoint &kp,
   return false;
 }
 
-void Frame::debugDraw() {
+void Frame::debugDraw(const double &scale_image) {
   std::cout << "[DEBUG]: debug draw" << std::endl;
   std::vector<cv::DMatch> all_matches;
   matcher_->match(descriptors_, descriptors_, all_matches);
 
   cv::Mat mat;
   cv::drawMatches(img_, keypoints_, un_img_, un_keypoints_, all_matches, mat);
-  cv::resize(mat, mat, {0, 0}, 0.4, 0.4);
+  cv::resize(mat, mat, {0, 0}, scale_image, scale_image);
   cv::imshow("debug draw", mat);
   cv::waitKey();
 }
 
-int Frame::total_frame_cnt_ = 0;
+void Frame::debugPrintPose() {
+  Eigen::Quaterniond q(getEigenRot());
+  Eigen::Vector3d t = getEigenTrans();
+  std::cout << "[INFO]: Frame " << frame_id_ << ": " << toString(q) << ", "
+            << toString(t) << std::endl;
+}
 
-cv::Ptr<cv::FeatureDetector> Frame::detector_ = cv::ORB::create();
-cv::Ptr<cv::DescriptorExtractor> Frame::extrator_ = cv::ORB::create();
+int Frame::debugCountMappoints() {
+  int cnt = 0;
+  for (const int &i : mappoint_idx_) {
+    if (i >= 0) {
+      cnt++;
+    }
+  }
+  return cnt;
+}
+
+size_t Frame::total_frame_cnt_ = 0;
+
+cv::Ptr<cv::FeatureDetector> Frame::detector_ = cv::ORB::create(1000);
+cv::Ptr<cv::DescriptorExtractor> Frame::extrator_ = cv::ORB::create(1000);
 cv::Ptr<cv::DescriptorMatcher> Frame::matcher_ =
     cv::DescriptorMatcher::create("BruteForce-Hamming");
