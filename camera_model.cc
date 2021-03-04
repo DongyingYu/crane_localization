@@ -26,6 +26,8 @@ CameraModel::CameraModel(const std::string &camera_model,
       img_size_(img_size), dist_model_(distortion_model),
       dist_coef_(distortion_coeffs) {}
 
+cv::Size CameraModel::getImageSize() const { return img_size_; }
+
 std::vector<double> CameraModel::getIntrinsicVec() const { return intr_vec_; }
 
 void CameraModelPinholeEqui::init() {
@@ -35,10 +37,9 @@ void CameraModelPinholeEqui::init() {
 
   D_ = cv::Mat(dist_coef_.size(), 1, CV_64F, &dist_coef_);
 
-
   cv::Mat_<double> I = cv::Mat_<double>::eye(3, 3);
-  cv::fisheye::estimateNewCameraMatrixForUndistortRectify(
-      K_, D_, img_size_, I, newK_, 1);
+  cv::fisheye::estimateNewCameraMatrixForUndistortRectify(K_, D_, img_size_, I,
+                                                          newK_, 1);
 
   new_intr_vec_ = {
       newK_.at<double>(0, 0),
@@ -85,7 +86,10 @@ void CameraModelPinholeEqui::transpose() {
 
 void CameraModelPinholeEqui::undistortImage(const cv::Mat &img,
                                             cv::Mat &un_img) {
-  assert(img.size() == img_size_);
+  if (img.size() != img_size_) {
+    std::cout << "[ERROR]: expected image_size=" << img_size_ << " , bug got "
+              << img.size() << std::endl;
+  }
   cv::fisheye::undistortImage(img, un_img, K_, D_, newK_, img_size_);
 }
 

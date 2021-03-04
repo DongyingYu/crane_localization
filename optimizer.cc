@@ -152,9 +152,11 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
   }
 
   // mappoint vertex and e
-  size_t mp_size = map->getMapPointSize();
-  for (int i = 0; i < int(mp_size); ++i) {
-    auto mp = map->getMapPointById(i);
+  // size_t mp_size = map->getMapPointSize();
+  // for (int i = 0; i < int(mp_size); ++i) {
+  std::vector<MapPoint::Ptr> mps = map->getMapPoints();
+  for (auto &mp : mps){
+    int i = mp->getId();
     if (!mp) {
       continue;
     }
@@ -210,8 +212,8 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
     map->recent_frames_[i]->setPose(emat);
   }
   // mappoints
-  for (int i = 0; i < int(mp_size); ++i) {
-    auto mp = map->getMapPointById(i);
+  for (auto &mp : mps) {
+    int i = mp->getId();
     if (!mp) {
       continue;
     }
@@ -435,9 +437,9 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
   }
 
   // 顶点类型3：地图点
-  size_t mp_size = map->getMapPointSize();
-  for (int i = 0; i < int(mp_size); ++i) {
-    auto mp = map->getMapPointById(i);
+  std::vector<MapPoint::Ptr> mps = map->getMapPoints();
+  for (auto &mp : mps){
+    int i = mp->getId();
     if (!mp) {
       continue;
     }
@@ -503,8 +505,8 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
   }
 
   // mappoints
-  for (int i = 0; i < int(mp_size); ++i) {
-    auto mp = map->getMapPointById(i);
+  for (auto &mp : mps){
+    int i = mp->getId();
     if (!mp) {
       continue;
     }

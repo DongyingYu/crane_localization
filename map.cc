@@ -211,7 +211,7 @@ void Map::requestG2oInputKeyFrameBa(
       frames_data[rit->first] = std::pair<Frame::Ptr, bool>(rit->second, false);
     }
   }
-  
+
   // 将id最小的一帧，置为fixed
   frames_data.begin()->second.second = true;
 
@@ -421,13 +421,14 @@ bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
     int kp_idx2 = m.trainIdx;
     auto obs1 = std::pair<int, int>(frame1->getFrameId(), kp_idx1);
     auto obs2 = std::pair<int, int>(frame2->getFrameId(), kp_idx2);
-    mappoints[mp_idx]->observations_.emplace_back(obs1);
-    mappoints[mp_idx]->observations_.emplace_back(obs2);
-    frame1->setMappointIdx(kp_idx1, mp_idx);
+    auto &mp = mappoints[mp_idx];
+    mp->observations_.emplace_back(obs1);
+    mp->observations_.emplace_back(obs2);
+    frame1->setMappointIdx(kp_idx1, mp->getId());
     // std::cout << "frame: " << frame1->getFrameId()
     //           << " mappoints: " << frame1->debugCountMappoints() <<
     //           std::endl;
-    frame2->setMappointIdx(kp_idx2, mp_idx);
+    frame2->setMappointIdx(kp_idx2, mp->getId());
     // std::cout << "frame: " << frame2->getFrameId()
     //           << " mappoints: " << frame2->debugCountMappoints() <<
     //           std::endl;
@@ -440,7 +441,8 @@ bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
 
   // 4. 利用天车高度的先验，计算尺度
   Eigen::Vector3d ave_mp = getAveMapPoint();
-  scale_ = kCraneHeight / ave_mp[2];
+  ave_mp[0] = 0;
+  scale_ = kCraneHeight / ave_mp.norm();
 
   std::cout << "[INFO]: Initialize map finished " << std::endl;
   return true;
@@ -585,8 +587,18 @@ MapPoint::Ptr Map::getMapPointById(const int &mp_idx) {
     return it->second;
   } else {
     std::cout << "[WARNING]: " << mp_idx << " not exists!" << std::endl;
+    throw std::runtime_error("error");
     return nullptr;
   }
+}
+
+std::vector<MapPoint::Ptr> Map::getMapPoints() {
+  std::vector<MapPoint::Ptr> mappoints;
+  std::unique_lock<std::mutex> lock(mutex_mappoints_);
+  for (auto &it : mappoints_) {
+    mappoints.emplace_back(it.second);
+  }
+  return mappoints;
 }
 
 size_t Map::getMapPointSize() {
@@ -638,16 +650,22 @@ Frame::Ptr Map::getLastKeyFrame() {
 }
 
 bool Map::checkIsNewKeyFrame(Frame::Ptr &frame) {
-  Eigen::Vector3d trans = frame->getEigenTrans();
-  Eigen::Vector3d last_kf_trans = getLastKeyFrame()->getEigenTrans();
-  Eigen::Vector3d ave_mp = getAveMapPoint();
-  double scale = 9.0 / ave_mp[2];
-  // 当前帧与上一个关键帧之间的平移量超过0.2米，即可添加关键帧
-  if (std::abs((trans - last_kf_trans).norm() * scale) > 0.2) {
-    return true;
-  } else {
+  Frame::Ptr last_kf = getLastKeyFrame();
+
+  // 当前帧与上一帧相隔时间太短，则不宜为关键帧
+  if(std::abs(frame->getFrameId() - last_kf->getFrameId() < 5)) {
     return false;
   }
+
+  // 当前帧与上一个关键帧之间的平移量过小，也不宜关键帧
+  Eigen::Vector3d trans = frame->getEigenTrans();
+  Eigen::Vector3d last_kf_trans = last_kf->getEigenTrans();
+  double scale = getScale();
+  if (std::abs((trans - last_kf_trans).norm() * scale) < 0.2) {
+    return false;
+  }
+  
+  return true;
 }
 
 cv::Point2f Map::project(const cv::Mat &x3D, const cv::Mat K) {

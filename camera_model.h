@@ -38,6 +38,8 @@ public:
                                  std::vector<cv::KeyPoint> &un_kps) = 0;
   virtual void undistort(const cv::Mat &img, cv::Mat &un_img) = 0;
 
+  cv::Size getImageSize() const;
+
   std::vector<double> getIntrinsicVec() const;
   virtual std::vector<double> getNewIntrinsicVec() const = 0;
 

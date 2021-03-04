@@ -122,7 +122,8 @@ void System::run() {
         }
         ave_kf_mp /= mps_data.size();
         cur_map_->ave_kf_mp_ = ave_kf_mp;
-        double scale = Map::kCraneHeight / ave_kf_mp[2];
+        ave_kf_mp[0] = 0.0;
+        double scale = Map::kCraneHeight / ave_kf_mp.norm();
         cur_map_->setScale(scale);
       }
     }

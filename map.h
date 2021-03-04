@@ -53,6 +53,8 @@ public:
   size_t removeMapPointById(const size_t &mp_idx);
 
   MapPoint::Ptr getMapPointById(const int &mp_idx);
+  
+  std::vector<MapPoint::Ptr> getMapPoints();
 
   /**
    * @brief 地图点的数目
