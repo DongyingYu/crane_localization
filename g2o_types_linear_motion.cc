@@ -138,7 +138,7 @@ void EdgeLinearMotion::computeError() {
   SE3Quat se3quat(v1->estimate(), Vector3(v2->estimate(), 0, 0));
   // std::cout << "[DEBUG]: SE3Quat: " << se3quat << std::endl;
   Vector3 Xw = v3->estimate();
-  Vector3 Xc = se3quat.map(Xw);
+  Vector3 Xc = se3quat.inverse().map(Xw);
   Vector2 proj = cam_project(Xc);
   // 计算像素误差
   _error = obs - proj;
@@ -157,6 +157,8 @@ void EdgeLinearMotion::linearizeOplus() {
   const VertexSBAPointXYZ *v3 = static_cast<VertexSBAPointXYZ *>(_vertices[2]);
 
   SE3Quat se3quat(v1->estimate(), Vector3(v2->estimate(), 0, 0));
+  se3quat = se3quat.inverse();
+
   Vector3 Xw = v3->estimate();
 
   // 位姿变换后的三维点
@@ -167,17 +169,20 @@ void EdgeLinearMotion::linearizeOplus() {
   number_t invz = 1.0 / xyz_trans[2];
   number_t invz_2 = invz * invz;
 
+  // 按照推导，这个符号应该是负
+  double sign = -1;
+
   // 顶点1的雅克比 VertexSO3Expmap
-  _jacobianOplus[0](0, 0) = x * y * invz_2 * fx;
-  _jacobianOplus[0](0, 1) = -(1 + (x * x * invz_2)) * fx;
-  _jacobianOplus[0](0, 2) = y * invz * fx;
-  _jacobianOplus[0](1, 0) = (1 + y * y * invz_2) * fy;
-  _jacobianOplus[0](1, 1) = -x * y * invz_2 * fy;
-  _jacobianOplus[0](1, 2) = -x * invz * fy;
+  _jacobianOplus[0](0, 0) = sign * (x * y * invz_2 * fx);
+  _jacobianOplus[0](0, 1) = sign * (-(1 + (x * x * invz_2)) * fx);
+  _jacobianOplus[0](0, 2) = sign * (y * invz * fx);
+  _jacobianOplus[0](1, 0) = sign * ((1 + y * y * invz_2) * fy);
+  _jacobianOplus[0](1, 1) = sign * (-x * y * invz_2 * fy);
+  _jacobianOplus[0](1, 2) = sign * (-x * invz * fy);
 
   // 顶点2的雅克比 VertexLineTranslation
-  _jacobianOplus[1](0, 0) = -invz * fx;
-  _jacobianOplus[1](1, 0) = 0;
+  _jacobianOplus[1](0, 0) = sign * (-invz * fx);
+  _jacobianOplus[1](1, 0) = sign * (0);
 
   // 顶点3的雅克比 VertexSBAPointXYZ
   Eigen::Matrix<number_t, 2, 3> tmp;

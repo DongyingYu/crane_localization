@@ -68,8 +68,29 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   }
   std::cout << "[INFO]: cnt_3d=" << cnt_3d << " cnt_not_3d=" << n_match - cnt_3d
             << std::endl;
-  curr_frame->setPose(last_kf->getPose());
-  G2oOptimizer::optimizeFramePose(curr_frame, this, 10);
+
+  if (cnt_3d < 10) {
+    std::cout << "[ERROR]: too few matched, trackByKeyFrame failed! " << cnt_3d
+              << std::endl;
+    return false;
+  } else {
+    curr_frame->setPose(getLastFrame()->getPose());
+
+    // 优化当前帧curr_frame,及其相关的地图点
+    std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
+    std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
+    std::map<size_t, std::vector<std::pair<size_t, size_t>>> observations_data;
+    requestG2oInputForFrame(curr_frame, frames_data, mps_data,
+                            observations_data);
+    G2oOptimizerForLinearMotion::optimize(frames_data, mps_data,
+                                          observations_data);
+
+    insertRecentFrame(curr_frame);
+
+    if (cnt_3d == n_match) {
+      return true;
+    }
+  }
 
   cv::Mat P1 = last_kf->getProjectionMatrix();
   cv::Mat P2 = curr_frame->getProjectionMatrix();
@@ -83,14 +104,21 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
       cv::KeyPoint kp1 = last_kf->getUnKeyPoints(m.queryIdx);
       cv::KeyPoint kp2 = curr_frame->getUnKeyPoints(m.trainIdx);
       cv::Mat x3D;
+
+      // 避免出现无穷远点
+      cv::Point2f d = kp1.pt - kp2.pt;
+      if (d.x * d.x + d.y * d.y < std::numeric_limits<float>::epsilon()) {
+        continue;
+      }
+
       triangulate(kp1, kp2, P1, P2, x3D);
 
-      // 判断是否为有效的地图点
+      // 判断是否为有效的地图点（貌似失效了，不起作用）
       bool is_finite = std::isfinite(x3D.at<double>(0)) &&
                        std::isfinite(x3D.at<double>(1)) &&
                        std::isfinite(x3D.at<double>(2));
-      bool is_depth_valid = true;
-      // last_kf->checkDepthValid(x3D) && curr_frame->checkDepthValid(x3D);
+      bool is_depth_valid =
+          last_kf->checkDepthValid(x3D) && curr_frame->checkDepthValid(x3D);
 
       if (!(is_finite && is_depth_valid)) {
         std::cout << "[WARNING]: invalid x3D " << x3D.t() << std::endl;
@@ -101,13 +129,15 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
       cv::Point2f proj_pt2 = curr_frame->project(x3D);
       float e1 = squareUvError(proj_pt1 - kp1.pt);
       float e2 = squareUvError(proj_pt2 - kp2.pt);
-      if (e1 > 2 * square_projection_error_threshold_ ||
-          e2 > 2 * square_projection_error_threshold_) {
+      if (e1 > 3 * square_projection_error_threshold_ ||
+          e2 > 3 * square_projection_error_threshold_) {
         std::cout << "[WARNING]: big reprojection error "
                   << ": e1=" << e1 << " e2=" << e2 << std::endl;
         continue;
       }
-
+      if (std::abs(x3D.at<double>(0)) > 1e10) {
+        throw std::runtime_error("error");
+      }
       auto mp = std::make_shared<MapPoint>(x3D.at<double>(0), x3D.at<double>(1),
                                            x3D.at<double>(2));
       auto obs1 = std::pair<int, int>(last_kf->getFrameId(), m.queryIdx);
@@ -120,16 +150,17 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
     }
   }
 
-  insertRecentFrame(curr_frame);
 
-  // 优化当前帧curr_frame,及其相关的地图点
+  // 再次优化当前帧curr_frame,及其相关的地图点
   std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
   std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
   std::map<size_t, std::vector<std::pair<size_t, size_t>>> observations_data;
   requestG2oInputForFrame(curr_frame, frames_data, mps_data, observations_data);
   G2oOptimizerForLinearMotion::optimize(frames_data, mps_data,
                                         observations_data);
+
   // 计算重投影误差，排除外点，之后，重新优化；或者采用类似orbslam2的方式，四次迭代，每次迭代中判断内点和外点
+  return true;
 }
 
 bool Map::checkInitialized() {
@@ -295,15 +326,19 @@ void Map::debugPrintMap() {
 
       // 每一帧的平移量
       Eigen::Vector3d trans = frame->getEigenTrans();
+      Eigen::Vector3d twc = frame->getEigenTransWc();
       std::cout << "[INFO]:           scaled trans = "
-                << toString(trans * scale) << std::endl;
+                << toString(trans * scale) << " twc = " << toString(twc * scale)
+                << std::endl;
     }
   }
   // 最近一帧的信息
   Frame::Ptr last_frame = getLastFrame();
   Eigen::Vector3d trans = last_frame->getEigenTrans();
+  Eigen::Vector3d twc = last_frame->getEigenTransWc();
   std::cout << "[INFO]: Frame " << last_frame->getFrameId()
-            << " : scaled trans = " << toString(trans * scale) << std::endl
+            << " : scaled trans = " << toString(trans * scale)
+            << " twc = " << toString(twc * scale) << std::endl
             << std::endl;
 }
 
@@ -440,9 +475,8 @@ bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
   }
 
   // 4. 利用天车高度的先验，计算尺度
-  Eigen::Vector3d ave_mp = getAveMapPoint();
-  ave_mp[0] = 0;
-  scale_ = kCraneHeight / ave_mp.norm();
+  ave_kf_mp_ = getAveMapPoint();
+  scale_ = kCraneHeight / ave_kf_mp_.norm();
 
   std::cout << "[INFO]: Initialize map finished " << std::endl;
   return true;
@@ -653,18 +687,18 @@ bool Map::checkIsNewKeyFrame(Frame::Ptr &frame) {
   Frame::Ptr last_kf = getLastKeyFrame();
 
   // 当前帧与上一帧相隔时间太短，则不宜为关键帧
-  if(std::abs(frame->getFrameId() - last_kf->getFrameId() < 5)) {
+  if (std::abs(frame->getFrameId() - last_kf->getFrameId() < 5)) {
     return false;
   }
 
   // 当前帧与上一个关键帧之间的平移量过小，也不宜关键帧
-  Eigen::Vector3d trans = frame->getEigenTrans();
-  Eigen::Vector3d last_kf_trans = last_kf->getEigenTrans();
+  Eigen::Vector3d trans = frame->getEigenTransWc();
+  Eigen::Vector3d last_kf_trans = last_kf->getEigenTransWc();
   double scale = getScale();
   if (std::abs((trans - last_kf_trans).norm() * scale) < 0.2) {
     return false;
   }
-  
+
   return true;
 }
 

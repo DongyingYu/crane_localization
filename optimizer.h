@@ -48,7 +48,6 @@ public:
 
 /**
  * @brief 限定直线运动的图优化
- *
  */
 class G2oOptimizerForLinearMotion {
 public:
@@ -61,7 +60,7 @@ public:
 
   static void mapBundleAdjustmentOnlyPose(Map::Ptr map,
                                           const int &n_iteration = 10);
-
+  // use optimize instead
   static void mapBundleAdjustment(Map::Ptr map, const int &n_iteration = 10);
 
   static void optimize(

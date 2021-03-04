@@ -87,20 +87,36 @@ void System::run() {
     }
     if (!cur_map_->checkInitialized()) {
       cur_map_->initialize(last_frame_, cur_frame_);
-      std::cout << "[INFO]: The map before g2o" << std::endl;
+      std::cout << "[INFO]: The initialized map" << std::endl;
       cur_map_->debugPrintMap();
       G2oOptimizer::mapBundleAdjustment(cur_map_, 10);
-      std::cout << "[INFO]: The map after g2o" << std::endl;
+      std::cout << "[INFO]: The initialized map after g2o" << std::endl;
       cur_map_->debugPrintMap();
-      G2oOptimizerForLinearMotion::mapBundleAdjustment(cur_map_);
-      std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
+
+      std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
+      std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
+      std::map<size_t, std::vector<std::pair<size_t, size_t>>>
+          observations_data;
+      cur_map_->requestG2oInputKeyFrameBa(frames_data, mps_data,
+                                          observations_data);
+      G2oOptimizerForLinearMotion::optimize(frames_data, mps_data,
+                                            observations_data);
+      std::cout << "[INFO]: The initialized map after g2o LinearMotion"
+                << std::endl;
       cur_map_->debugPrintMap();
     } else {
       std::cout << "[INFO]: track new frame with cur_map: "
                 << cur_frame_->getFrameId() << std::endl;
-      cur_map_->trackNewFrameByKeyFrame(cur_frame_);
+      bool track_status = cur_map_->trackNewFrameByKeyFrame(cur_frame_);
 
-      std::cout << "[INFO]: The map after g2o LinearMotion" << std::endl;
+      if (!track_status) {
+        std::cout << "[WARNING]: track frame failed "
+                  << cur_frame_->getFrameId() << std::endl;
+        continue;
+      }
+
+      std::cout << "[INFO]: track frame success, map after g2o LinearMotion"
+                << std::endl;
       cur_map_->debugPrintMap();
 
       // 判断是否插入关键帧
@@ -116,7 +132,7 @@ void System::run() {
                                               observations_data, 50);
         // 计算优化后的地图点的平均z值，计算尺度
         Eigen::Vector3d ave_kf_mp = Eigen::Vector3d::Zero();
-        for(auto &it : mps_data) {
+        for (auto &it : mps_data) {
           auto &mp = it.second.first;
           ave_kf_mp += mp->toEigenVector3d();
         }

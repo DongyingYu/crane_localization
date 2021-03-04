@@ -58,7 +58,7 @@ void Frame::init() {
   for (const cv::KeyPoint &kp : keypoints) {
     if (isSubtitle(kp) || isOuterBoarder(kp)) {
       continue;
-    } else if (isCentralKp(kp, 0.4)) {
+    } else if (isCentralKp(kp, 0.6)) {
       keypoints_.emplace_back(kp);
     }
   }
@@ -166,8 +166,8 @@ int Frame::matchWith(const Frame::Ptr frame,
   for (const auto &m : better_matches) {
     auto kp1 = un_keypoints_[m.queryIdx];
     auto kp2 = frame->un_keypoints_[m.trainIdx];
-    // 0.5表示认为整个图像都可以，即无任何筛选
-    double half_center_factor = 0.3;
+    // 1表示认为整个图像都可以，即无任何筛选
+    double half_center_factor = 0.6;
     if (isCentralKp(kp1, half_center_factor) &&
         isCentralKp(kp2, half_center_factor)) {
       good_matches.emplace_back(m);
