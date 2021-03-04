@@ -18,7 +18,10 @@ Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model)
   init();
 }
 
-Frame::Frame(const cv::Mat &img, ORBVocabulary* voc) : pORBvocabulary(voc), img_(img.clone()) { init(); }
+Frame::Frame(const cv::Mat &img, ORBVocabulary *voc)
+    : pORBvocabulary(voc), img_(img.clone()) {
+  init();
+}
 
 void Frame::init() {
   assert(!img_.empty());
@@ -55,7 +58,7 @@ void Frame::init() {
   for (const cv::KeyPoint &kp : keypoints) {
     if (isSubtitle(kp) || isOuterBoarder(kp)) {
       continue;
-    } else {
+    } else if (isCentralKp(kp, 0.6)) {
       keypoints_.emplace_back(kp);
     }
   }
@@ -128,7 +131,8 @@ int Frame::matchWith(const Frame::Ptr frame,
     cv::Point2f abs_diff =
         cv::Point2d(std::abs(pts_diff[i].x), std::abs(pts_diff[i].y));
     cv::Point2f ddiff = abs_diff - ave;
-    if (std::abs(ddiff.y) > 1 + 3 * stddev.y ||
+
+    if (std::abs(ddiff.y) > 5 || std::abs(ddiff.y) > 1 + 3 * stddev.y ||
         std::abs(ddiff.x) > 3 + 3 * stddev.x) {
       // if (std::abs(diff.y) > stddev.y) {
       std::cout << "[INFO]: outlier, ddiff.x=" << ddiff.x
@@ -162,8 +166,8 @@ int Frame::matchWith(const Frame::Ptr frame,
   for (const auto &m : better_matches) {
     auto kp1 = un_keypoints_[m.queryIdx];
     auto kp2 = frame->un_keypoints_[m.trainIdx];
-    // 0.5表示认为整个图像都可以，即无任何筛选
-    double half_center_factor = 0.5;
+    // 1表示认为整个图像都可以，即无任何筛选
+    double half_center_factor = 0.6;
     if (isCentralKp(kp1, half_center_factor) &&
         isCentralKp(kp2, half_center_factor)) {
       good_matches.emplace_back(m);
@@ -322,54 +326,56 @@ void Frame::rotateWorld(const Eigen::Quaterniond &q_ds) {
   setPose(Tcd.matrix());
 }
 
-std::vector<cv::Mat> Frame::toDescriptorVector(){
-  std::cout << "System enter into the toDescriptorVector function " << std::endl;
+std::vector<cv::Mat> Frame::toDescriptorVector() {
+  std::cout << "System enter into the toDescriptorVector function "
+            << std::endl;
   std::vector<cv::Mat> vDesc;
   vDesc.reserve(descriptors_.rows);
-  for(int j=0; j<descriptors_.rows; j++)
+  for (int j = 0; j < descriptors_.rows; j++)
     vDesc.push_back(descriptors_.row(j));
   std::cout << " toDescriptorVector Done! " << std::endl;
   return vDesc;
 }
 
-
 // 图像之间直接比较计算相似性得分
-float Frame::computeScore(const DBoW2::BowVector &v1, const DBoW2::BowVector &v2){
+float Frame::computeScore(const DBoW2::BowVector &v1,
+                          const DBoW2::BowVector &v2) {
   std::cout << " System enter into the computeScore function." << std::endl;
-  return score_ = pORBvocabulary->score(v1,v2);
+  return score_ = pORBvocabulary->score(v1, v2);
   std::cout << " computeScore done! " << std::endl;
 }
 
-
-void Frame::computeBoW(){
+void Frame::computeBoW() {
   std::cout << "The system enter into computeBoW function! " << std::endl;
   // if(bow_vec_.empty()){
-    // 数据类型转换
-    std::cout << " computeBoW test one ... " << std::endl;
-    std::vector<cv::Mat> vCurrentDesc = toDescriptorVector();
-    // BdWVec为Bow特征向量，FeatVec为正向索引
-    pORBvocabulary->transform(vCurrentDesc,bow_vec_,feat_vec_,4);
+  // 数据类型转换
+  std::cout << " computeBoW test one ... " << std::endl;
+  std::vector<cv::Mat> vCurrentDesc = toDescriptorVector();
+  // BdWVec为Bow特征向量，FeatVec为正向索引
+  pORBvocabulary->transform(vCurrentDesc, bow_vec_, feat_vec_, 4);
   // }
   std::cout << "computeBoW Done! " << std::endl;
 }
 
-
-DBoW2::BowVector Frame::getBowVoc(){
+DBoW2::BowVector Frame::getBowVoc() {
   std::cout << " System enter into the getBowVoc function." << std::endl;
   return bow_vec_;
   std::cout << " getBowVoc done ! " << std::endl;
 }
 
-void Frame::createVocabulary(ORBVocabulary &voc, std::string &filename, const std::vector<std::vector<cv::Mat>> &descriptors)
-{
+void Frame::createVocabulary(
+    ORBVocabulary &voc, std::string &filename,
+    const std::vector<std::vector<cv::Mat>> &descriptors) {
   std::cout << " Creating vocabulary. May take some time ... " << std::endl;
   voc.create(descriptors);
   std::cout << " Creating Done ! " << std::endl;
-  std::cout << " vocabulary infirmation: " << std::endl << voc << std::endl << std::endl;
+  std::cout << " vocabulary infirmation: " << std::endl
+            << voc << std::endl
+            << std::endl;
   // 保存词典
   std::cout << " Saving vocabulary ... " << std::endl;
   voc.saveToTextFile(filename);
-  std::cout << " saved to file: " << filename << std::endl; 
+  std::cout << " saved to file: " << filename << std::endl;
 }
 size_t Frame::getFrameId() const { return frame_id_; }
 
@@ -381,13 +387,17 @@ Eigen::Matrix3d Frame::getEigenNewK() const {
 
 bool Frame::isCentralKp(const cv::KeyPoint &kp,
                         const double &half_center_factor) {
-  int c = img_.cols;
-  int r = img_.rows;
-  if (std::abs(kp.pt.x - (c / 2.0)) < c * half_center_factor &&
-      std::abs(kp.pt.y - (r / 2.0)) < r * half_center_factor) {
+  float a = img_.cols / 2.0;
+  float b = img_.rows / 2.0;
+  float x = kp.pt.x - a;
+  float y = kp.pt.y - b;
+
+  if ((x * x) / (a * a) + (y * y) / (b * b) <
+      half_center_factor * half_center_factor) {
     return true;
+  } else {
+    return false;
   }
-  return false;
 }
 
 void Frame::debugDraw(const double &scale_image) {
@@ -399,7 +409,7 @@ void Frame::debugDraw(const double &scale_image) {
   cv::drawMatches(img_, keypoints_, un_img_, un_keypoints_, all_matches, mat);
   cv::resize(mat, mat, {0, 0}, scale_image, scale_image);
   cv::imshow("debug draw", mat);
-  cv::waitKey();
+  // cv::waitKey();
 }
 
 void Frame::debugPrintPose() {

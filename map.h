@@ -30,7 +30,7 @@ public:
   /**
    * @brief 跟踪新的一帧
    */
-  bool trackNewFrame(Frame::Ptr frame);
+  bool trackNewFrameByKeyFrame(Frame::Ptr frame);
 
   /**
    * @brief 利用两帧进行单目初始化，frame1和frame2中的相机内参应当相同。重载
@@ -53,17 +53,35 @@ public:
   size_t removeMapPointById(const size_t &mp_idx);
 
   MapPoint::Ptr getMapPointById(const int &mp_idx);
+  
+  std::vector<MapPoint::Ptr> getMapPoints();
 
+  /**
+   * @brief 地图点的数目
+   */
   size_t getMapPointSize();
 
-  void insertFrame(const Frame::Ptr &frame);
+  /**
+   * @brief 地图点的坐标的平均值
+   */
+  Eigen::Vector3d getAveMapPoint();
+
+  double getScale();
+
+  void setScale(const double &scale);
+
+  /**
+   * @brief 插入新的一帧，更新recent_frames_
+   */
+  void insertRecentFrame(const Frame::Ptr &frame);
+
+  Frame::Ptr getLastFrame();
 
   void insertKeyFrame(const Frame::Ptr &frame);
 
-  /**
-   * @brief 旋转相机的pose，使得每一帧的旋转都相同，且平移量在X轴
-   */
-  void rotateFrameToXTranslation();
+  Frame::Ptr getLastKeyFrame();
+
+  bool checkIsNewKeyFrame(Frame::Ptr &frame);
 
   /**
    * @brief 获取与新的一帧相关的帧、地图点，用于该帧和该帧相关的地图点的优化
@@ -95,17 +113,29 @@ public:
       std::map<size_t, std::vector<std::pair<size_t, size_t>>> &obs_data,
       const size_t &sliding_window = 5);
 
+  const static double kCraneHeight;
+
   /**
    * @brief 统计输出当前map的信息，包括每一帧的pose，地图点的坐标均值，等等
    */
   void debugPrintMap();
+  
+  /**
+   * @brief 关键帧的地图点坐标平均值，用于debug
+   */
+  Eigen::Vector3d ave_kf_mp_;
 
 public:
+  // todo: private
+  std::mutex mutex_frames_;
+  std::vector<Frame::Ptr> recent_frames_;
+
+private:
   std::mutex mutex_mappoints_;
   std::map<size_t, MapPoint::Ptr> mappoints_;
 
-  std::mutex mutex_frames_;
-  std::vector<Frame::Ptr> recent_frames_;
+  std::mutex mutex_scale_;
+  double scale_ = 1.0;
 
   std::mutex mutex_keyframes_;
   std::map<size_t, Frame::Ptr> keyframes_;

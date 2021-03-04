@@ -12,6 +12,8 @@
 #include "utils.h"
 #include <cmath> // for M_PI
 
+#define G2O_OPT_VERBOSE false
+
 /**
  * @brief 统计输出边的卡方信息
  *
@@ -36,9 +38,10 @@ debugPrintEdges(bool compute_error,
       chi2s.emplace_back(chi2);
       chi2s_all.emplace_back(chi2);
     }
-    statistic(chi2s, "Chi2 for frame " + std::to_string(frame_id));
+    statistic(chi2s, "[DEBUG]: G2o Optimization, Chi2 for frame " +
+                         std::to_string(frame_id));
   }
-  statistic(chi2s_all, "Chi2 for all frames");
+  statistic(chi2s_all, "[DEBUG]: G2o Optimization, Chi2 for all frames");
 }
 
 void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
@@ -46,7 +49,7 @@ void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
 
   // create g2o optimizer
   g2o::SparseOptimizer optimizer;
-  optimizer.setVerbose(true);
+  optimizer.setVerbose(G2O_OPT_VERBOSE);
 
   using BlockSolverType = g2o::BlockSolver_6_3;
   using LinearSolverType =
@@ -99,11 +102,11 @@ void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
   auto v = static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(0));
   Eigen::Matrix4d mat = v->estimate().to_homogeneous_matrix();
 
-  std::cout << "[INFO]: before optimization frame->Tcw_: " << std::endl;
-  std::cout << frame->getPose() << std::endl;
+  // std::cout << "[INFO]: before optimization frame->Tcw_: " << std::endl;
+  // std::cout << frame->getPose() << std::endl;
   frame->setPose(mat);
-  std::cout << "[INFO]: after optimization frame->Tcw_: " << std::endl;
-  std::cout << frame->getPose() << std::endl;
+  // std::cout << "[INFO]: after optimization frame->Tcw_: " << std::endl;
+  // std::cout << frame->getPose() << std::endl;
 
   // // release resource
   // for (int i=0; i<int(optimizer.vertices().size()); ++i) {
@@ -122,7 +125,7 @@ void G2oOptimizer::optimizeFramePose(Frame::Ptr frame, Map *map,
 void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
   // create optimizer
   g2o::SparseOptimizer optimizer;
-  optimizer.setVerbose(true);
+  optimizer.setVerbose(G2O_OPT_VERBOSE);
 
   // solver algorithm
   using BlockSolverType = g2o::BlockSolver_6_3;
@@ -152,9 +155,11 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
   }
 
   // mappoint vertex and e
-  size_t mp_size = map->getMapPointSize();
-  for (int i = 0; i < int(mp_size); ++i) {
-    auto mp = map->getMapPointById(i);
+  // size_t mp_size = map->getMapPointSize();
+  // for (int i = 0; i < int(mp_size); ++i) {
+  std::vector<MapPoint::Ptr> mps = map->getMapPoints();
+  for (auto &mp : mps) {
+    int i = mp->getId();
     if (!mp) {
       continue;
     }
@@ -210,8 +215,8 @@ void G2oOptimizer::mapBundleAdjustment(Map::Ptr map, const int &n_iteration) {
     map->recent_frames_[i]->setPose(emat);
   }
   // mappoints
-  for (int i = 0; i < int(mp_size); ++i) {
-    auto mp = map->getMapPointById(i);
+  for (auto &mp : mps) {
+    int i = mp->getId();
     if (!mp) {
       continue;
     }
@@ -306,7 +311,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(
 
   // optimizer
   g2o::SparseOptimizer optimizer;
-  optimizer.setVerbose(true);
+  optimizer.setVerbose(G2O_OPT_VERBOSE);
   using BlockSolverType = g2o::BlockSolverPL<3, 1>;
   using LinearSolverType =
       g2o::LinearSolverEigen<BlockSolverType::PoseMatrixType>;
@@ -395,7 +400,7 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
 
   // optimizer
   g2o::SparseOptimizer optimizer;
-  optimizer.setVerbose(true);
+  optimizer.setVerbose(G2O_OPT_VERBOSE);
   using BlockSolverType = g2o::BlockSolverX;
   using LinearSolverType =
       g2o::LinearSolverEigen<BlockSolverType::PoseMatrixType>;
@@ -435,9 +440,9 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
   }
 
   // 顶点类型3：地图点
-  size_t mp_size = map->getMapPointSize();
-  for (int i = 0; i < int(mp_size); ++i) {
-    auto mp = map->getMapPointById(i);
+  std::vector<MapPoint::Ptr> mps = map->getMapPoints();
+  for (auto &mp : mps) {
+    int i = mp->getId();
     if (!mp) {
       continue;
     }
@@ -503,8 +508,8 @@ void G2oOptimizerForLinearMotion::mapBundleAdjustment(Map::Ptr map,
   }
 
   // mappoints
-  for (int i = 0; i < int(mp_size); ++i) {
-    auto mp = map->getMapPointById(i);
+  for (auto &mp : mps) {
+    int i = mp->getId();
     if (!mp) {
       continue;
     }
@@ -549,7 +554,7 @@ void G2oOptimizerForLinearMotion::optimize(
     const int &n_iteration) {
   // optimizer
   g2o::SparseOptimizer optimizer;
-  optimizer.setVerbose(true);
+  optimizer.setVerbose(G2O_OPT_VERBOSE);
   using BlockSolverType = g2o::BlockSolverX;
   using LinearSolverType =
       g2o::LinearSolverEigen<BlockSolverType::PoseMatrixType>;
@@ -562,9 +567,9 @@ void G2oOptimizerForLinearMotion::optimize(
   v_rot->setId(0);
   Frame::Ptr &frame = frames.begin()->second.first;
   const bool &fixed = frames.begin()->second.second;
-  auto q = Eigen::Quaterniond(frame->getEigenRot());
+  auto q = Eigen::Quaterniond(frame->getEigenRotWc());
   // std::cout << "[DEBUG]: shared rotation: " << toString(q) << std::endl;
-  v_rot->setFixed(fixed);
+  // v_rot->setFixed(fixed);
   v_rot->setEstimate(q);
   optimizer.addVertex(v_rot);
 
@@ -579,14 +584,14 @@ void G2oOptimizerForLinearMotion::optimize(
     const bool &fixed = it.second.second;
     frame_id_max = std::max(frame_id_max, int(frame_id));
     edges_data[frame_id] = std::vector<EdgeType *>();
-    Eigen::Vector3d trans = frame->getEigenTrans();
+    Eigen::Vector3d twc = frame->getEigenTransWc();
     // std::cout << "[DEBUG]: trans of frame " << frame_id << ": "
     //           << toString(trans) << std::endl;
 
     auto v = new g2o::VertexLineTranslation();
     v->setId(1 + frame_id);
     v->setFixed(fixed);
-    v->setEstimate(trans[0]);
+    v->setEstimate(twc[0]);
     optimizer.addVertex(v);
   }
 
@@ -624,6 +629,11 @@ void G2oOptimizerForLinearMotion::optimize(
         e->setVertex(2, dynamic_cast<GOV *>(optimizer.vertex(id)));
         e->setMeasurement(uv);
         e->setInformation(Eigen::Matrix2d::Identity());
+
+        g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+        e->setRobustKernel(rk);
+        rk->setDelta(25);
+
         edges_data[frame_id].emplace_back(e);
         optimizer.addEdge(e);
       }
@@ -637,21 +647,24 @@ void G2oOptimizerForLinearMotion::optimize(
   debugPrintEdges(false, edges_data);
 
   // recover result
-  // v_rot = static_cast<g2o::VertexSO3Expmap *>(optimizer.vertex(0));
-  Eigen::Matrix3d rotation = v_rot->estimate().toRotationMatrix();
+  Eigen::Matrix3d Rwc = v_rot->estimate().toRotationMatrix();
 
   for (auto &it : frames) {
-    auto &frame = it.second.first;
-    const auto &fixed = it.second.second;
-    if (fixed) {
-      continue;
-    }
     const size_t frame_id = it.first;
+    auto &frame = it.second.first;
+    // const auto &fixed = it.second.second;
+    // if (fixed) {
+    //   continue;
+    // }
     auto v = static_cast<g2o::VertexLineTranslation *>(
         optimizer.vertex(frame_id + 1));
-    Eigen::Vector3d trans = Eigen::Vector3d(0, 0, 0);
-    trans[0] = v->estimate();
-    frame->setPose(rotation, trans);
+    Eigen::Vector3d twc = Eigen::Vector3d(0, 0, 0);
+    twc[0] = v->estimate();
+    Eigen::Vector3d tcw = -Rwc.transpose() * twc;
+    // std::cout << "[DEBUG]: frame " << frame_id << std::endl;
+    // std::cout << "         twc " << twc.transpose() << std::endl;
+    // std::cout << "         tcw " << tcw.transpose() << std::endl;
+    frame->setPose(Rwc.transpose(), tcw);
   }
 
   for (auto &it : mps) {

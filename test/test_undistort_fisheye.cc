@@ -32,6 +32,7 @@ int main(int argc, char** argv) {
       "/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/"
       "crane_localization/conf/BL-EX346HP-15M.yaml";
   int skip_frames = 1200;
+  double scale_image = 1.0;
   // 从命令行获取参数
   if (argc == 1) {
   } else if (argc == 3) {
@@ -41,13 +42,21 @@ int main(int argc, char** argv) {
     video_file = argv[1];
     yaml_file = argv[2];
     skip_frames = atoi(argv[3]);
+  } else if (argc == 5) {
+    video_file = argv[1];
+    yaml_file = argv[2];
+    skip_frames = atoi(argv[3]);
+    scale_image = atof(argv[4]);
   } else {
     std::cout << "Usage: exec video_file yaml_file" << std::endl;
     std::cout << "       exec video_file yaml_file skip_frame" << std::endl;
+    std::cout << "       exec video_file yaml_file skip_frame scale_image" << std::endl;
+    return 0;
   }
   std::cout << "[INFO]: video_file = " << video_file << std::endl;
   std::cout << "[INFO]: yaml_file = " << yaml_file << std::endl;
   std::cout << "[INFO]: skip_frame = " << skip_frames << std::endl;
+  std::cout << "[INFO]: scale_image = " << scale_image << std::endl;
 
   // 读取相机内参，创建相机参数模型
   YAML::Node node = YAML::LoadFile(yaml_file);
@@ -89,6 +98,12 @@ int main(int argc, char** argv) {
       break;
     }
     i++;
+    
+    std::cout << "image size 1 " << img.size() << std::endl;
+    if (std::abs(scale_image - 1.0) > std::numeric_limits<float>::epsilon()) {
+      cv::resize(img, img, {0, 0}, scale_image, scale_image);
+    }
+    std::cout << "image size 2 " << img.size() << std::endl;
 
     cv::Mat un_img, un_img_2;
 
@@ -99,7 +114,7 @@ int main(int argc, char** argv) {
 
     Frame::Ptr frame = std::make_shared<Frame>(img, camera_model);
 
-    double draw_scale = 0.3;
+    double draw_scale = 0.5;
     frame->debugDraw(draw_scale);
 
     camera_model->undistort(img, un_img);

@@ -17,7 +17,7 @@
 namespace g2o {
 
 /**
- * @brief 相机位姿旋转量
+ * @brief 相机位姿旋转量，注：此处为Rwc，与正常BA中的Rcw不一致
  * @note 使用SO3，部分运算借用SE3Quat
  */
 class VertexSO3Expmap : public BaseVertex<3, Quaternion> {
@@ -36,7 +36,7 @@ public:
 };
 
 /**
- * @brief 沿着X轴直线的运动的位移量
+ * @brief 沿着X轴直线的运动的位移量，注此处为twc，与正常BA中tcw不一致
  * @note 注：世界坐标系中，相机运动为沿X方向运动的直线
  */
 class VertexLineTranslation : public BaseVertex<1, number_t> {
@@ -54,6 +54,9 @@ public:
   void oplusImpl(const number_t *update_);
 };
 
+/**
+ * @brief error, do not use
+ */
 class EdgeLinearMotionOnlyPose
     : public BaseBinaryEdge<2, Vector2, VertexSO3Expmap,
                             VertexLineTranslation> {
@@ -75,6 +78,10 @@ public:
   number_t fx, fy, cx, cy;
 };
 
+/**
+ * @brief 三元边，连接 共享旋转、当前位姿的平移量、地图点。
+ * @note 旋转与平移，均为相机到世界的转换，即Twc，与正常BA的Tcw不一致。
+ */
 class EdgeLinearMotion : public BaseMultiEdge<2, Vector2> {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

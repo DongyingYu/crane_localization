@@ -15,7 +15,7 @@
 #include <numeric>
 #include <sstream>
 
-void statistic(const std::vector<double> &data, const std::string &name) {
+void statistic(const std::vector<double> &data, const std::string &prefix_str) {
   int cnt = 0;
   double ave = 0, min_v = 0, max_v = 0, sum = 0;
 
@@ -28,7 +28,7 @@ void statistic(const std::vector<double> &data, const std::string &name) {
     max_v = *mm.second;
   }
 
-  std::cout << "[INFO]: " << name << " cnt: " << cnt << " min: " << min_v
+  std::cout << prefix_str << " cnt: " << cnt << " min: " << min_v
             << " max: " << max_v << " ave: " << ave << " sum: " << sum
             << std::endl;
 }
