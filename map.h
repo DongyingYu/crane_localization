@@ -117,7 +117,8 @@ public:
 
 private:
   std::mutex mutex_recent_frames_;
-  std::vector<Frame::Ptr> recent_frames_;
+  std::map<size_t, Frame::Ptr> recent_frames_;
+  int max_recent_frames_ = 50;
 
   std::mutex mutex_keyframes_;
   std::map<size_t, Frame::Ptr> keyframes_;

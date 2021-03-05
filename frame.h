@@ -9,21 +9,21 @@
  *
  */
 #pragma once
+#include "ORBVocabulary.h"
 #include "camera_model.h"
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <iostream>
-#include <fstream>
-#include <memory>
 #include "third_party/DBoW2/DBoW2/BowVector.h"
 #include "third_party/DBoW2/DBoW2/FeatureVector.h"
+#include <Eigen/Core>
+#include <Eigen/Dense>
+#include <fstream>
+#include <iostream>
+#include <memory>
 #include <mutex>
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
-#include "ORBVocabulary.h"
 
 /**
  * @brief 普通图像帧
@@ -39,7 +39,7 @@ public:
   Frame();
   Frame(const cv::Mat &img);
   Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model);
-  Frame(const cv::Mat &img, ORBVocabulary* voc);
+  Frame(const cv::Mat &img, ORBVocabulary *voc);
   /**
    * @brief 与另一帧进行特征点匹配，并根据距离，进行简单筛选
    *
@@ -61,20 +61,21 @@ public:
    */
   void rotateWorld(const Eigen::Quaterniond &q_ds);
 
-    // 描述子格式转换
+  // 描述子格式转换
   std::vector<cv::Mat> toDescriptorVector();
 
-    // Compute Bag of Words representation.
+  // Compute Bag of Words representation.
   void computeBoW();
 
-    // 相似性得分计算
+  // 相似性得分计算
   float computeScore(const DBoW2::BowVector &v1, const DBoW2::BowVector &v2);
 
   DBoW2::BowVector getBowVoc();
 
   // 创建词典
-  static void createVocabulary(ORBVocabulary &voc, std::string &filename, const std::vector<std::vector<cv::Mat>> &descriptors);
-
+  static void
+  createVocabulary(ORBVocabulary &voc, std::string &filename,
+                   const std::vector<std::vector<cv::Mat>> &descriptors);
 
   /**
    * @brief 将地图点投影到当前帧
@@ -125,7 +126,6 @@ public:
    */
   cv::Mat getProjectionMatrix();
 
-
   // debug
   void debugDraw(const double &scale_image = 1.0);
   void debugPrintPose();
@@ -138,7 +138,7 @@ public:
   // 相机模型（包含畸变模型）
   CameraModel::Ptr camera_model_;
 
-//private:
+  // private:
 public:
   // 图片，特征点，描述符
   cv::Mat img_;
@@ -162,9 +162,8 @@ public:
   size_t frame_id_;
   static size_t total_frame_cnt_;
 
-
   // Vocabulary used for relocalization.
-  ORBVocabulary* pORBvocabulary;
+  ORBVocabulary *pORBvocabulary;
 
   // Bag of Words Vector structures.
   DBoW2::BowVector bow_vec_;

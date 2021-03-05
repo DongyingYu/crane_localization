@@ -9,19 +9,8 @@
  *
  */
 #include "map.h"
-#include "third_party/g2o/g2o/core/block_solver.h"
-#include "third_party/g2o/g2o/core/optimization_algorithm_levenberg.h"
-#include "third_party/g2o/g2o/core/robust_kernel_impl.h"
-#include "third_party/g2o/g2o/core/solver.h"
-#include "third_party/g2o/g2o/core/sparse_optimizer.h"
-#include "third_party/g2o/g2o/solvers/dense/linear_solver_dense.h"
-#include "third_party/g2o/g2o/solvers/eigen/linear_solver_eigen.h"
-#include "third_party/g2o/g2o/solvers/structure_only/structure_only_solver.h"
-#include "third_party/g2o/g2o/stuff/sampler.h"
-#include "third_party/g2o/g2o/types/sba/types_six_dof_expmap.h"
 #include "utils.h"
 #include <numeric>
-#include <unordered_set>
 #include <utility>
 
 void Map::clear() {
@@ -156,9 +145,7 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   return true;
 }
 
-bool Map::checkInitialized() {
-  return is_initialized_;
-}
+bool Map::checkInitialized() { return is_initialized_; }
 
 G2oOptimizer::Ptr Map::buildG2oOptForFrame(const Frame::Ptr frame,
                                            const size_t &sliding_window) {
@@ -291,6 +278,7 @@ void Map::debugPrintMap() {
   // 输出关键帧信息，最多五帧
   {
     std::unique_lock<std::mutex> lock_frames(mutex_keyframes_);
+    std::cout << "[INFO]: Num KeyFrames=" << keyframes_.size() << std::endl;
     int cnt = 0;
     std::map<size_t, Frame::Ptr>::reverse_iterator rit;
     for (rit = keyframes_.rbegin(); rit != keyframes_.rend(); ++rit) {
@@ -417,8 +405,8 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
   frame2->setPose(R_h, t_h);
   std::cout << "[INFO]: twc: " << toString(frame2->getEigenTransWc())
             << std::endl;
-  recent_frames_.emplace_back(frame1);
-  recent_frames_.emplace_back(frame2);
+  insertRecentFrame(frame1);
+  insertRecentFrame(frame2);
 
   insertKeyFrame(frame1);
   insertKeyFrame(frame2);
@@ -630,12 +618,18 @@ void Map::setScale(const double &scale) {
 
 void Map::insertRecentFrame(const Frame::Ptr &frame) {
   std::unique_lock<std::mutex> lock(mutex_recent_frames_);
-  recent_frames_.emplace_back(frame);
+  recent_frames_[frame->getFrameId()] = frame;
+  while (recent_frames_.size() > max_recent_frames_) {
+    recent_frames_.erase(recent_frames_.begin());
+  }
 }
 
 Frame::Ptr Map::getLastFrame() {
   std::unique_lock<std::mutex> lock(mutex_recent_frames_);
-  return recent_frames_.back();
+  if (recent_frames_.empty()) {
+    return nullptr;
+  }
+  return recent_frames_.rbegin()->second;
 }
 
 void Map::insertKeyFrame(const Frame::Ptr &frame) {
