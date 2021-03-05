@@ -11,6 +11,7 @@
 #pragma once
 #include "frame.h"
 #include "mappoint.h"
+#include "optimizer.h"
 #include <mutex>
 #include <numeric> // for std::accumulate
 #include <vector>
@@ -23,43 +24,32 @@ public:
   Map() {}
 
   /**
-   * @brief 清空地图
-   */
-  void clear();
-
-  /**
    * @brief 跟踪新的一帧
    */
   bool trackNewFrameByKeyFrame(Frame::Ptr frame);
 
   /**
-   * @brief 利用两帧进行单目初始化，frame1和frame2中的相机内参应当相同。重载
-   * Map::Ptr initialize(Frame::Ptr frame1, Frame::Ptr frame2, const cv::Mat &K)
+   * @brief 利用两帧进行单目初始化
+   * @note frame1和frame2中的相机内参应当相同。
    *
    * @param[in] frame1
    * @param[in] frame2
    * @return Map::Ptr 返回初始化成功的地图，初始化失败则返回nullptr
    */
-  bool initialize(Frame::Ptr frame1, Frame::Ptr frame2);
+  bool initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2);
 
   bool checkInitialized();
 
   /**
-   * @brief 插入地图点
-   * @param[in] mp 地图点
+   * 地图点相关
    */
   void insertMapPoint(const MapPoint::Ptr &mp);
 
   size_t removeMapPointById(const size_t &mp_idx);
 
   MapPoint::Ptr getMapPointById(const int &mp_idx);
-  
-  std::vector<MapPoint::Ptr> getMapPoints();
 
-  /**
-   * @brief 地图点的数目
-   */
-  size_t getMapPointSize();
+  std::vector<MapPoint::Ptr> getMapPoints();
 
   /**
    * @brief 地图点的坐标的平均值
@@ -84,61 +74,61 @@ public:
   bool checkIsNewKeyFrame(Frame::Ptr &frame);
 
   /**
-   * @brief 获取与新的一帧相关的帧、地图点，用于该帧和该帧相关的地图点的优化
+   * @brief 获取与新的一帧相关的帧、地图点、观测数据，构建优化器，
+   * @note 该帧相关的地图点是否需要优化？
    *
-   * @param[in] frame
-   * @param[out] frames_data
-   * @param[out] mps_data
-   * @param[out] obs_data
-   * @param[in] sliding_window
+   * @param[in out] frame
+   * @param[in out] sliding_window
+   * @return G2oOptimizer::Ptr
    */
-  void requestG2oInputForFrame(
-      const Frame::Ptr frame,
-      std::map<size_t, std::pair<Frame::Ptr, bool>> &frames_data,
-      std::map<size_t, std::pair<MapPoint::Ptr, bool>> &mps_data,
-      std::map<size_t, std::vector<std::pair<size_t, size_t>>> &obs_data,
-      const size_t &sliding_window = 5);
+  G2oOptimizer::Ptr buildG2oOptForFrame(const Frame::Ptr frame,
+                                        const size_t &sliding_window = 5);
 
   /**
    * @brief 获取G2oInput，用于关键帧滑窗优化
    *
-   * @param[out] frames_data
-   * @param[out] mps_data
-   * @param[out] obs_data
-   * @param[in] sliding_window
+   * @param[in out] sliding_window
+   * @return G2oOptimizer::Ptr
    */
-  void requestG2oInputKeyFrameBa(
-      std::map<size_t, std::pair<Frame::Ptr, bool>> &frames_data,
-      std::map<size_t, std::pair<MapPoint::Ptr, bool>> &mps_data,
-      std::map<size_t, std::vector<std::pair<size_t, size_t>>> &obs_data,
-      const size_t &sliding_window = 5);
+  G2oOptimizer::Ptr buildG2oOptKeyFrameBa(const size_t &sliding_window = 5);
 
+  /**
+   * @brief 清空地图
+   */
+  void clear();
+
+  void clearRecentFrames();
+
+  /**
+   * @brief 常量，天车高度
+   *
+   */
   const static double kCraneHeight;
 
   /**
    * @brief 统计输出当前map的信息，包括每一帧的pose，地图点的坐标均值，等等
    */
   void debugPrintMap();
-  
+
   /**
    * @brief 关键帧的地图点坐标平均值，用于debug
    */
   Eigen::Vector3d ave_kf_mp_;
 
-public:
-  // todo: private
-  std::mutex mutex_frames_;
-  std::vector<Frame::Ptr> recent_frames_;
-
 private:
-  std::mutex mutex_mappoints_;
-  std::map<size_t, MapPoint::Ptr> mappoints_;
-
-  std::mutex mutex_scale_;
-  double scale_ = 1.0;
+  std::mutex mutex_recent_frames_;
+  std::vector<Frame::Ptr> recent_frames_;
 
   std::mutex mutex_keyframes_;
   std::map<size_t, Frame::Ptr> keyframes_;
+
+  std::mutex mutex_mappoints_;
+  std::map<size_t, MapPoint::Ptr> mappoints_;
+
+  bool is_initialized_ = false;
+
+  std::mutex mutex_scale_;
+  double scale_ = 1.0;
 
 private:
   /**

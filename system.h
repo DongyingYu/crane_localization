@@ -34,37 +34,40 @@ public:
          const double &scale_camera_model = 1.0);
 
   /**
+   * @brief 插入新的一帧
+   */
+  void insertNewImage(const cv::Mat &img);
+
+private:
+  /**
    * @brief 初始化地图，并追踪新的一帧
    */
   void run();
 
   bool isInputQueueEmpty();
 
-  /**
-   * @brief 插入新的一帧
-   */
-  void insertNewImage(const cv::Mat &img);
+private:
+  // 相机模型（包含畸变模型）
+  CameraModel::Ptr camera_model_;
+  // 内部处理时，是否将图像转置（相机模型中的参数也会跟着一起调整）
+  bool transpose_image_ = false;
 
-public:
   // 数据输入
   std::mutex mutex_input_;
   std::list<Frame::Ptr> input_frames_;
 
+  // 临时变量
+  Frame::Ptr cur_frame_ = nullptr;
+  Frame::Ptr last_frame_ = nullptr;
+
   // 当前地图
   std::mutex mutex_map;
   Map::Ptr cur_map_ = nullptr;
-  // 历史地图
-  std::vector<Map::Ptr> maps_;
 
-  // todo: keyframe
-  Frame::Ptr cur_frame_ = nullptr;
-  Frame::Ptr last_frame_ = nullptr;
-  Frame::Ptr last_keyframe = nullptr;
+  // 所有历史地图，用于地图合并，全局建图
+  std::vector<Map::Ptr> history_maps_; 
 
-private:
-  CameraModel::Ptr camera_model_;
-
+  // slam线程
   std::thread thread_;
 
-  bool transpose_image_ = false;
 };

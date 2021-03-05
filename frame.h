@@ -99,8 +99,8 @@ public:
   cv::KeyPoint getUnKeyPoints(const int &keypoint_idx) const;
 
   // 地图点索引 access
-  std::vector<int> getMappointIdx() const;
-  int getMappointIdx(const int &keypoint_idx) const;
+  std::vector<int> getMappointId() const;
+  int getMappointId(const int &keypoint_idx) const;
   void setMappointIdx(const int &keypoint_idx, const int &mappoint_idx);
 
   // 位姿相关 access
@@ -129,7 +129,6 @@ public:
   // debug
   void debugDraw(const double &scale_image = 1.0);
   void debugPrintPose();
-  int debugCountMappoints();
 
   // 特征点、描述符、匹配相关
   static cv::Ptr<cv::FeatureDetector> detector_;
@@ -148,8 +147,8 @@ public:
   std::vector<cv::KeyPoint> un_keypoints_; // 去畸变后的特征点
   cv::Mat descriptors_;
 
-  // 特征点对应的3D空间点
-  std::vector<int> mappoint_idx_;
+  // 特征点对应的3D空间点的id
+  std::vector<int> mappoints_id_;
 
   // 代码中Tcw，表示位姿T^w_c。
   // 假设：点在相机坐标系下的值P_c，点在世界坐标系下的坐标值P_w，则

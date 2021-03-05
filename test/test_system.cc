@@ -53,10 +53,6 @@ int main(int argc, char **argv) {
   int cnt = 0;
   for (int cnt = 0;; ++cnt) {
     capture >> img;
-    // if (cnt % 3 != 0) {
-    //   continue;
-    // }
-    std::cout << "[INFO]: insert new frame " << cnt << std::endl;
     system->insertNewImage(img);
 
     cv::waitKey();

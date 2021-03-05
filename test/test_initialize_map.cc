@@ -1,45 +1,51 @@
+#include "camera_model.h"
 #include "frame.h"
+#include "map.h"
 #include "optimizer.h"
 #include "utils.h"
-#include <opencv2/features2d.hpp>
-#include <opencv2/xfeatures2d.hpp>
-
-int width = 2560;
-int height = 1440;
-double fx = 2052.01136163;
-double fy = 2299.88726199;
-double cx = 1308.23302753;
-double cy = 713.03063759;
-double k1 = -0.47040093;
-double k2 = 1.0270395;
-double k3 = -2.00061705;
-double k4 = 1.64023946;
-Intrinsic intrinsic = Intrinsic(fx, fy, cx, cy).scale(0.5);
-cv::Size img_size = cv::Size(width * 0.5, height * 0.5);
 
 int main(int argc, char **argv) {
-  // config
+  // 默认参数
   std::string video_file =
       "/home/xt/Documents/data/DATASETS/ros_bag/BL-EX346HP-15M/crane/78.mp4";
+  std::string yaml_file =
+      "/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/"
+      "crane_localization/conf/BL-EX346HP-15M.yaml";
   int skip_frames = 1200;
-  double scale_image = 1.0;
+  // 从命令行获取参数
+  if (argc == 1) {
+  } else if (argc == 3) {
+    video_file = argv[1];
+    yaml_file = argv[2];
+  } else if (argc == 4) {
+    video_file = argv[1];
+    yaml_file = argv[2];
+    skip_frames = atoi(argv[3]);
+  } else {
+    std::cout << "Usage: exec video_file yaml_file" << std::endl;
+    std::cout << "       exec video_file yaml_file skip_frame" << std::endl;
+  }
+
+  std::cout << "[INFO]: video_file = " << video_file << std::endl;
+  std::cout << "[INFO]: yaml_file = " << yaml_file << std::endl;
+  std::cout << "[INFO]: skip_frame = " << skip_frames << std::endl;
+
+  // 相机模型
+  CameraModel::Ptr camera_model =
+      std::make_shared<CameraModelPinholeEqui>(yaml_file);
+
+  // 内部处理时，将图片转置
   bool transpose_image = true;
-
-  if (scale_image != 1.0) {
-    intrinsic = intrinsic.scale(scale_image);
-    img_size =
-        cv::Size(img_size.width * scale_image, img_size.height * scale_image);
-  }
   if (transpose_image) {
-    intrinsic = intrinsic.transpose();
-    img_size = cv::Size(img_size.height, img_size.width);
+    camera_model->transpose();
   }
 
-  auto undistorter =
-      std::make_shared<UndistorterFisheye>(img_size, intrinsic, k1, k2, k3, k4);
-  cv::Mat K = undistorter->getNewK();
+  // 测试所用的视频，被缩放了0.5倍，所以需将相机模型缩放0.5倍
+  double scale_camera_model = 0.5;
+  if (scale_camera_model != 1) {
+    camera_model->scale(scale_camera_model);
+  }
 
-  // skip some frames
   cv::Mat img;
   cv::VideoCapture capture(video_file);
   while (skip_frames > 0) {
@@ -47,49 +53,32 @@ int main(int argc, char **argv) {
     skip_frames--;
   }
 
-  Frame::Ptr frame_cur, frame_prev;
-
-  auto initializer = std::make_shared<Initializer>();
-
-  // std::vector
-  int cnt = 0;
-  double speed = 0;
-  std::list<Frame::Ptr> frames;
+  Frame::Ptr frame_curr, frame_prev;
   while (1) {
     capture >> img;
+
     if (transpose_image) {
       cv::transpose(img, img);
     }
-    cv::resize(img, img, {0, 0}, scale_image, scale_image);
 
-    frame_cur = std::make_shared<Frame>(img, intrinsic, undistorter);
-    // frame_cur->debugDraw();
+    frame_prev = frame_curr;
+    frame_curr = std::make_shared<Frame>(img, camera_model);
 
-    frames.emplace_back(frame_cur);
-
-    if (frames.size() == 1) {
+    if (!frame_prev) {
       continue;
-    } else if (frames.size() < 15) {
-      frame_prev = frames.front();
-      // frame_prev->debugDraw();
-      // frame_cur->debugDraw();
-      Map::Ptr map = initializer->initialize(frame_prev, frame_cur, K);
+    }
 
-      // frames.pop_front();
+    Map::Ptr map = std::make_shared<Map>();
+    bool status = map->initialize(frame_prev, frame_curr);
 
-      Eigen::Vector3d ave_twc(0, 0, 0);
-      if (map) {
-        G2oOptimizer::mapBundleAdjustment(map);
-        Eigen::Vector3d twc1 = map->recent_frames_.back()->getEigenTransWc();
-        std::cout << "[INFO]: twc after g2o: " << toString(twc1) << std::endl;
+    if (status) {
+      G2oOptimizer::Ptr opt = map->buildG2oOptKeyFrameBa();
+      opt->optimize();
+      opt->optimizeLinearMotion();
 
-        G2oOptimizerForLinearMotion::mapBundleAdjustmentOnlyPose(map);
-        Eigen::Vector3d twc2 = map->recent_frames_.back()->getEigenTransWc();
-        std::cout << "[INFO]: twc after constrained g2o: " << toString(twc2)
-                  << std::endl;
-        ave_twc += twc1 / (frames.size() - 1);
-      }
-      std::cout << "[INFO]: average twc: " << toString(ave_twc) << std::endl;
+      std::cout << "[INFO]: The initialized map after g2o LinearMotion"
+                << std::endl;
+      map->debugPrintMap();
     }
 
     cv::waitKey();

@@ -74,11 +74,13 @@ void Frame::init() {
 
   // 3. 描述子计算（BRIEF）
   extrator_->compute(img_, keypoints_, descriptors_);
-  std::cout << "[INFO]: keypoints_.size()=" << keypoints_.size();
-  std::cout << " descriptors_.size()=" << descriptors_.size() << std::endl;
+  if (keypoints_.size() < 50) {
+    std::cout << "[WARNING]: too few keypoints detected " << keypoints_.size()
+              << std::endl;
+  }
 
   // 4. 其他初始化
-  mappoint_idx_ = std::vector<int>(keypoints_.size(), -1);
+  mappoints_id_ = std::vector<int>(keypoints_.size(), -1);
   frame_id_ = Frame::total_frame_cnt_++;
 }
 
@@ -99,8 +101,6 @@ int Frame::matchWith(const Frame::Ptr frame,
     dmin = m.distance < dmin ? m.distance : dmin;
     dmax = m.distance > dmax ? m.distance : dmax;
   }
-  std::cout << "[INFO]: Descriptor distance max: " << dmax << " min: " << dmin
-            << std::endl;
 
   // 根据经验，筛选匹配
   std::vector<cv::DMatch> tmp_matches;
@@ -127,6 +127,7 @@ int Frame::matchWith(const Frame::Ptr frame,
   std::vector<cv::DMatch> better_matches;
   pts1.clear();
   pts2.clear();
+  int n_outliers = 0;
   for (int i = 0; i < int(tmp_matches.size()); ++i) {
     cv::Point2f abs_diff =
         cv::Point2d(std::abs(pts_diff[i].x), std::abs(pts_diff[i].y));
@@ -134,9 +135,9 @@ int Frame::matchWith(const Frame::Ptr frame,
 
     if (std::abs(ddiff.y) > 5 || std::abs(ddiff.y) > 1 + 3 * stddev.y ||
         std::abs(ddiff.x) > 3 + 3 * stddev.x) {
-      // if (std::abs(diff.y) > stddev.y) {
-      std::cout << "[INFO]: outlier, ddiff.x=" << ddiff.x
-                << " ddiff.y=" << ddiff.y << std::endl;
+      n_outliers++;
+      // std::cout << "[INFO]: outlier, ddiff.x=" << ddiff.x
+      //           << " ddiff.y=" << ddiff.y << std::endl;
       continue;
     }
     auto m = tmp_matches[i];
@@ -145,6 +146,10 @@ int Frame::matchWith(const Frame::Ptr frame,
     better_matches.emplace_back(m);
     pts1.emplace_back(pt1);
     pts2.emplace_back(pt2);
+  }
+
+  if (1.0 * n_outliers / tmp_matches.size() > 0.3) {
+    std::cout << "[WARNING]: too much outliers " << n_outliers << std::endl;
   }
 
   std::cout << "[INFO]: selected " << better_matches.size() << " matches from "
@@ -184,15 +189,6 @@ int Frame::matchWith(const Frame::Ptr frame,
   if (debug_draw) {
     std::cout << "[DEBUG]: debug draw for frame " << frame_id_ << " and "
               << frame->frame_id_ << std::endl;
-    cv::Mat img_match, img_good_match;
-    cv::drawMatches(img_, keypoints_, frame->img_, frame->keypoints_,
-                    all_matches, img_match);
-    cv::drawMatches(img_, keypoints_, frame->img_, frame->keypoints_,
-                    good_matches, img_good_match);
-    // cv::imshow("all_matches", img_match);
-    cv::resize(img_good_match, img_good_match, {0, 0}, 0.4, 0.4);
-    cv::imshow("good_matches", img_good_match);
-
     cv::Mat un_img_good_match;
     cv::drawMatches(un_img_, un_keypoints_, frame->un_img_,
                     frame->un_keypoints_, good_matches, un_img_good_match);
@@ -230,14 +226,14 @@ cv::KeyPoint Frame::getUnKeyPoints(const int &keypoint_idx) const {
   return un_keypoints_[keypoint_idx];
 }
 
-std::vector<int> Frame::getMappointIdx() const { return mappoint_idx_; }
+std::vector<int> Frame::getMappointId() const { return mappoints_id_; }
 
-int Frame::getMappointIdx(const int &keypoint_idx) const {
-  return mappoint_idx_[keypoint_idx];
+int Frame::getMappointId(const int &keypoint_idx) const {
+  return mappoints_id_[keypoint_idx];
 }
 
 void Frame::setMappointIdx(const int &keypoint_idx, const int &mappoint_idx) {
-  mappoint_idx_[keypoint_idx] = mappoint_idx;
+  mappoints_id_[keypoint_idx] = mappoint_idx;
 }
 
 Eigen::Matrix3d Frame::getEigenRot() {
@@ -417,16 +413,6 @@ void Frame::debugPrintPose() {
   Eigen::Vector3d t = getEigenTrans();
   std::cout << "[INFO]: Frame " << frame_id_ << ": " << toString(q) << ", "
             << toString(t) << std::endl;
-}
-
-int Frame::debugCountMappoints() {
-  int cnt = 0;
-  for (const int &i : mappoint_idx_) {
-    if (i >= 0) {
-      cnt++;
-    }
-  }
-  return cnt;
 }
 
 size_t Frame::total_frame_cnt_ = 0;

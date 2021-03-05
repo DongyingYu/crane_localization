@@ -9,7 +9,6 @@
  *
  */
 #include "map.h"
-#include "optimizer.h"
 #include "third_party/g2o/g2o/core/block_solver.h"
 #include "third_party/g2o/g2o/core/optimization_algorithm_levenberg.h"
 #include "third_party/g2o/g2o/core/robust_kernel_impl.h"
@@ -31,8 +30,12 @@ void Map::clear() {
     mappoints_.clear();
   }
   {
-    std::unique_lock<std::mutex> lock(mutex_frames_);
+    std::unique_lock<std::mutex> lock(mutex_recent_frames_);
     recent_frames_.clear();
+  }
+  {
+    std::unique_lock<std::mutex> lock(mutex_keyframes_);
+    keyframes_.clear();
   }
 }
 
@@ -55,7 +58,7 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   // 2. 使用PnP给出当前帧的相机位姿
   int cnt_3d = 0;
   for (const cv::DMatch &m : good_matches) {
-    int mp_idx = last_kf->getMappointIdx(m.queryIdx);
+    int mp_idx = last_kf->getMappointId(m.queryIdx);
     if (mp_idx >= 0) {
       cnt_3d++;
       curr_frame->setMappointIdx(m.trainIdx, mp_idx);
@@ -77,13 +80,8 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
     curr_frame->setPose(getLastFrame()->getPose());
 
     // 优化当前帧curr_frame,及其相关的地图点
-    std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
-    std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
-    std::map<size_t, std::vector<std::pair<size_t, size_t>>> observations_data;
-    requestG2oInputForFrame(curr_frame, frames_data, mps_data,
-                            observations_data);
-    G2oOptimizerForLinearMotion::optimize(frames_data, mps_data,
-                                          observations_data);
+    G2oOptimizer::Ptr opt = buildG2oOptForFrame(curr_frame);
+    opt->optimizeLinearMotion();
 
     insertRecentFrame(curr_frame);
 
@@ -97,7 +95,7 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
 
   // 3. 将剩余配对特征点三角化
   for (const cv::DMatch &m : good_matches) {
-    int mp_idx = last_kf->getMappointIdx(m.queryIdx);
+    int mp_idx = last_kf->getMappointId(m.queryIdx);
     if (mp_idx >= 0) {
       ;
     } else {
@@ -150,38 +148,24 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
     }
   }
 
-
   // 再次优化当前帧curr_frame,及其相关的地图点
-  std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
-  std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
-  std::map<size_t, std::vector<std::pair<size_t, size_t>>> observations_data;
-  requestG2oInputForFrame(curr_frame, frames_data, mps_data, observations_data);
-  G2oOptimizerForLinearMotion::optimize(frames_data, mps_data,
-                                        observations_data);
+  G2oOptimizer::Ptr opt = buildG2oOptForFrame(curr_frame);
+  opt->optimizeLinearMotion();
 
   // 计算重投影误差，排除外点，之后，重新优化；或者采用类似orbslam2的方式，四次迭代，每次迭代中判断内点和外点
   return true;
 }
 
 bool Map::checkInitialized() {
-  int n_mps = 0, n_frames = 0;
-  {
-    std::unique_lock<std::mutex> lock(mutex_mappoints_);
-    n_mps = mappoints_.size();
-  }
-  {
-    std::unique_lock<std::mutex> lock(mutex_frames_);
-    n_frames = recent_frames_.size();
-  }
-  return n_frames >= 2 && n_mps > 0;
+  return is_initialized_;
 }
 
-void Map::requestG2oInputForFrame(
-    const Frame::Ptr frame,
-    std::map<size_t, std::pair<Frame::Ptr, bool>> &frames_data,
-    std::map<size_t, std::pair<MapPoint::Ptr, bool>> &mps_data,
-    std::map<size_t, std::vector<std::pair<size_t, size_t>>> &obs_data,
-    const size_t &sliding_window) {
+G2oOptimizer::Ptr Map::buildG2oOptForFrame(const Frame::Ptr frame,
+                                           const size_t &sliding_window) {
+
+  std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
+  std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
+  std::map<size_t, std::vector<std::pair<size_t, size_t>>> obs_data;
 
   // pose固定的frame
   {
@@ -199,7 +183,7 @@ void Map::requestG2oInputForFrame(
   frames_data[frame->getFrameId()] = std::pair<Frame::Ptr, bool>(frame, false);
 
   // 待优化的mappoint
-  std::vector<int> mp_indixes = frame->getMappointIdx();
+  std::vector<int> mp_indixes = frame->getMappointId();
   {
     std::unique_lock<std::mutex> lock(mutex_mappoints_);
     for (const int &mp_idx : mp_indixes) {
@@ -224,13 +208,15 @@ void Map::requestG2oInputForFrame(
     }
     obs_data[mp_idx] = observation;
   }
+
+  return std::make_shared<G2oOptimizer>(frames_data, mps_data, obs_data);
 }
 
-void Map::requestG2oInputKeyFrameBa(
-    std::map<size_t, std::pair<Frame::Ptr, bool>> &frames_data,
-    std::map<size_t, std::pair<MapPoint::Ptr, bool>> &mps_data,
-    std::map<size_t, std::vector<std::pair<size_t, size_t>>> &obs_data,
-    const size_t &sliding_window) {
+G2oOptimizer::Ptr Map::buildG2oOptKeyFrameBa(const size_t &sliding_window) {
+
+  std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
+  std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
+  std::map<size_t, std::vector<std::pair<size_t, size_t>>> obs_data;
   // frames
   {
     std::unique_lock<std::mutex> lock(mutex_keyframes_);
@@ -250,7 +236,7 @@ void Map::requestG2oInputKeyFrameBa(
   for (auto &it : frames_data) {
     const auto &frame_id = it.first;
     auto &frame = it.second.first;
-    std::vector<int> mp_indixes = frame->getMappointIdx();
+    std::vector<int> mp_indixes = frame->getMappointId();
     {
       std::unique_lock<std::mutex> lock(mutex_mappoints_);
       for (const int &mp_idx : mp_indixes) {
@@ -278,73 +264,64 @@ void Map::requestG2oInputKeyFrameBa(
       obs_data[mp->getId()] = observation;
     }
   }
+
+  return std::make_shared<G2oOptimizer>(frames_data, mps_data, obs_data);
+}
+
+void Map::clearRecentFrames() {
+  std::unique_lock<std::mutex> lock(mutex_recent_frames_);
+  recent_frames_.clear();
 }
 
 void Map::debugPrintMap() {
   double scale = getScale();
   // 输出地图点的均值
-  Eigen::Vector3d mp_ave = getAveMapPoint();
-  std::cout << "[INFO]: MapPoint size " << mappoints_.size()
-            << " scaled mean: " << toString(mp_ave * scale) << std::endl;
-  std::cout << "[INFO]: scaled mean of kf_mp: " << toString(ave_kf_mp_ * scale)
-            << std::endl;
+  {
+    std::unique_lock<std::mutex> lock(mutex_mappoints_);
+    Eigen::Vector3d mp_ave = Eigen::Vector3d::Zero();
+    for (const auto &it : mappoints_) {
+      mp_ave += it.second->toEigenVector3d();
+    }
+    mp_ave = mp_ave / mappoints_.size();
+    std::cout << "[INFO]: MapPoint size " << mappoints_.size()
+              << " scaled mean: " << toString(mp_ave * scale) << std::endl;
+    std::cout << "[INFO]: scaled mean of kf_mp: "
+              << toString(ave_kf_mp_ * scale) << std::endl;
+  }
+  // 输出关键帧信息，最多五帧
   {
     std::unique_lock<std::mutex> lock_frames(mutex_keyframes_);
-    std::unique_lock<std::mutex> lock_mappoints(mutex_mappoints_);
-    // 输出公用旋转量
-    Frame::Ptr last_kf = keyframes_.rbegin()->second;
-    Eigen::Quaterniond q(last_kf->getEigenRot());
-    std::cout << "[INFO]: Shared Rotation " << toString(q) << std::endl;
-
-    // 输出每一帧的信息
-    for (auto &it : keyframes_) {
-      const size_t &frame_id = it.first;
-      Frame::Ptr &frame = it.second;
-
-      std::cout << "[INFO]: Frame " << frame_id;
-
-      // // 计算重投影误差（用卡方chi2衡量）
-      // std::vector<cv::Point2f> diffs;
-      // std::vector<double> chi2s;
-      // for (int i = 0; i < frame->getMappointIdx().size(); ++i) {
-      //   int mp_idx = frame->getMappointIdx(i);
-      //   if (mp_idx < 0) {
-      //     continue;
-      //   }
-      //   const auto &mp = mappoints_[mp_idx];
-      //   cv::Point2f proj = frame->project(mp->toEigenVector3d());
-      //   cv::Point2f pt = frame->getUnKeyPoints(i).pt;
-      //   cv::Point2f diff = pt - proj;
-      //   diffs.emplace_back(diff);
-      //   chi2s.emplace_back(diff.x * diff.x + diff.y * diff.y);
-      // }
-      // cv::Point2f ave, stddev;
-      // calAveStddev(diffs, ave, stddev, true);
-      // std::cout << " : Reprojection error: ave=" << ave
-      //           << " stddev = " << stddev << std::endl;
-      // statistic(chi2s, "          Chi2s");
-
+    int cnt = 0;
+    std::map<size_t, Frame::Ptr>::reverse_iterator rit;
+    for (rit = keyframes_.rbegin(); rit != keyframes_.rend(); ++rit) {
+      const size_t &frame_id = rit->first;
+      Frame::Ptr &frame = rit->second;
+      if (cnt == 0) {
+        // 输出公用旋转量
+        Eigen::Quaterniond q(frame->getEigenRot());
+        std::cout << "[INFO]: Shared Rotation " << toString(q) << std::endl;
+      } else if (cnt >= 5) {
+        break;
+      }
+      cnt++;
       // 每一帧的平移量
-      Eigen::Vector3d trans = frame->getEigenTrans();
       Eigen::Vector3d twc = frame->getEigenTransWc();
-      std::cout << "[INFO]:           scaled trans = "
-                << toString(trans * scale) << " twc = " << toString(twc * scale)
+      std::cout << "[INFO]: Frame " << frame_id
+                << "          scaled twc = " << toString(twc * scale)
                 << std::endl;
     }
   }
   // 最近一帧的信息
   Frame::Ptr last_frame = getLastFrame();
-  Eigen::Vector3d trans = last_frame->getEigenTrans();
   Eigen::Vector3d twc = last_frame->getEigenTransWc();
   std::cout << "[INFO]: Frame " << last_frame->getFrameId()
-            << " : scaled trans = " << toString(trans * scale)
-            << " twc = " << toString(twc * scale) << std::endl
+            << " : scaled twc = " << toString(twc * scale) << std::endl
             << std::endl;
 }
 
 const double Map::kCraneHeight = 9.0;
 
-bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
+bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
   std::cout << "[INFO]: trying to initialize a map " << std::endl;
   clear();
 
@@ -460,13 +437,7 @@ bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
     mp->observations_.emplace_back(obs1);
     mp->observations_.emplace_back(obs2);
     frame1->setMappointIdx(kp_idx1, mp->getId());
-    // std::cout << "frame: " << frame1->getFrameId()
-    //           << " mappoints: " << frame1->debugCountMappoints() <<
-    //           std::endl;
     frame2->setMappointIdx(kp_idx2, mp->getId());
-    // std::cout << "frame: " << frame2->getFrameId()
-    //           << " mappoints: " << frame2->debugCountMappoints() <<
-    //           std::endl;
     mp_idx++;
   }
 
@@ -477,6 +448,8 @@ bool Map::initialize(Frame::Ptr frame1, Frame::Ptr frame2) {
   // 4. 利用天车高度的先验，计算尺度
   ave_kf_mp_ = getAveMapPoint();
   scale_ = kCraneHeight / ave_kf_mp_.norm();
+
+  is_initialized_ = true;
 
   std::cout << "[INFO]: Initialize map finished " << std::endl;
   return true;
@@ -635,11 +608,6 @@ std::vector<MapPoint::Ptr> Map::getMapPoints() {
   return mappoints;
 }
 
-size_t Map::getMapPointSize() {
-  std::unique_lock<std::mutex> lock(mutex_mappoints_);
-  return mappoints_.size();
-}
-
 Eigen::Vector3d Map::getAveMapPoint() {
   std::unique_lock<std::mutex> lock(mutex_mappoints_);
   Eigen::Vector3d ret = Eigen::Vector3d::Zero();
@@ -661,12 +629,12 @@ void Map::setScale(const double &scale) {
 }
 
 void Map::insertRecentFrame(const Frame::Ptr &frame) {
-  std::unique_lock<std::mutex> lock(mutex_frames_);
+  std::unique_lock<std::mutex> lock(mutex_recent_frames_);
   recent_frames_.emplace_back(frame);
 }
 
 Frame::Ptr Map::getLastFrame() {
-  std::unique_lock<std::mutex> lock(mutex_frames_);
+  std::unique_lock<std::mutex> lock(mutex_recent_frames_);
   return recent_frames_.back();
 }
 

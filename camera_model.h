@@ -19,6 +19,8 @@ class CameraModel {
 public:
   using Ptr = std::shared_ptr<CameraModel>;
 
+  CameraModel();
+
   // 无畸变
   CameraModel(const std::string &camera_model,
               const std::vector<double> &intrinsic_vector,
@@ -67,6 +69,8 @@ public:
   CameraModelPinholeEqui(const std::vector<double> &intrinsic_vector,
                          const cv::Size &img_size,
                          const std::vector<double> &distortion_coeffs);
+  
+  CameraModelPinholeEqui(const std::string &kalibr_camchain_yaml);
 
   void scale(const double &scale_factor) override;
 

@@ -10,6 +10,9 @@
  */
 
 #include "camera_model.h"
+#include <yaml-cpp/yaml.h>
+
+CameraModel::CameraModel() {}
 
 CameraModel::CameraModel(const std::string &camera_model,
                          const std::vector<double> &intrinsic_vector,
@@ -60,6 +63,36 @@ CameraModelPinholeEqui::CameraModelPinholeEqui(
     : CameraModel("pinhole", intrinsic_vector, img_size, "equi",
                   distortion_coeffs) {
   init();
+}
+
+CameraModelPinholeEqui::CameraModelPinholeEqui(
+    const std::string &kalibr_camchain_yaml) {
+  YAML::Node node = YAML::LoadFile(kalibr_camchain_yaml);
+  if (!node) {
+    std::string msg = "[ERROR]: Open yaml failed " + kalibr_camchain_yaml;
+    throw std::runtime_error(msg);
+  }
+  // 相机模型和畸变模型
+  if (node["cam0"]) {
+    YAML::Node cam = node["cam0"];
+    camera_model_ = cam["camera_model"].as<std::string>();
+    dist_model_ = cam["distortion_model"].as<std::string>();
+    intr_vec_ = cam["intrinsics"].as<std::vector<double>>();
+    dist_coef_ = cam["distortion_coeffs"].as<std::vector<double>>();
+    auto resolution = cam["resolution"].as<std::vector<int>>();
+    img_size_ = cv::Size(resolution[0], resolution[1]);
+    if (camera_model_ == "pinhole" && dist_model_ == "equidistant") {
+      init();
+    } else {
+      std::string msg = "[ERROR]: unsupported Camera model " + camera_model_ +
+                        " " + dist_model_;
+      throw std::runtime_error(msg);
+    }
+  } else {
+    std::string msg =
+        "[ERROR]: Read camera param failed from " + kalibr_camchain_yaml;
+    throw std::runtime_error(msg);
+  }
 }
 
 void CameraModelPinholeEqui::scale(const double &scale_factor) {

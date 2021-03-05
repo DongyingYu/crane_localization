@@ -11,7 +11,7 @@
 #pragma once
 #include "frame.h"
 #include "g2o_types_linear_motion.h"
-#include "map.h"
+#include "mappoint.h"
 #include "third_party/g2o/g2o/core/block_solver.h"
 #include "third_party/g2o/g2o/core/optimization_algorithm_levenberg.h"
 #include "third_party/g2o/g2o/core/robust_kernel_impl.h"
@@ -25,32 +25,27 @@
 
 class G2oOptimizer {
 public:
-  /**
-   * @brief 优化frame的位姿
-   *
-   * @param[in out] frame 待优化的帧
-   * @param[in] map 当前地图
-   * @param[in] n_iteration 迭代次数
-   *
-   * @todo 重新设计，避免使用裸指针Map*
-   */
-  static void optimizeFramePose(Frame::Ptr frame, Map *map,
-                                const int &n_iteration = 10);
+  using Ptr = std::shared_ptr<G2oOptimizer>;
+
+  G2oOptimizer(std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data,
+               std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data,
+               std::map<size_t, std::vector<std::pair<size_t, size_t>>>
+                   observations_data)
+      : frames_data_(frames_data), mps_data_(mps_data),
+        observations_data_(observations_data) {}
 
   /**
-   * @brief 优化map中的mappoints和frame pose
-   *
-   * @param[in out] map 待优化的地图
+   * @brief BA优化
    * @param[in] n_iteration 迭代次数
    */
-  static void mapBundleAdjustment(Map::Ptr map, const int &n_iteration = 25);
-};
+  void optimize(const int &n_iteration = 10);
 
-/**
- * @brief 限定直线运动的图优化
- */
-class G2oOptimizerForLinearMotion {
-public:
+  /**
+   * @brief 限制直线运动的BA优化
+   * @param[in] n_iteration 迭代次数
+   */
+  void optimizeLinearMotion(const int &n_iteration = 10);
+
   /**
    * @brief calculate the minimal rotation, which can convert src to dst.
    * @return Eigen::Quaterniond
@@ -58,14 +53,26 @@ public:
   static Eigen::Quaterniond calMinRotation(const Eigen::Vector3d &src,
                                            const Eigen::Vector3d &dst);
 
-  static void mapBundleAdjustmentOnlyPose(Map::Ptr map,
-                                          const int &n_iteration = 10);
-  // use optimize instead
-  static void mapBundleAdjustment(Map::Ptr map, const int &n_iteration = 10);
+  /**
+   * @brief 计算优化后的mp_data_中的地图点的坐标平均值
+   * @return Eigen::Vector3d 
+   */
+  Eigen::Vector3d calAveMapPoint();
 
-  static void optimize(
-      std::map<size_t, std::pair<Frame::Ptr, bool>> &frames,
-      std::map<size_t, std::pair<MapPoint::Ptr, bool>> &mps,
-      std::map<size_t, std::vector<std::pair<size_t, size_t>>> &observations,
-      const int &n_iteration = 10);
+private:
+  /**
+   * @brief {frame_id, frame, fixed}, fixed表示该帧的pose是否固定
+   */
+  std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data_;
+
+  /**
+   * @brief {mp_id, mappoint, fixed}, fixed表示该地图点的坐标是否固定
+   */
+  std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data_;
+
+  /**
+   * @brief {mp_id, [(frame_id, keypoint_id), ]},
+   * 地图点mp，被若干帧所观测到，如：第frame_id帧中的第keypoint_id个特征点
+   */
+  std::map<size_t, std::vector<std::pair<size_t, size_t>>> observations_data_;
 };
