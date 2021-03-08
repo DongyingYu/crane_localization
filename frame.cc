@@ -19,7 +19,13 @@ Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model)
 }
 
 Frame::Frame(const cv::Mat &img, ORBVocabulary *voc)
-    : pORBvocabulary(voc), img_(img.clone()) {
+    : pORBvocabulary_(voc), img_(img.clone()) {
+  init();
+}
+
+Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model,
+             ORBVocabulary *voc)
+    : img_(img), camera_model_(camera_model), pORBvocabulary_(voc) {
   init();
 }
 
@@ -333,14 +339,6 @@ std::vector<cv::Mat> Frame::toDescriptorVector() {
   return vDesc;
 }
 
-// 图像之间直接比较计算相似性得分
-float Frame::computeScore(const DBoW2::BowVector &v1,
-                          const DBoW2::BowVector &v2) {
-  std::cout << " System enter into the computeScore function." << std::endl;
-  return score_ = pORBvocabulary->score(v1, v2);
-  std::cout << " computeScore done! " << std::endl;
-}
-
 void Frame::computeBoW() {
   std::cout << "The system enter into computeBoW function! " << std::endl;
   // if(bow_vec_.empty()){
@@ -348,16 +346,12 @@ void Frame::computeBoW() {
   std::cout << " computeBoW test one ... " << std::endl;
   std::vector<cv::Mat> vCurrentDesc = toDescriptorVector();
   // BdWVec为Bow特征向量，FeatVec为正向索引
-  pORBvocabulary->transform(vCurrentDesc, bow_vec_, feat_vec_, 4);
+  pORBvocabulary_->transform(vCurrentDesc, bow_vec_, feat_vec_, 4);
   // }
   std::cout << "computeBoW Done! " << std::endl;
 }
 
-DBoW2::BowVector Frame::getBowVoc() {
-  std::cout << " System enter into the getBowVoc function." << std::endl;
-  return bow_vec_;
-  std::cout << " getBowVoc done ! " << std::endl;
-}
+DBoW2::BowVector Frame::getBowVoc() { return bow_vec_; }
 
 void Frame::createVocabulary(
     ORBVocabulary &voc, std::string &filename,
@@ -380,6 +374,8 @@ Eigen::Matrix3d Frame::getEigenNewK() const {
   cv::cv2eigen(camera_model_->getNewK(), ret);
   return ret;
 }
+
+cv::Mat Frame::getImage() const { return img_; }
 
 bool Frame::isCentralKp(const cv::KeyPoint &kp,
                         const double &half_center_factor) {

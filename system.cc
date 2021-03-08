@@ -26,6 +26,7 @@ System::System(const std::string &yaml_file, const bool &transpose_image,
 
   // 其他初始化
   cur_map_ = std::make_shared<Map>();
+  locater = std::make_shared<Localization>()
   thread_ = std::thread(&System::run, this);
 }
 

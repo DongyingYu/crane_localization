@@ -40,6 +40,7 @@ public:
   Frame(const cv::Mat &img);
   Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model);
   Frame(const cv::Mat &img, ORBVocabulary *voc);
+  Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model, ORBVocabulary *voc);
   /**
    * @brief 与另一帧进行特征点匹配，并根据距离，进行简单筛选
    *
@@ -66,9 +67,6 @@ public:
 
   // Compute Bag of Words representation.
   void computeBoW();
-
-  // 相似性得分计算
-  float computeScore(const DBoW2::BowVector &v1, const DBoW2::BowVector &v2);
 
   DBoW2::BowVector getBowVoc();
 
@@ -118,6 +116,8 @@ public:
   // frame id access
   size_t getFrameId() const;
 
+  cv::Mat getImage() const;
+
   // 获取去畸变后的K
   Eigen::Matrix3d getEigenNewK() const;
 
@@ -138,8 +138,7 @@ public:
   // 相机模型（包含畸变模型）
   CameraModel::Ptr camera_model_;
 
-  // private:
-public:
+private:
   // 图片，特征点，描述符
   cv::Mat img_;
   cv::Mat un_img_; // 去畸变后的图像
@@ -163,14 +162,12 @@ public:
   static size_t total_frame_cnt_;
 
   // Vocabulary used for relocalization.
-  ORBVocabulary *pORBvocabulary;
+  // todo: using shared_ptr
+  ORBVocabulary *pORBvocabulary_;
 
   // Bag of Words Vector structures.
   DBoW2::BowVector bow_vec_;
   DBoW2::FeatureVector feat_vec_;
-
-  // 相似性得分
-  float score_;
 
 private:
   /**

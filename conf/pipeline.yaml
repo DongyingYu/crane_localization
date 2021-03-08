@@ -1,0 +1,4 @@
+camera_model: ./conf/BL-EX346HP-15M.yaml
+localization:
+  vocabulary: ./vocabulary/ORBvoc.txt
+  images: ./vocabulary/image_save/rgb.txt

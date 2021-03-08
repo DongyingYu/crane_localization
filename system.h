@@ -11,6 +11,7 @@
 #pragma once
 #include "camera_model.h"
 #include "frame.h"
+#include "localization.h"
 #include "map.h"
 #include <chrono>
 #include <list>
@@ -65,9 +66,11 @@ private:
   Map::Ptr cur_map_ = nullptr;
 
   // 所有历史地图，用于地图合并，全局建图
-  std::vector<Map::Ptr> history_maps_; 
+  std::vector<Map::Ptr> history_maps_;
+
+  // 绝对位置定位
+  Localization::Ptr locater;
 
   // slam线程
   std::thread thread_;
-
 };
