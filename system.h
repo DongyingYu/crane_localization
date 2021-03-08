@@ -25,19 +25,16 @@ public:
   /**
    * @brief Construct a new System object
    *
-   * @param yaml_file yaml文件中的相机参数部分，来源与kalibr标定结果
-   * @param transpose_image
-   * 内部处理时，是否将图像转置（相机模型中的参数也会跟着一起调整）
-   * @param scale_camera_model
-   * 将相机模型中的参数，缩放scale_camera_model倍，才与实际输入的图像相符
+   * @param config_yaml yaml文件中的相机参数部分，来源与kalibr标定结果
    */
-  System(const std::string &yaml_file, const bool &transpose_image,
-         const double &scale_camera_model = 1.0);
+  System(const std::string &config_yaml);
 
   /**
    * @brief 插入新的一帧
    */
   void insertNewImage(const cv::Mat &img);
+
+  double getPosition();
 
 private:
   /**
@@ -70,6 +67,10 @@ private:
 
   // 绝对位置定位
   Localization::Ptr locater;
+
+  // 当前的位置，不一定是实时传入的图片对应的相机位置，可能有延迟。
+  std::mutex mutex_position_;
+  double position_ = 0;
 
   // slam线程
   std::thread thread_;

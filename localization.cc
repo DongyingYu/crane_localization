@@ -12,7 +12,7 @@
 
 Localization::Localization(const std::string &vocab_file,
                            const std::string &preload_keyframes,
-                           const int &win_size)
+                           const bool &transpose_image, const int &win_size)
     : win_size_(win_size) {
   // 1. load vocabulary
   pVocabulary_ = new ORBVocabulary();
@@ -30,6 +30,9 @@ Localization::Localization(const std::string &vocab_file,
   std::cout << "The number of images:  " << images.size() << std::endl;
 
   for (int i = 0; i < images.size(); i++) {
+    if (transpose_image) {
+      cv::transpose(images[i], images[i]);
+    }
     Frame::Ptr frame = std::make_shared<Frame>(images[i], pVocabulary_);
     frame->computeBoW();
     frames_.emplace_back(frame);
@@ -141,7 +144,7 @@ std::vector<cv::Mat> Localization::loadImages(const std::string &filename) {
 
   std::vector<cv::Mat> images;
   for (int i = 0; i < image_indexex.size(); ++i) {
-    std::string path = dir + image_indexex[i];
+    std::string path = dir + "/" + image_indexex[i];
     cv::Mat img = cv::imread(path);
     if (img.empty()) {
       std::cout << "[WARNING]: read image failed " << path << std::endl;

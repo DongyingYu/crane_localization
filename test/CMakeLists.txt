@@ -1,6 +1,7 @@
 file(GLOB g2o_libs ../third_party/g2o/lib/libg2o_*.so)
 file(GLOB dbow2_lib ../third_party/DBoW2/lib/libDBoW2.so)
 message(STATUS "g2o_libs: ${g2o_libs}")
+message(STATUS "dbow2_lib: ${dbow2_lib}")
 
 # undistort
 add_executable(test_undistort test_undistort.cc)
@@ -50,6 +51,8 @@ add_executable(test_system
   ../mappoint.cc
   ../camera_model.cc
   ../g2o_types_linear_motion.cc
+  ../localization.cc
+  ../config_parser.cc
 )
 target_link_libraries(test_system
   ${OpenCV_LIBS}

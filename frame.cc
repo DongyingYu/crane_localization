@@ -64,8 +64,12 @@ void Frame::init() {
   for (const cv::KeyPoint &kp : keypoints) {
     if (isSubtitle(kp) || isOuterBoarder(kp)) {
       continue;
-    } else if (isCentralKp(kp, 0.6)) {
-      keypoints_.emplace_back(kp);
+    } else {
+      keypoints_bow_.emplace_back(kp);
+
+      if (isCentralKp(kp, 0.6)) {
+        keypoints_.emplace_back(kp);
+      }
     }
   }
 
@@ -80,6 +84,7 @@ void Frame::init() {
 
   // 3. 描述子计算（BRIEF）
   extrator_->compute(img_, keypoints_, descriptors_);
+  extrator_->compute(img_, keypoints_bow_, descriptors_bow_);
   if (keypoints_.size() < 50) {
     std::cout << "[WARNING]: too few keypoints detected " << keypoints_.size()
               << std::endl;
@@ -329,26 +334,17 @@ void Frame::rotateWorld(const Eigen::Quaterniond &q_ds) {
 }
 
 std::vector<cv::Mat> Frame::toDescriptorVector() {
-  std::cout << "System enter into the toDescriptorVector function "
-            << std::endl;
   std::vector<cv::Mat> vDesc;
-  vDesc.reserve(descriptors_.rows);
-  for (int j = 0; j < descriptors_.rows; j++)
-    vDesc.push_back(descriptors_.row(j));
-  std::cout << " toDescriptorVector Done! " << std::endl;
+  vDesc.reserve(descriptors_bow_.rows);
+  for (int j = 0; j < descriptors_bow_.rows; j++)
+    vDesc.push_back(descriptors_bow_.row(j));
   return vDesc;
 }
 
 void Frame::computeBoW() {
-  std::cout << "The system enter into computeBoW function! " << std::endl;
-  // if(bow_vec_.empty()){
-  // 数据类型转换
-  std::cout << " computeBoW test one ... " << std::endl;
   std::vector<cv::Mat> vCurrentDesc = toDescriptorVector();
   // BdWVec为Bow特征向量，FeatVec为正向索引
   pORBvocabulary_->transform(vCurrentDesc, bow_vec_, feat_vec_, 4);
-  // }
-  std::cout << "computeBoW Done! " << std::endl;
 }
 
 DBoW2::BowVector Frame::getBowVoc() { return bow_vec_; }
@@ -367,6 +363,7 @@ void Frame::createVocabulary(
   voc.saveToTextFile(filename);
   std::cout << " saved to file: " << filename << std::endl;
 }
+
 size_t Frame::getFrameId() const { return frame_id_; }
 
 Eigen::Matrix3d Frame::getEigenNewK() const {

@@ -30,18 +30,19 @@ public:
 
   /**
    * @brief Construct a new Localization object
-   * 
+   *
    * @param[in] vocab_file 词表文件
    * @param[in] preload_keyframes 事先保存的“关键帧”
    * @param[in] win_size 对分值进行滑动平均的窗口大小
    */
   Localization(const std::string &vocab_file,
-               const std::string &preload_keyframes, const int &win_size = 3);
+               const std::string &preload_keyframes,
+               const bool &transpose_image=false, const int &win_size = 3);
   ~Localization();
 
   /**
    * @brief 对输入图像进行定位
-   * 
+   *
    * @param[in] image
    * @param[in] verbose
    * @return int 返回相似度最高的图片的索引

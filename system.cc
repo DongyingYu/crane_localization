@@ -9,24 +9,28 @@
  *
  */
 #include "system.h"
+#include "config_parser.h"
 #include "utils.h"
 
-System::System(const std::string &yaml_file, const bool &transpose_image,
-               const double &scale_camera_model)
-    : transpose_image_(transpose_image) {
+System::System(const std::string &config_yaml) {
 
-  camera_model_ = std::make_shared<CameraModelPinholeEqui>(yaml_file);
+  auto config_parser = ConfigParser(config_yaml);
+  camera_model_ =
+      std::make_shared<CameraModelPinholeEqui>(config_parser.camera_yaml_);
 
-  if (scale_camera_model != 1) {
-    camera_model_->scale(scale_camera_model);
+  if (config_parser.scale_camera_model_ != 1) {
+    camera_model_->scale(config_parser.scale_camera_model_);
   }
-  if (transpose_image_) {
+  if (config_parser.transpose_image_) {
     camera_model_->transpose();
+    transpose_image_ = config_parser.transpose_image_;
   }
 
   // 其他初始化
   cur_map_ = std::make_shared<Map>();
-  locater = std::make_shared<Localization>()
+  locater = std::make_shared<Localization>(config_parser.vocabulary_,
+                                           config_parser.pre_saved_images_,
+                                           config_parser.transpose_image_, 3);
   thread_ = std::thread(&System::run, this);
 }
 
@@ -43,6 +47,11 @@ void System::insertNewImage(const cv::Mat &img) {
   Frame::Ptr frame = std::make_shared<Frame>(image, camera_model_);
   std::unique_lock<std::mutex> lock(mutex_input_);
   input_frames_.emplace_back(frame);
+}
+
+double System::getPosition() {
+  std::unique_lock<std::mutex> lock(mutex_position_);
+  return position_;
 }
 
 void System::run() {
@@ -93,7 +102,7 @@ void System::run() {
 
       // 判断是否插入关键帧
       if (cur_map_->checkIsNewKeyFrame(cur_frame_)) {
-        std::cout << "[INFO]: Insert New KeyFrame " << frame_id << std::endl; 
+        std::cout << "[INFO]: Insert New KeyFrame " << frame_id << std::endl;
         cur_map_->insertKeyFrame(cur_frame_);
 
         // 删除所有最近的帧，仅仅保留当前帧
@@ -110,7 +119,6 @@ void System::run() {
         ave_kf_mp[0] = 0.0;
         double scale = Map::kCraneHeight / ave_kf_mp.norm();
         cur_map_->setScale(scale);
-
 
         cur_map_->debugPrintMap();
         std::cout << std::endl;

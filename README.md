@@ -38,6 +38,7 @@ mkdir build
 cd build
 cmake -D OpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..
 make -j
+cd ..
 
 #运行(todo)
 
@@ -52,7 +53,7 @@ make -j
 > 畸变矫正有部分效果
 
 ```bash
-./test/test_distortion_fisheye
+./build/test/test_distortion_fisheye
 ```
 
 ### 功能性测试
@@ -64,13 +65,13 @@ make -j
 g2o_path=/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/crane_localization/third_party/g2o/lib
 export LD_LIBRARY_PATH=${g2o_path}
 
-./test/test_system <video_file> <config_yaml> <skip_frames>
+./build/test/test_system <video_file> <config_yaml> <skip_frames>
 
 
 # DBoW2相似性评估
-./test/test_DBoW2
+./build/test/test_DBoW2
 
 # 词典训练
-./test/test_trainingVoc
+./build/test/test_trainingVoc
 
 ```

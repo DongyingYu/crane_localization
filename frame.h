@@ -146,6 +146,10 @@ private:
   std::vector<cv::KeyPoint> un_keypoints_; // 去畸变后的特征点
   cv::Mat descriptors_;
 
+  // 用于计算词袋（因为仅仅图像中央的特征点畸变较小，被用于跟踪，而词袋重定位不需要这个限制）
+  std::vector<cv::KeyPoint> keypoints_bow_;
+  cv::Mat descriptors_bow_;
+
   // 特征点对应的3D空间点的id
   std::vector<int> mappoints_id_;
 

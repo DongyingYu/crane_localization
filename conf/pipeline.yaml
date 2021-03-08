@@ -1,4 +1,8 @@
-camera_model: ./conf/BL-EX346HP-15M.yaml
+transpose_image: true
+camera_model:
+  camera_yaml: ./conf/BL-EX346HP-15M.yaml
+  scale_camera_model: 0.5
 localization:
   vocabulary: ./vocabulary/ORBvoc.txt
-  images: ./vocabulary/image_save/rgb.txt
+  pre_saved_images: ./vocabulary/image_save/rgb.txt
+
