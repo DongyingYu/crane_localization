@@ -83,3 +83,16 @@ target_link_libraries(test_trainingVoc
   ${dbow2_lib}
   pthread
 )
+
+# websocket
+link_libraries(pthread
+                -lboost_system)
+
+add_executable(test_websocket
+  test_websocket.cc
+  ../websocket_endpoint.cpp
+)
+target_link_libraries(test_trainingVoc
+  ${Boost_PROGRAM_OPTIONS_LIBRARY}
+  ${Boost_LIBRARY_DIRS}
+)

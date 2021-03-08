@@ -73,6 +73,7 @@ void System::run() {
     } else {
       size_t frame_id = cur_frame_->getFrameId();
 
+      // 对每一个新来的图像帧与之前的图像帧执行优化
       bool track_status = cur_map_->trackNewFrameByKeyFrame(cur_frame_);
 
       if (track_status) {
@@ -84,6 +85,7 @@ void System::run() {
                   << position << std::endl
                   << std::endl;
       } else {
+        // 跟踪丢失，在这里添加重定位部分
         std::cout << "[WARNING]: Frame " << frame_id << ", track frame failed "
                   << std::endl
                   << std::endl;
@@ -99,7 +101,7 @@ void System::run() {
         cur_map_->clearRecentFrames();
         cur_map_->insertRecentFrame(cur_frame_);
 
-        // 关键帧优化
+        // 关键帧优化，对关键帧执行优化
         G2oOptimizer::Ptr opt = cur_map_->buildG2oOptKeyFrameBa();
         opt->optimizeLinearMotion();
 
