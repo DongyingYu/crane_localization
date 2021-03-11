@@ -72,7 +72,11 @@ void System::run() {
       continue;
     }
     if (!cur_map_->checkInitialized()) {
-      cur_map_->initialize(last_frame_, cur_frame_);
+      std::cout << "\033[31m" << " 123123123" << std::endl;
+      bool init_status = cur_map_->initialize(last_frame_, cur_frame_);
+      if(!init_status) {
+        continue;
+      }
 
       G2oOptimizer::Ptr opt = cur_map_->buildG2oOptKeyFrameBa();
       opt->optimize();
@@ -110,11 +114,12 @@ void System::run() {
                   << std::endl;
       } else {
         // 跟踪丢时候的重新建立地图点，相当于开始新的初始化，只是初始位姿是给定值
+                std::cout << "[WARNING]: Frame " << frame_id << ", track frame failed "
+                  << std::endl
+                << std::endl;
         Frame::Ptr last_kf = cur_map_->getLastKeyFrame();
         cur_map_->initialize(last_kf, cur_frame_);
-        std::cout << "[WARNING]: Frame " << frame_id << ", track frame failed "
-                  << std::endl
-                  << std::endl;
+
         continue;
       }
 
@@ -127,9 +132,13 @@ void System::run() {
         cur_map_->clearRecentFrames();
         cur_map_->insertRecentFrame(cur_frame_);
 
+        cur_map_->debugPrintMap();
         // 关键帧优化
         G2oOptimizer::Ptr opt = cur_map_->buildG2oOptKeyFrameBa();
         opt->optimizeLinearMotion();
+        cur_map_->debugPrintMap();
+        std::cout << std::endl << std::endl;
+
         // 计算优化后的地图点的平均z值，计算尺度
         Eigen::Vector3d ave_kf_mp = opt->calAveMapPoint();
         cur_map_->ave_kf_mp_ = ave_kf_mp;

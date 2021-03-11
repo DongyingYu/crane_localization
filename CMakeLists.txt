@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.0.2)
 
 
 add_compile_options(-std=c++14)
-add_compile_options(-g)
-add_compile_options(-O0)
+#add_compile_options(-g)
+add_compile_options(-O3)
 
 find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV Library Status: ")

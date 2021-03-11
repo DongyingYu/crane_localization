@@ -76,8 +76,8 @@ void Frame::init() {
   // 2. 去畸变
   if (camera_model_) {
     camera_model_->undistortKeyPoint(keypoints_, un_keypoints_);
-    camera_model_->undistortImage(img_, un_img_);
-    // un_img_ = img_.clone();
+    //camera_model_->undistortImage(img_, un_img_);
+    un_img_ = img_.clone();
   } else {
     un_keypoints_ = keypoints;
     un_img_ = img_.clone();
@@ -119,16 +119,21 @@ int Frame::matchWith(const Frame::Ptr frame,
   std::vector<cv::Point2f> pts1, pts2, pts_diff;
   for (const cv::DMatch &m : all_matches) {
     if (m.distance <= dmax * 0.8) {
-      tmp_matches.emplace_back(m);
       cv::Point2f pt1 = un_keypoints_[m.queryIdx].pt;
       cv::Point2f pt2 = frame->un_keypoints_[m.trainIdx].pt;
+      auto pt_diff = pt1 - pt2;
+      if (std::abs(pt_diff.y) > 5) {
+        continue;
+      }
+      tmp_matches.emplace_back(m);
       pts1.emplace_back(pt1);
       pts2.emplace_back(pt2);
-      pts_diff.emplace_back(pt1 - pt2);
+      pts_diff.emplace_back(pt_diff);
     }
   }
   std::cout << "[INFO]: selected " << tmp_matches.size() << " matches from "
             << all_matches.size() << " by match distance." << std::endl;
+
 
   // 根据运动约束，检测配对点是否合理
   cv::Point2f ave, stddev;
@@ -145,7 +150,7 @@ int Frame::matchWith(const Frame::Ptr frame,
         cv::Point2d(std::abs(pts_diff[i].x), std::abs(pts_diff[i].y));
     cv::Point2f ddiff = abs_diff - ave;
     // 限制匹配点对在y方向上的偏移量
-    if (std::abs(pts_diff[i].y) > 5 || std::abs(ddiff.y) > 3 + 3 * stddev.y ||
+    if (std::abs(ddiff.y) > 3 + 3 * stddev.y ||
         std::abs(ddiff.x) > 3 + 3 * stddev.x) {
       n_outliers++;
       // std::cout << "[INFO]: outlier, ddiff.x=" << ddiff.x
