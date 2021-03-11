@@ -77,6 +77,7 @@ void Frame::init() {
   if (camera_model_) {
     camera_model_->undistortKeyPoint(keypoints_, un_keypoints_);
     camera_model_->undistortImage(img_, un_img_);
+    // un_img_ = img_.clone();
   } else {
     un_keypoints_ = keypoints;
     un_img_ = img_.clone();
@@ -117,7 +118,7 @@ int Frame::matchWith(const Frame::Ptr frame,
   std::vector<cv::DMatch> tmp_matches;
   std::vector<cv::Point2f> pts1, pts2, pts_diff;
   for (const cv::DMatch &m : all_matches) {
-    if (m.distance <= dmax * 0.6) {
+    if (m.distance <= dmax * 0.8) {
       tmp_matches.emplace_back(m);
       cv::Point2f pt1 = un_keypoints_[m.queryIdx].pt;
       cv::Point2f pt2 = frame->un_keypoints_[m.trainIdx].pt;
@@ -143,8 +144,8 @@ int Frame::matchWith(const Frame::Ptr frame,
     cv::Point2f abs_diff =
         cv::Point2d(std::abs(pts_diff[i].x), std::abs(pts_diff[i].y));
     cv::Point2f ddiff = abs_diff - ave;
-
-    if (std::abs(ddiff.y) > 5 || std::abs(ddiff.y) > 1 + 3 * stddev.y ||
+    // 限制匹配点对在y方向上的偏移量
+    if (std::abs(pts_diff[i].y) > 5 || std::abs(ddiff.y) > 3 + 3 * stddev.y ||
         std::abs(ddiff.x) > 3 + 3 * stddev.x) {
       n_outliers++;
       // std::cout << "[INFO]: outlier, ddiff.x=" << ddiff.x
@@ -170,7 +171,7 @@ int Frame::matchWith(const Frame::Ptr frame,
   for (int i = 0; i < int(pts1.size()); ++i) {
     pts_diff.emplace_back(pts1[i] - pts2[i]);
   }
-
+  // 对特征点筛选后，在经过一轮计算，打印输出结果
   calAveStddev(pts_diff, ave, stddev, true);
   std::cout << "[INFO]: Point uv diff, ave " << ave << " stddev " << stddev
             << std::endl;
@@ -388,6 +389,19 @@ bool Frame::isCentralKp(const cv::KeyPoint &kp,
     return false;
   }
 }
+
+void Frame::setFlag(const bool cal_flag)
+{
+  offset_flag_ = cal_flag;
+}
+
+bool Frame::getFlag() const {return offset_flag_;}
+
+void Frame::setAbsPosition(const double &position){
+  abs_position_ = position;
+}
+
+double Frame::getAbsPosition() const { return abs_position_;} 
 
 void Frame::debugDraw(const double &scale_image) {
   std::cout << "[DEBUG]: debug draw" << std::endl;

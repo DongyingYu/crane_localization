@@ -14,12 +14,10 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/opencv.hpp>
-#include <opencv2/xfeatures2d.hpp>
 #include <vector>
 #include <yaml-cpp/yaml.h>
 using namespace std;
 using namespace cv;
-using namespace cv::xfeatures2d;
 
 int main(int argc, char **argv) {
   // 默认参数

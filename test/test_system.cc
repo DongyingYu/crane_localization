@@ -14,7 +14,7 @@
 int main(int argc, char **argv) {
   // 默认参数
   std::string video_file =
-      "/home/xt/Documents/data/DATASETS/ros_bag/BL-EX346HP-15M/crane/78.mp4";
+      "/home/ipsg/dataset_temp/78_cut.mp4";
   std::string yaml_file = "./conf/pipeline.yaml";
   int skip_frames = 1200;
   // 从命令行获取参数

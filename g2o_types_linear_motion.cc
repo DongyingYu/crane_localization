@@ -21,12 +21,14 @@ bool VertexSO3Expmap::write(std::ostream &os) const {}
 
 void VertexSO3Expmap::setToOriginImpl() { _estimate = Quaternion::Identity(); }
 
+// oplusImpl() 是顶点更新函数，用于优化过程中增量 Δx的计算；左扰动模型更新
 void VertexSO3Expmap::oplusImpl(const number_t *update_) {
   Vector6 update;
   update.setZero();
   for (int i = 0; i < 3; ++i) {
     update[i] = update_[i];
   }
+  // 四元数加法
   setEstimate(SE3Quat::exp(update).rotation() * estimate());
 }
 
@@ -38,12 +40,12 @@ bool VertexLineTranslation::read(std::istream &is) {}
 bool VertexLineTranslation::write(std::ostream &os) const {}
 
 void VertexLineTranslation::setToOriginImpl() { _estimate = 0.0; }
-
+// 直接做加法
 void VertexLineTranslation::oplusImpl(const number_t *update_) {
   setEstimate(*update_ + estimate());
 }
 
-// edge for pose
+// edge for pose, do not use
 EdgeLinearMotionOnlyPose::EdgeLinearMotionOnlyPose() {}
 
 EdgeLinearMotionOnlyPose::EdgeLinearMotionOnlyPose(const Vector3 &Xw_value,
@@ -114,6 +116,7 @@ Vector2 EdgeLinearMotionOnlyPose::cam_project(const Vector3 &trans_xyz) const {
   return res;
 }
 
+// 
 EdgeLinearMotion::EdgeLinearMotion(const Matrix3 &K) {
   resize(3);
   fx = K(0, 0);
@@ -148,7 +151,7 @@ void EdgeLinearMotion::computeError() {
   // std::cout << "[DEBUG]: proj: " << proj.transpose() << std::endl;
   // std::cout << "[DEBUG]: _error: " << _error.transpose() << std::endl << std::endl;
 }
-
+// 在当前顶点的值下，该误差对优化变量的偏导数，Jacobian。
 void EdgeLinearMotion::linearizeOplus() {
   // 相机位姿
   const VertexSO3Expmap *v1 = static_cast<VertexSO3Expmap *>(_vertices[0]);

@@ -30,7 +30,8 @@ System::System(const std::string &config_yaml) {
   cur_map_ = std::make_shared<Map>();
   locater = std::make_shared<Localization>(config_parser.vocabulary_,
                                            config_parser.pre_saved_images_,
-                                           config_parser.transpose_image_, 3);
+                                           config_parser.threshold_,
+                                           config_parser.transpose_image_,3);
   thread_ = std::thread(&System::run, this);
 }
 
@@ -76,6 +77,17 @@ void System::run() {
       G2oOptimizer::Ptr opt = cur_map_->buildG2oOptKeyFrameBa();
       opt->optimize();
       opt->optimizeLinearMotion();
+      // 在这里之后进队cur_frame_对绝对为姿进行匹配用以后续计算offset,开始的两个关键阵仅取第2个关键帧用来计算
+      {
+      double true_position;
+      auto status = locater->localize(cur_frame_,true_position,true);
+      if( status ){
+        cur_frame_->setFlag(true);
+        cur_frame_->setAbsPosition(true_position);
+        // 初始offset
+        cur_map_->calculateOffset();
+      }
+      }
 
       std::cout << "[INFO]: The initialized map after g2o LinearMotion"
                 << std::endl;
@@ -90,10 +102,16 @@ void System::run() {
         Eigen::Vector3d twc = cur_frame_->getEigenTransWc();
         double scale = cur_map_->getScale();
         double position = twc[0] * scale;
-        std::cout << "[INFO]: Frame " << frame_id << ", " << toString(q) << ", "
-                  << position << std::endl
+        // 加上偏移量输出绝对位置信息
+        double offset_temp = cur_map_->getOffset();
+        std::cout << "[INFO]: Frame " << frame_id << ", " << toString(q) << ", " << std::endl
+                  << "[INFO]: Frame relative position: " << -position << std::endl
+                  << "[INFO]: Frame absolute position: " << -position + offset_temp << std::endl
                   << std::endl;
       } else {
+        // 跟踪丢时候的重新建立地图点，相当于开始新的初始化，只是初始位姿是给定值
+        Frame::Ptr last_kf = cur_map_->getLastKeyFrame();
+        cur_map_->initialize(last_kf, cur_frame_);
         std::cout << "[WARNING]: Frame " << frame_id << ", track frame failed "
                   << std::endl
                   << std::endl;
@@ -112,13 +130,24 @@ void System::run() {
         // 关键帧优化
         G2oOptimizer::Ptr opt = cur_map_->buildG2oOptKeyFrameBa();
         opt->optimizeLinearMotion();
-
         // 计算优化后的地图点的平均z值，计算尺度
         Eigen::Vector3d ave_kf_mp = opt->calAveMapPoint();
         cur_map_->ave_kf_mp_ = ave_kf_mp;
         ave_kf_mp[0] = 0.0;
         double scale = Map::kCraneHeight / ave_kf_mp.norm();
         cur_map_->setScale(scale);
+        
+        double true_position;
+
+        auto status = locater->localize(cur_frame_,true_position,true);
+        if( status ){
+          cur_frame_->setFlag(true);
+          cur_frame_->setAbsPosition(true_position);
+          // 更新offset
+          cur_map_->calculateOffset();
+        }
+
+        std::cout << "[INFO]: The size of keyframes are : " << cur_map_->getKeyframesSize() << std::endl;
 
         cur_map_->debugPrintMap();
         std::cout << std::endl;

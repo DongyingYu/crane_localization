@@ -5,4 +5,4 @@ camera_model:
 localization:
   vocabulary: ./vocabulary/ORBvoc.txt
   pre_saved_images: ./vocabulary/image_save/rgb.txt
-
+  threshold: 0.05
