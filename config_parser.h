@@ -21,4 +21,5 @@ public:
 
   std::string vocabulary_;
   std::string pre_saved_images_;
+  double threshold_;
 };

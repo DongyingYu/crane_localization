@@ -24,17 +24,17 @@ int main(int argc, char **argv) {
     skip_frames--;
   }
 
-  auto location = std::make_shared<Localization>(
-      "./vocabulary/ORBvoc.txt", "./vocabulary/image_save/rgb.txt", 3);
+  // auto location = std::make_shared<Localization>(
+  //     "./vocabulary/ORBvoc.txt", "./vocabulary/image_save/rgb.txt", 3);
 
-  int cnt = 0;
-  while (1) {
-    cnt++;
-    capture >> img;
-    cv::imshow("image_video", img);
-    int index = location->localize(img, true);
-    cv::waitKey();
-  }
+  // int cnt = 0;
+  // while (1) {
+  //   cnt++;
+  //   capture >> img;
+  //   cv::imshow("image_video", img);
+  //   int index = location->localize(img, true);
+  //   cv::waitKey();
+  // }
 
   return 0;
 }

@@ -76,7 +76,8 @@ void Frame::init() {
   // 2. 去畸变
   if (camera_model_) {
     camera_model_->undistortKeyPoint(keypoints_, un_keypoints_);
-    camera_model_->undistortImage(img_, un_img_);
+    //camera_model_->undistortImage(img_, un_img_);
+    un_img_ = img_.clone();
   } else {
     un_keypoints_ = keypoints;
     un_img_ = img_.clone();
@@ -105,6 +106,7 @@ int Frame::matchWith(const Frame::Ptr frame,
   std::vector<cv::DMatch> all_matches;
   matcher_->match(descriptors_, frame->descriptors_, all_matches);
 
+  
   // 统计匹配距离（Hamming）的最大值和最小值
   double dmin = 1;
   double dmax = 0;
@@ -113,21 +115,27 @@ int Frame::matchWith(const Frame::Ptr frame,
     dmax = m.distance > dmax ? m.distance : dmax;
   }
 
+  
   // 根据经验，筛选匹配
   std::vector<cv::DMatch> tmp_matches;
   std::vector<cv::Point2f> pts1, pts2, pts_diff;
   for (const cv::DMatch &m : all_matches) {
-    if (m.distance <= dmax * 0.6) {
-      tmp_matches.emplace_back(m);
+    if (m.distance <= dmax * 0.8) {
       cv::Point2f pt1 = un_keypoints_[m.queryIdx].pt;
       cv::Point2f pt2 = frame->un_keypoints_[m.trainIdx].pt;
+      auto pt_diff = pt1 - pt2;
+      if (std::abs(pt_diff.y) > 5) {
+        continue;
+      }
+      tmp_matches.emplace_back(m);
       pts1.emplace_back(pt1);
       pts2.emplace_back(pt2);
-      pts_diff.emplace_back(pt1 - pt2);
+      pts_diff.emplace_back(pt_diff);
     }
   }
   std::cout << "[INFO]: selected " << tmp_matches.size() << " matches from "
             << all_matches.size() << " by match distance." << std::endl;
+
 
   // 根据运动约束，检测配对点是否合理
   cv::Point2f ave, stddev;
@@ -143,8 +151,8 @@ int Frame::matchWith(const Frame::Ptr frame,
     cv::Point2f abs_diff =
         cv::Point2d(std::abs(pts_diff[i].x), std::abs(pts_diff[i].y));
     cv::Point2f ddiff = abs_diff - ave;
-
-    if (std::abs(ddiff.y) > 5 || std::abs(ddiff.y) > 1 + 3 * stddev.y ||
+    // 限制匹配点对在y方向上的偏移量
+    if (std::abs(ddiff.y) > 3 + 3 * stddev.y ||
         std::abs(ddiff.x) > 3 + 3 * stddev.x) {
       n_outliers++;
       // std::cout << "[INFO]: outlier, ddiff.x=" << ddiff.x
@@ -170,16 +178,34 @@ int Frame::matchWith(const Frame::Ptr frame,
   for (int i = 0; i < int(pts1.size()); ++i) {
     pts_diff.emplace_back(pts1[i] - pts2[i]);
   }
-
+  // 对特征点筛选后，在经过一轮计算，打印输出结果
   calAveStddev(pts_diff, ave, stddev, true);
   std::cout << "[INFO]: Point uv diff, ave " << ave << " stddev " << stddev
             << std::endl;
+  
+  /*
+  std::vector<bool> vbInliers;
+  Gridmatcher::Ptr gridmatch = std::make_shared<Gridmatcher>(this->un_keypoints_,this->img_.size(),
+                                              frame->un_keypoints_,frame->img_.size(),all_matches);
+	int num_inliers = gridmatch->GetInlierMask(vbInliers,cv::Size(40,40) ,false, false);
+	cout << "[INFO]: Get total " << num_inliers << " matches." << endl;
 
+	// collect matches
+  std::vector<cv::DMatch>  matches_good;
+	for (size_t i = 0; i < vbInliers.size(); ++i)
+	{
+		if (vbInliers[i] == true)
+		{
+			matches_good.push_back(all_matches[i]);
+		}
+	}
+	std::cout << "[INFO]: matches_good size   " << matches_good.size() << std::endl; 
+  */
   // 优先使用靠近图像中间的特征点（越往边缘，畸变越严重）
   good_matches.clear();
   points1.clear();
   points2.clear();
-  for (const auto &m : better_matches) {
+  for (const auto &m : /*matches_good*/better_matches) {
     auto kp1 = un_keypoints_[m.queryIdx];
     auto kp2 = frame->un_keypoints_[m.trainIdx];
     // 1表示认为整个图像都可以，即无任何筛选
@@ -389,6 +415,19 @@ bool Frame::isCentralKp(const cv::KeyPoint &kp,
   }
 }
 
+void Frame::setFlag(const bool cal_flag)
+{
+  offset_flag_ = cal_flag;
+}
+
+bool Frame::getFlag() const {return offset_flag_;}
+
+void Frame::setAbsPosition(const double &position){
+  abs_position_ = position;
+}
+
+double Frame::getAbsPosition() const { return abs_position_;} 
+
 void Frame::debugDraw(const double &scale_image) {
   std::cout << "[DEBUG]: debug draw" << std::endl;
   std::vector<cv::DMatch> all_matches;
@@ -406,6 +445,10 @@ void Frame::debugPrintPose() {
   Eigen::Vector3d t = getEigenTrans();
   std::cout << "[INFO]: Frame " << frame_id_ << ": " << toString(q) << ", "
             << toString(t) << std::endl;
+}
+
+void Frame::setVocabulary(ORBVocabulary *voc){
+  pORBvocabulary_ = voc;
 }
 
 size_t Frame::total_frame_cnt_ = 0;

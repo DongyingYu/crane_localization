@@ -28,7 +28,7 @@ void Map::clear() {
   }
 }
 
-bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
+int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   std::cout << "[TRACK]: track new frame " << curr_frame->getFrameId()
             << std::endl;
   Frame::Ptr last_kf = getLastKeyFrame();
@@ -43,6 +43,8 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
         << "[WARNING]: Too less matched keypoint, this may lead to wrong pose: "
         << n_match << std::endl;
   }
+  if(n_match < 10)
+    return 1;
 
   // 2. 使用PnP给出当前帧的相机位姿
   int cnt_3d = 0;
@@ -61,13 +63,15 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   std::cout << "[INFO]: cnt_3d=" << cnt_3d << " cnt_not_3d=" << n_match - cnt_3d
             << std::endl;
 
-  if (cnt_3d < 10) {
+  // 设定所需的最小地图点
+  if (cnt_3d < 3) {
     std::cout << "[ERROR]: too few matched, trackByKeyFrame failed! " << cnt_3d
               << std::endl;
-    return false;
+    // 地图点过少，直接下一帧
+    return 1;
   } else {
+    // 如果上一帧是关键帧，则返回不对当前帧进行处理，需重新初始化地图，否则继续进行后续
     curr_frame->setPose(getLastFrame()->getPose());
-
     // 优化当前帧curr_frame,及其相关的地图点
     G2oOptimizer::Ptr opt = buildG2oOptForFrame(curr_frame);
     opt->optimizeLinearMotion();
@@ -75,9 +79,10 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
     insertRecentFrame(curr_frame);
 
     if (cnt_3d == n_match) {
-      return true;
+      return 3;
     }
   }
+
 
   cv::Mat P1 = last_kf->getProjectionMatrix();
   cv::Mat P2 = curr_frame->getProjectionMatrix();
@@ -142,7 +147,7 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   opt->optimizeLinearMotion();
 
   // 计算重投影误差，排除外点，之后，重新优化；或者采用类似orbslam2的方式，四次迭代，每次迭代中判断内点和外点
-  return true;
+  return 3;
 }
 
 bool Map::checkInitialized() { return is_initialized_; }
@@ -194,6 +199,9 @@ G2oOptimizer::Ptr Map::buildG2oOptForFrame(const Frame::Ptr frame,
       }
     }
     obs_data[mp_idx] = observation;
+    // 若地图点被两个以上关键帧观察到，不对地图点位置做出调整
+    if(observation.size() > 2)
+      mps_data[mp_idx].second = true;
   }
 
   return std::make_shared<G2oOptimizer>(frames_data, mps_data, obs_data);
@@ -223,10 +231,13 @@ G2oOptimizer::Ptr Map::buildG2oOptKeyFrameBa(const size_t &sliding_window) {
   for (auto &it : frames_data) {
     const auto &frame_id = it.first;
     auto &frame = it.second.first;
+    // 获取图像帧特征点对应3D空间点id
     std::vector<int> mp_indixes = frame->getMappointId();
-    {
+    { 
+      // 获取id存储在set中
       std::unique_lock<std::mutex> lock(mutex_mappoints_);
       for (const int &mp_idx : mp_indixes) {
+        // mp_idx小于0为无效点
         if (mp_idx < 0) {
           continue;
         }
@@ -311,7 +322,7 @@ const double Map::kCraneHeight = 9.0;
 
 bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
   std::cout << "[INFO]: trying to initialize a map " << std::endl;
-  clear();
+  // clear();
 
   assert(frame1->camera_model_ == frame2->camera_model_);
   cv::Mat K = frame1->camera_model_->getNewK();
@@ -323,11 +334,15 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
 
   // todo: 增大误差阈值，因为没有矫正畸变参数
   std::vector<uchar> ransac_status;
+  if(points1.size() == 0 || points2.size() == 0)
+    return false;
   cv::Mat H = cv::findHomography(points1, points2, ransac_status, cv::RANSAC);
   std::cout << "H: " << std::endl << H << std::endl;
   int h_inliers = std::accumulate(ransac_status.begin(), ransac_status.end(), 0,
                                   [](int c1, int c2) { return c1 + c2; });
   std::cout << "[INFO]: Find H inliers: " << h_inliers << std::endl;
+  if(h_inliers == 0)
+    return false;
 
   // 尝试利用先验知识（旋转为单位阵），手动分解H
   // K*(R-t*n/d)*K.inv() = H
@@ -400,9 +415,14 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
   std::cout << "[INFO]: R_h: " << std::endl << R_h << std::endl;
   std::cout << "[INFO]: t: " << t_h.t() << std::endl;
 
-  // 3. 初始化地图，建立特征点与地图点之间的关联
-  frame1->setPose(cv::Mat::eye(3, 3, CV_64F), cv::Mat::zeros(3, 1, CV_64F));
-  frame2->setPose(R_h, t_h);
+  // 3. 初始化地图，建立特征点与地图点之间的关联 setPose()最初初始化时用到，设置第一帧图像的初始化位置，用默认值
+  // frame1->setPose(cv::Mat::eye(3, 3, CV_64F), cv::Mat::zeros(3, 1, CV_64F));
+  cv::Mat Tcw = frame1->getPose();
+  cv::Mat R1, t1;
+  Tcw.rowRange(0, 3).colRange(0, 3).copyTo(R1);
+  Tcw.rowRange(0, 3).col(3).copyTo(t1);
+  frame2->setPose(R_h*R1, R_h*t1+t_h);
+
   std::cout << "[INFO]: twc: " << toString(frame2->getEigenTransWc())
             << std::endl;
   insertRecentFrame(frame1);
@@ -428,15 +448,18 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
     frame2->setMappointIdx(kp_idx2, mp->getId());
     mp_idx++;
   }
-
   for (const auto &mp : mappoints) {
     insertMapPoint(mp);
   }
-
-  // 4. 利用天车高度的先验，计算尺度
-  ave_kf_mp_ = getAveMapPoint();
-  scale_ = kCraneHeight / ave_kf_mp_.norm();
-
+  // std::cout << "[Debug]: test one ... " << std::endl;
+  // 4. 利用天车高度的先验，计算尺度  
+  ave_kf_mp_ = getAveMapPoint();  
+  Eigen::Vector3d ave_kf_mp = ave_kf_mp_;
+  // 排除x方向上的影响
+  ave_kf_mp[0] = 0;
+  scale_ = kCraneHeight / ave_kf_mp.norm();
+  std::cout << "[INFO]: The scale value is :         " << scale_ << std::endl;
+  // std::cout << "[Debug]: test two ... " << std::endl;  
   is_initialized_ = true;
 
   std::cout << "[INFO]: Initialize map finished " << std::endl;
@@ -480,6 +503,7 @@ int Map::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
     if (!mask[j]) {
       continue;
     }
+    mask[j] = '\0';
     // 空间点在相机位置1参考系中的坐标
     auto pt1 = points1[j];
     auto pt2 = points2[j];
@@ -597,13 +621,39 @@ std::vector<MapPoint::Ptr> Map::getMapPoints() {
 }
 
 Eigen::Vector3d Map::getAveMapPoint() {
-  std::unique_lock<std::mutex> lock(mutex_mappoints_);
-  Eigen::Vector3d ret = Eigen::Vector3d::Zero();
-  for (const auto &it : mappoints_) {
-    ret += it.second->toEigenVector3d();
+  // 仅对关键帧3D点用来计算scale
+  std::unique_lock<std::mutex> lock_keyframes(mutex_keyframes_);
+  std::set<int> mappoints_index;
+  for (auto &it : keyframes_) {
+    const auto &frame_id = it.first;
+    auto &frame = it.second;
+    std::vector<int> mp_indixes = frame->getMappointId();
+    {
+      for (const int &mp_idx : mp_indixes) {
+        // mp_idx小于0为无效点
+        if (mp_idx < 0) {
+          continue;
+        }
+        mappoints_index.insert(mp_idx);
+      }
+    }
   }
-  ret = ret / mappoints_.size();
+
+  std::unique_lock<std::mutex> lock_mappoints(mutex_mappoints_);
+  Eigen::Vector3d ret = Eigen::Vector3d::Zero();
+  for(const int &mps_id : mappoints_index){
+    ret += mappoints_[mps_id]->toEigenVector3d();
+  }
+  ret = ret / mappoints_index.size();
   return ret;
+
+  // std::unique_lock<std::mutex> lock(mutex_mappoints_);
+  // Eigen::Vector3d ret = Eigen::Vector3d::Zero();
+  // for (const auto &it : mappoints_) {
+  //   ret += it.second->toEigenVector3d();
+  // }
+  // ret = ret / mappoints_.size();
+  // return ret;
 }
 
 double Map::getScale() {
@@ -676,3 +726,47 @@ cv::Point2f Map::project(const cv::Mat &x3D, const cv::Mat K) {
   double y = fy * Y / Z + cy;
   return cv::Point2f(x, y);
 }
+
+
+  int Map::getKeyframesSize()
+  {
+    std::unique_lock<std::mutex> lock(mutex_keyframes_);
+    return keyframes_.size();
+  }
+
+  std::map<size_t, Frame::Ptr> Map::getKeyframes() const
+  {
+    return keyframes_;
+  }
+
+  void Map::setOffset(const double &offset){
+    offset_ = offset;
+  }
+
+  double Map::getOffset() {return offset_;}
+
+  void Map::calculateOffset()
+  {
+    int cnt = 0;
+    double sum = 0.0;
+    std::vector<double> offset_vec;
+    for (auto &v : keyframes_)
+    {
+      if(v.second->getFlag()){
+        cnt++;
+        double position_abs = v.second->getAbsPosition();
+
+        Eigen::Vector3d twc = v.second->getEigenTransWc();
+        double position_estimate = twc[0] * scale_;
+        std::cout << "[INFO]: The value of twc[0]:  " << twc[0] << std::endl;
+        std::cout << "[INFO]: The value of position_estimate:  " << position_estimate << std::endl;
+
+        offset_vec.emplace_back(position_abs + position_estimate);
+        std::cout << "[INFO]: The value of position_abs:  " << position_abs << std::endl;
+      }
+    }
+    statistic(offset_vec, " offset");
+    double stddev;
+    calAveStddev(offset_vec, offset_, stddev);
+    
+  }

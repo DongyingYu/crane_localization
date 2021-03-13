@@ -26,7 +26,7 @@ public:
   /**
    * @brief 跟踪新的一帧
    */
-  bool trackNewFrameByKeyFrame(Frame::Ptr frame);
+  int trackNewFrameByKeyFrame(Frame::Ptr frame);
 
   /**
    * @brief 利用两帧进行单目初始化
@@ -115,11 +115,37 @@ public:
    */
   Eigen::Vector3d ave_kf_mp_;
 
+    /**
+   * @brief 获取关键帧数据库大小
+   */
+
+  int getKeyframesSize();
+
+  /**
+  * @brief 获取关键帧数据
+  */
+  std::map<size_t, Frame::Ptr> getKeyframes() const;
+
+  /**
+  * @brief设置偏移数据
+  */
+  void setOffset(const double &offset);
+
+  /**
+  * @brief 获取数据
+  */
+  double getOffset();
+
+    /**
+  * @brief 由关键帧数据计算偏移量
+  */
+  void calculateOffset();
+
 private:
   std::mutex mutex_recent_frames_;
   std::map<size_t, Frame::Ptr> recent_frames_;
   int max_recent_frames_ = 50;
-
+  
   std::mutex mutex_keyframes_;
   std::map<size_t, Frame::Ptr> keyframes_;
 
@@ -130,6 +156,9 @@ private:
 
   std::mutex mutex_scale_;
   double scale_ = 1.0;
+
+  // 相对位置与绝对位置之间的偏移量
+  double offset_ = 0.0;
 
 private:
   /**

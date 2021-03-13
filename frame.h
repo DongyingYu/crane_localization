@@ -126,6 +126,26 @@ public:
    */
   cv::Mat getProjectionMatrix();
 
+  /**
+   * @brief 设置是否参数与offset计算标志
+   */
+  void setFlag(const bool cal_flag);
+
+    /**
+   * @brief 获取是否参数与offset计算标志
+   */
+  bool getFlag() const;
+
+  /**
+   * @brief 获取图像绝对位置信息
+   */
+  void setAbsPosition(const double &position);
+
+  /**
+   * @brief 设置图像绝对位置信息
+   */
+  double getAbsPosition() const;
+
   // debug
   void debugDraw(const double &scale_image = 1.0);
   void debugPrintPose();
@@ -137,6 +157,12 @@ public:
 
   // 相机模型（包含畸变模型）
   CameraModel::Ptr camera_model_;
+
+  // 
+  // Gridmatcher::Ptr grid_matcher_;
+
+  // 对vocabulary赋值，用以在localize()部分
+  void setVocabulary(ORBVocabulary *voc);
 
 private:
   // 图片，特征点，描述符
@@ -157,9 +183,9 @@ private:
   // 假设：点在相机坐标系下的值P_c，点在世界坐标系下的坐标值P_w，则
   // P_c = T^w_c * P_w；代码中即：Pc = Tcw * Pw。
   std::mutex mutex_pose_;
-  cv::Mat Tcw_;
-  cv::Mat Rcw_;
-  cv::Mat tcw_;
+  cv::Mat Tcw_ = cv::Mat::eye(4, 4, CV_64F);
+  cv::Mat Rcw_ = cv::Mat::eye(3, 3, CV_64F);
+  cv::Mat tcw_ = cv::Mat::zeros(3, 1, CV_64F);
 
   // id
   size_t frame_id_;
@@ -172,6 +198,11 @@ private:
   // Bag of Words Vector structures.
   DBoW2::BowVector bow_vec_;
   DBoW2::FeatureVector feat_vec_;
+
+  // 标记关键帧是否可参与offset计算
+  bool offset_flag_ = false;
+  // 图像帧的绝对位置信息
+  double abs_position_;
 
 private:
   /**

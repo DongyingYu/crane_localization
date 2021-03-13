@@ -12,6 +12,7 @@
 #include "utils.h"
 #include <cmath> // for M_PI
 
+// 去注释，可查看优化调试信息
 //#define G2O_OPT_VERBOSE
 
 #ifdef G2O_OPT_VERBOSE
@@ -274,10 +275,9 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
     v->setMarginalized(true);
     optimizer.addVertex(v);
 
-    // 边
-    if (fixed) {
-      // not implemented yet
-    } else {
+    // 不对先前地图点位置及关键帧位姿做调整
+    // 边  
+    if (1) {
       for (const auto &obs : observations_data_[mp_id]) {
         size_t frame_id = obs.first;
         size_t kp_id = obs.second;
