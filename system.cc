@@ -72,7 +72,6 @@ void System::run() {
       continue;
     }
     if (!cur_map_->checkInitialized()) {
-      std::cout << "\033[31m" << " 123123123" << std::endl;
       bool init_status = cur_map_->initialize(last_frame_, cur_frame_);
       if(!init_status) {
         continue;
@@ -84,7 +83,7 @@ void System::run() {
       // 在这里之后进队cur_frame_对绝对为姿进行匹配用以后续计算offset,开始的两个关键阵仅取第2个关键帧用来计算
       {
       double true_position;
-      auto status = locater->localize(cur_frame_,true_position,true);
+      auto status = locater->localize(cur_frame_,true_position,false);
       if( status ){
         cur_frame_->setFlag(true);
         cur_frame_->setAbsPosition(true_position);
@@ -99,12 +98,14 @@ void System::run() {
     } else {
       size_t frame_id = cur_frame_->getFrameId();
 
-      bool track_status = cur_map_->trackNewFrameByKeyFrame(cur_frame_);
+      int track_status = cur_map_->trackNewFrameByKeyFrame(cur_frame_);
 
-      if (track_status) {
+      if (track_status == 3) {
+        std::cout << "\033[33m -------------------------Normal tracking-------------------------\033[0m" << std::endl;
         Eigen::Quaterniond q(cur_frame_->getEigenRotWc());
         Eigen::Vector3d twc = cur_frame_->getEigenTransWc();
         double scale = cur_map_->getScale();
+        std::cout << "[INFO]: test the value of scale:   " << scale << std::endl;
         double position = twc[0] * scale;
         // 加上偏移量输出绝对位置信息
         double offset_temp = cur_map_->getOffset();
@@ -112,16 +113,24 @@ void System::run() {
                   << "[INFO]: Frame relative position: " << -position << std::endl
                   << "[INFO]: Frame absolute position: " << -position + offset_temp << std::endl
                   << std::endl;
-      } else {
+      } else if(track_status == 2){
         // 跟踪丢时候的重新建立地图点，相当于开始新的初始化，只是初始位姿是给定值
-                std::cout << "[WARNING]: Frame " << frame_id << ", track frame failed "
-                  << std::endl
-                << std::endl;
+        std::cout << "[WARNING]: Frame " << frame_id << std::endl
+                  << "\033[31m ----------------------------------------------track frame failed with two few 3d point----------------------------------------------- \033[0m" << std::endl
+                  << "\033[31m ----------------------------------------------track frame failed with two few 3d point-----------------------------------------------\033[0m" << std::endl
+                  << "\033[31m ----------------------------------------------track frame failed with two few 3d point----------------------------------------------- \033[0m" << std::endl;
         Frame::Ptr last_kf = cur_map_->getLastKeyFrame();
-        cur_map_->initialize(last_kf, cur_frame_);
 
+        std::cout << "..........................Try to reinitialize in.........................." << std::endl;
+        cur_map_->initialize(last_kf, cur_frame_);
+        std::cout << "..........................Try to reinitialize out.........................." << std::endl;
+        continue;
+      }else
+      {
+        std::cout << "\033[33m -------------------------track frame failed with two few matches-------------------------\033[0m" << std::endl;
         continue;
       }
+      
 
       // 判断是否插入关键帧
       if (cur_map_->checkIsNewKeyFrame(cur_frame_)) {
@@ -148,7 +157,7 @@ void System::run() {
         
         double true_position;
 
-        auto status = locater->localize(cur_frame_,true_position,true);
+        auto status = locater->localize(cur_frame_,true_position,false);
         if( status ){
           cur_frame_->setFlag(true);
           cur_frame_->setAbsPosition(true_position);

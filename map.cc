@@ -28,7 +28,7 @@ void Map::clear() {
   }
 }
 
-bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
+int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   std::cout << "[TRACK]: track new frame " << curr_frame->getFrameId()
             << std::endl;
   Frame::Ptr last_kf = getLastKeyFrame();
@@ -43,6 +43,8 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
         << "[WARNING]: Too less matched keypoint, this may lead to wrong pose: "
         << n_match << std::endl;
   }
+  if(n_match < 10)
+    return 1;
 
   // 2. 使用PnP给出当前帧的相机位姿
   int cnt_3d = 0;
@@ -61,13 +63,15 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   std::cout << "[INFO]: cnt_3d=" << cnt_3d << " cnt_not_3d=" << n_match - cnt_3d
             << std::endl;
 
+  // 设定所需的最小地图点
   if (cnt_3d < 3) {
     std::cout << "[ERROR]: too few matched, trackByKeyFrame failed! " << cnt_3d
               << std::endl;
-    return false;
+    // 地图点过少，直接下一帧
+    return 1;
   } else {
+    // 如果上一帧是关键帧，则返回不对当前帧进行处理，需重新初始化地图，否则继续进行后续
     curr_frame->setPose(getLastFrame()->getPose());
-
     // 优化当前帧curr_frame,及其相关的地图点
     G2oOptimizer::Ptr opt = buildG2oOptForFrame(curr_frame);
     opt->optimizeLinearMotion();
@@ -75,9 +79,10 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
     insertRecentFrame(curr_frame);
 
     if (cnt_3d == n_match) {
-      return true;
+      return 3;
     }
   }
+
 
   cv::Mat P1 = last_kf->getProjectionMatrix();
   cv::Mat P2 = curr_frame->getProjectionMatrix();
@@ -142,7 +147,7 @@ bool Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   opt->optimizeLinearMotion();
 
   // 计算重投影误差，排除外点，之后，重新优化；或者采用类似orbslam2的方式，四次迭代，每次迭代中判断内点和外点
-  return true;
+  return 3;
 }
 
 bool Map::checkInitialized() { return is_initialized_; }
@@ -194,6 +199,9 @@ G2oOptimizer::Ptr Map::buildG2oOptForFrame(const Frame::Ptr frame,
       }
     }
     obs_data[mp_idx] = observation;
+    // 若地图点被两个以上关键帧观察到，不对地图点位置做出调整
+    if(observation.size() > 2)
+      mps_data[mp_idx].second = true;
   }
 
   return std::make_shared<G2oOptimizer>(frames_data, mps_data, obs_data);
@@ -326,11 +334,15 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
 
   // todo: 增大误差阈值，因为没有矫正畸变参数
   std::vector<uchar> ransac_status;
+  if(points1.size() == 0 || points2.size() == 0)
+    return false;
   cv::Mat H = cv::findHomography(points1, points2, ransac_status, cv::RANSAC);
   std::cout << "H: " << std::endl << H << std::endl;
   int h_inliers = std::accumulate(ransac_status.begin(), ransac_status.end(), 0,
                                   [](int c1, int c2) { return c1 + c2; });
   std::cout << "[INFO]: Find H inliers: " << h_inliers << std::endl;
+  if(h_inliers == 0)
+    return false;
 
   // 尝试利用先验知识（旋转为单位阵），手动分解H
   // K*(R-t*n/d)*K.inv() = H
@@ -418,7 +430,7 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
 
   insertKeyFrame(frame1);
   insertKeyFrame(frame2);
-    std::cout << "[Debug]: test two ... " << std::endl;
+
   int mp_idx = 0;
   for (int i = 0; i < mask.size(); ++i) {
     if (!mask[i]) {
@@ -436,14 +448,17 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
     frame2->setMappointIdx(kp_idx2, mp->getId());
     mp_idx++;
   }
-  std::cout << "[Debug]: test three ... " << std::endl;
   for (const auto &mp : mappoints) {
     insertMapPoint(mp);
   }
   // std::cout << "[Debug]: test one ... " << std::endl;
   // 4. 利用天车高度的先验，计算尺度  
-  ave_kf_mp_ = getAveMapPoint();      
-  scale_ = kCraneHeight / ave_kf_mp_.norm();
+  ave_kf_mp_ = getAveMapPoint();  
+  Eigen::Vector3d ave_kf_mp = ave_kf_mp_;
+  // 排除x方向上的影响
+  ave_kf_mp[0] = 0;
+  scale_ = kCraneHeight / ave_kf_mp.norm();
+  std::cout << "[INFO]: The scale value is :         " << scale_ << std::endl;
   // std::cout << "[Debug]: test two ... " << std::endl;  
   is_initialized_ = true;
 

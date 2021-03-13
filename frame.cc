@@ -106,6 +106,7 @@ int Frame::matchWith(const Frame::Ptr frame,
   std::vector<cv::DMatch> all_matches;
   matcher_->match(descriptors_, frame->descriptors_, all_matches);
 
+  
   // 统计匹配距离（Hamming）的最大值和最小值
   double dmin = 1;
   double dmax = 0;
@@ -114,6 +115,7 @@ int Frame::matchWith(const Frame::Ptr frame,
     dmax = m.distance > dmax ? m.distance : dmax;
   }
 
+  
   // 根据经验，筛选匹配
   std::vector<cv::DMatch> tmp_matches;
   std::vector<cv::Point2f> pts1, pts2, pts_diff;
@@ -180,12 +182,30 @@ int Frame::matchWith(const Frame::Ptr frame,
   calAveStddev(pts_diff, ave, stddev, true);
   std::cout << "[INFO]: Point uv diff, ave " << ave << " stddev " << stddev
             << std::endl;
+  
+  /*
+  std::vector<bool> vbInliers;
+  Gridmatcher::Ptr gridmatch = std::make_shared<Gridmatcher>(this->un_keypoints_,this->img_.size(),
+                                              frame->un_keypoints_,frame->img_.size(),all_matches);
+	int num_inliers = gridmatch->GetInlierMask(vbInliers,cv::Size(40,40) ,false, false);
+	cout << "[INFO]: Get total " << num_inliers << " matches." << endl;
 
+	// collect matches
+  std::vector<cv::DMatch>  matches_good;
+	for (size_t i = 0; i < vbInliers.size(); ++i)
+	{
+		if (vbInliers[i] == true)
+		{
+			matches_good.push_back(all_matches[i]);
+		}
+	}
+	std::cout << "[INFO]: matches_good size   " << matches_good.size() << std::endl; 
+  */
   // 优先使用靠近图像中间的特征点（越往边缘，畸变越严重）
   good_matches.clear();
   points1.clear();
   points2.clear();
-  for (const auto &m : better_matches) {
+  for (const auto &m : /*matches_good*/better_matches) {
     auto kp1 = un_keypoints_[m.queryIdx];
     auto kp2 = frame->un_keypoints_[m.trainIdx];
     // 1表示认为整个图像都可以，即无任何筛选
@@ -425,6 +445,10 @@ void Frame::debugPrintPose() {
   Eigen::Vector3d t = getEigenTrans();
   std::cout << "[INFO]: Frame " << frame_id_ << ": " << toString(q) << ", "
             << toString(t) << std::endl;
+}
+
+void Frame::setVocabulary(ORBVocabulary *voc){
+  pORBvocabulary_ = voc;
 }
 
 size_t Frame::total_frame_cnt_ = 0;

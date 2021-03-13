@@ -1,19 +1,3 @@
-<!--
- * @file:  
- * @Author: Dongying (yudong2817@sina.com)
- * @brief:  
- * @version:  
- * @date:  Do not edit 
- * @copyright: Copyright (c) 2021
--->
-<!--
- * @file:  
- * @Author: Dongying (yudong2817@sina.com)
- * @brief:  
- * @version:  
- * @date:  Do not edit 
- * @copyright: Copyright (c) 2021
--->
 - [金川工厂天车视觉定位](#金川工厂天车视觉定位)
 - [依赖](#依赖)
 - [运行](#运行)
@@ -84,8 +68,7 @@ export LD_LIBRARY_PATH=${g2o_path}:${opencv_path}
 
 ./build/test/test_system <video_file> <config_yaml> <skip_frames>
 ./build/test/test_system /home/ipsg/dataset_temp/78_cut.mp4 ./conf/pipeline.yaml 0
-./build/test/test_system /home/ipsg/dataset_temp/78.mp4 ./conf/pipeline.yaml 1300
-./build/test/test_system /media/ipsg/软件/dataset/78.mp4 ./conf/pipeline.yaml 1300
+./build/test/test_system /home/ipsg/dataset_temp/78.mp4 ./conf/pipeline.yaml 4300
 
 
 # DBoW2相似性评估

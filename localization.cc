@@ -42,10 +42,10 @@ Localization::Localization(const std::string &vocab_file,
 Localization::~Localization() {}
 
 bool Localization::localize(const Frame::Ptr &cur_frame/*const cv::Mat &image*/,double &position,const bool &verbose) {
-  //Frame::Ptr frame = std::make_shared<Frame>(image, pVocabulary_);
-  Frame::Ptr frame = std::make_shared<Frame>(cur_frame->getImage(), pVocabulary_);
-  frame->computeBoW();
-  auto bow_vec = frame->getBowVoc();
+  // Frame::Ptr frame = std::make_shared<Frame>(cur_frame->getImage(), pVocabulary_);
+  cur_frame->setVocabulary(pVocabulary_);
+  cur_frame->computeBoW();
+  auto bow_vec = cur_frame->getBowVoc();
   std::vector<float> score_temp;
   for (int i = 0; i < frames_.size(); i++) {
     float s = pVocabulary_->score(frames_[i]->getBowVoc(), bow_vec);
@@ -69,14 +69,9 @@ bool Localization::localize(const Frame::Ptr &cur_frame/*const cv::Mat &image*/,
       sum_score_temp = sum_score_temp + winFrames_[j][i];
     }
     vscore[i].first = sum_score_temp;
-    // std::cout << "the for circle number: " << i << std::endl;
     vscore[i].second = i;
-
-    // std::cout << "The test index of frame : " << vscore[i].second <<
-    // std::endl;
   }
   // 降序排列，筛选出排在前五的的分值
-  // first_flag_ = false;
   std::sort(vscore.begin(), vscore.end(),
             [](const pair<float, int> &a, const pair<float, int> &b) {
               return a.first > b.first;
@@ -97,21 +92,21 @@ bool Localization::localize(const Frame::Ptr &cur_frame/*const cv::Mat &image*/,
   std::cout << " The index number of image is :  " << vscore[0].second
             << std::endl;
 
-  if (false) {
+  if (verbose) {
     Frame::Ptr &best_frame = frames_[vscore[0].second];
-    std::cout << frame->getImage().size() << std::endl<< std::endl;
+    std::cout << cur_frame->getImage().size() << std::endl<< std::endl;
     std::cout << best_frame->getImage().size() << std::endl<< std::endl<< std::endl;
 
-    const int height = max(best_frame->getImage().rows, frame->getImage().rows);
-    const int width = best_frame->getImage().cols + frame->getImage().cols;
+    const int height = max(best_frame->getImage().rows, cur_frame->getImage().rows);
+    const int width = best_frame->getImage().cols + cur_frame->getImage().cols;
 
     cv::Mat output(height, width, CV_8UC3, cv::Scalar(0, 0, 0));
     std::cout << output.size() << std::endl;
 
     best_frame->getImage().copyTo(output(cv::Rect(
         0, 0, best_frame->getImage().cols, best_frame->getImage().rows)));
-    frame->getImage().copyTo(output(
-        cv::Rect(best_frame->getImage().cols, 0, frame->getImage().cols, frame->getImage().rows)));
+    cur_frame->getImage().copyTo(output(
+        cv::Rect(best_frame->getImage().cols, 0, cur_frame->getImage().cols, cur_frame->getImage().rows)));
 
     cv::resize(output, output, {0, 0}, 0.6, 0.6);
     std::cout << output.size() << std::endl;

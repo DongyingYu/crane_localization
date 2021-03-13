@@ -33,6 +33,8 @@ public:
 
   std::vector<std::pair<size_t, size_t>> getObservation();
 
+  int getObservationSize();
+
   // obs.first: frame_id
   // osb.second: keypoint index in frame with frame_id
   std::mutex mutex_observation_;

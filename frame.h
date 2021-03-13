@@ -158,6 +158,12 @@ public:
   // 相机模型（包含畸变模型）
   CameraModel::Ptr camera_model_;
 
+  // 
+  // Gridmatcher::Ptr grid_matcher_;
+
+  // 对vocabulary赋值，用以在localize()部分
+  void setVocabulary(ORBVocabulary *voc);
+
 private:
   // 图片，特征点，描述符
   cv::Mat img_;

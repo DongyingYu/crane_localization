@@ -26,7 +26,7 @@ public:
   /**
    * @brief 跟踪新的一帧
    */
-  bool trackNewFrameByKeyFrame(Frame::Ptr frame);
+  int trackNewFrameByKeyFrame(Frame::Ptr frame);
 
   /**
    * @brief 利用两帧进行单目初始化
