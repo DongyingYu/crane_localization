@@ -70,7 +70,7 @@ int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
     // 地图点过少，直接下一帧
     return 1;
   } else {
-    // 如果上一帧是关键帧，则返回不对当前帧进行处理，需重新初始化地图，否则继续进行后续
+    // 如果上一帧是关键帧，则返回不对当前帧进行处理，需重新初始化地图，否则继续进行后续(待添加)
     curr_frame->setPose(getLastFrame()->getPose());
     // 优化当前帧curr_frame,及其相关的地图点
     G2oOptimizer::Ptr opt = buildG2oOptForFrame(curr_frame);
@@ -769,4 +769,9 @@ cv::Point2f Map::project(const cv::Mat &x3D, const cv::Mat K) {
     double stddev;
     calAveStddev(offset_vec, offset_, stddev);
     
+  }
+
+  void Map::setInitializeStatus(const bool &status)
+  {
+    is_initialized_ = status;
   }

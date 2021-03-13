@@ -141,6 +141,11 @@ public:
   */
   void calculateOffset();
 
+  /**
+  * @brief 设置系统是否初始化状态
+  */
+  void setInitializeStatus(const bool &status);
+
 private:
   std::mutex mutex_recent_frames_;
   std::map<size_t, Frame::Ptr> recent_frames_;
