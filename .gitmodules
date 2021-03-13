@@ -1,3 +1,6 @@
 [submodule "third_party/g2o"]
 	path = third_party/g2o
 	url = https://github.com/RainerKuemmerle/g2o.git
+[submodule "third_party/websocketpp"]
+	path = third_party/websocketpp
+	url = https://github.com/zaphoyd/websocketpp.git

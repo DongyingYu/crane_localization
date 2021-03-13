@@ -13,6 +13,9 @@
 
 int main(int argc, char **argv) {
   // 默认参数
+  // std::string video_source = 
+  //     "rtsp://admin:wattman2020@192.168.1.146:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1";
+
   std::string video_file =
       "/home/ipsg/dataset_temp/78_cut.mp4";
   std::string yaml_file = "./conf/pipeline.yaml";
@@ -40,7 +43,18 @@ int main(int argc, char **argv) {
   // skip some frames
   cv::Mat img;
   cv::VideoCapture capture(video_file);
+  
+  // 捕获视频数据
+  // cv::VideoCapture video_capture(video_source, CAP_FFMPEG);              // Open input
+
+	// if (!video_capture.isOpened())
+	// {
+	// 	std::cout << "Could not open the input video: " << video_source << std::endl;
+	// 	return -1;
+	// }
+
   while (skip_frames-- > 0) {
+    // video_capture >> img;
     capture >> img;
   }
 

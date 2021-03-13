@@ -15,6 +15,8 @@ find_package(Eigen3 REQUIRED)
 message(STATUS "Eigen3:")
 message(STATUS "    include path: ${EIGEN3_INCLUDE_DIR}")
 
+find_package(Boost COMPONENTS program_options)
+
 # find yaml cpp lib
 find_library(YAML_CPP_LIBRARIES yaml-cpp)
 if(NOT YAML_CPP_LIBRARIES)
@@ -23,9 +25,15 @@ if(NOT YAML_CPP_LIBRARIES)
   include_directories(${YAML_CPP_INCLUDE_DIRS})
 endif(NOT YAML_CPP_LIBRARIES)
 
+link_directories(${Boost_LIBRARY_DIRS})
+
+find_package(Boost COMPONENTS program_options)
+link_directories(${Boost_LIBRARY_DIRS})
+
 include_directories(
   ${OpenCV_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
+  ${Boost_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/g2o
@@ -33,6 +41,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/DBoW2
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/DBoW2/DBoW2
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/DBoW2/DUtils
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/websocketpp
 )
 
 add_subdirectory(test)
