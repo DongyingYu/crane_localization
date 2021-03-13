@@ -56,6 +56,9 @@ double System::getPosition() {
 
 // clang-format off
 void System::run() {
+    // 图像帧跟踪失败 标记标记信息
+  int cnt_failed;
+  int id_failed;
   while (1) {
     if (isInputQueueEmpty()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -77,6 +80,8 @@ void System::run() {
         continue;
       }
 
+      int cnt_failed = 1;
+      int id_failed = 0;
       G2oOptimizer::Ptr opt = cur_map_->buildG2oOptKeyFrameBa();
       opt->optimize();
       opt->optimizeLinearMotion();
@@ -114,11 +119,11 @@ void System::run() {
                   << "[INFO]: Frame absolute position: " << -position + offset_temp << std::endl
                   << std::endl;
       } else if(track_status == 2){
-        // 跟踪丢时候的重新建立地图点，相当于开始新的初始化，只是初始位姿是给定值
+        // 跟踪丢时候的重新建立地图点，相当于开始新的初始化，只是初始位姿是给定值(备用)
         std::cout << "[WARNING]: Frame " << frame_id << std::endl
-                  << "\033[31m ----------------------------------------------track frame failed with two few 3d point----------------------------------------------- \033[0m" << std::endl
-                  << "\033[31m ----------------------------------------------track frame failed with two few 3d point-----------------------------------------------\033[0m" << std::endl
-                  << "\033[31m ----------------------------------------------track frame failed with two few 3d point----------------------------------------------- \033[0m" << std::endl;
+                  << "\033[31m ----------------------------------------------track frame failed with too few 3d point----------------------------------------------- \033[0m" << std::endl
+                  << "\033[31m ----------------------------------------------track frame failed with too few 3d point-----------------------------------------------\033[0m" << std::endl
+                  << "\033[31m ----------------------------------------------track frame failed with too few 3d point----------------------------------------------- \033[0m" << std::endl;
         Frame::Ptr last_kf = cur_map_->getLastKeyFrame();
 
         std::cout << "..........................Try to reinitialize in.........................." << std::endl;
@@ -127,7 +132,20 @@ void System::run() {
         continue;
       }else
       {
-        std::cout << "\033[33m -------------------------track frame failed with two few matches-------------------------\033[0m" << std::endl;
+        //若连续10帧与之前关键帧都跟踪不上，则重新初始化，is_initialized_置为false
+        std::cout << "\033[33m -------------------------track frame failed with too few matches-------------------------\033[0m" << std::endl;
+        if(cur_frame_->getFrameId() - id_failed == 1)
+          cnt_failed++;
+        else
+          cnt_failed = 1;
+        id_failed = cur_frame_->getFrameId();
+
+        if(cnt_failed > 10){
+          cur_map_->setInitializeStatus(false);
+          history_maps_.emplace_back(cur_map_);
+          cur_map_ = std::make_shared<Map>();
+          std::cout << "\033[33m -------------------------system fails for 10 consecutive frames, reinitialize-------------------------\033[0m" << std::endl;
+        }
         continue;
       }
       

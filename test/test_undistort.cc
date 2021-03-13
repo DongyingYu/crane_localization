@@ -1,9 +1,9 @@
 /*
- * @file:  
+ * @file:
  * @Author: Dongying (yudong2817@sina.com)
- * @brief:  
- * @version:  
- * @date:  Do not edit 
+ * @brief:
+ * @version:
+ * @date:  Do not edit
  * @copyright: Copyright (c) 2021
  */
 #include <iostream>
@@ -69,7 +69,8 @@ int main() {
 
     double scale_factor = 0.4;
     resize(frame, frame, {0, 0}, scale_factor, scale_factor);
-    resize(undistorted_frame, undistorted_frame, {0, 0}, scale_factor, scale_factor);
+    resize(undistorted_frame, undistorted_frame, {0, 0}, scale_factor,
+           scale_factor);
     imshow("ori", frame);
     imshow("undistorted", undistorted_frame);
     waitKey();
