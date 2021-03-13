@@ -43,8 +43,8 @@ std::vector<std::pair<size_t, size_t>> MapPoint::getObservation() {
   std::unique_lock<std::mutex> lock(mutex_observation_);
   return observations_;
 }
-//-------------------------------------------
-int MapPoint::getObservationSize(){
+
+int MapPoint::getObservationSize() {
   std::unique_lock<std::mutex> lock(mutex_observation_);
   return observations_.size();
 }

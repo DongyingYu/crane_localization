@@ -50,7 +50,7 @@ debugPrintEdges(bool compute_error,
                          std::to_string(frame_id));
   }
   statistic(chi2s_all, "[DEBUG]: G2o Optimization, Chi2 for all frames");
-#endif //G2O_OPT_VERBOSE
+#endif // G2O_OPT_VERBOSE
 }
 
 void G2oOptimizer::optimize(const int &n_iteration) {
@@ -276,7 +276,7 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
     optimizer.addVertex(v);
 
     // 不对先前地图点位置及关键帧位姿做调整
-    // 边  
+    // 边
     if (1) {
       for (const auto &obs : observations_data_[mp_id]) {
         size_t frame_id = obs.first;

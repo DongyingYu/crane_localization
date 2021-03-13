@@ -37,8 +37,8 @@ public:
    */
   // 含有默认参数的需要放在最后
   Localization(const std::string &vocab_file,
-               const std::string &preload_keyframes,
-              const double &threshold, const bool &transpose_image=false, const int &win_size = 3);
+               const std::string &preload_keyframes, const double &threshold,
+               const bool &transpose_image = false, const int &win_size = 3);
   ~Localization();
 
   /**
@@ -48,7 +48,8 @@ public:
    * @param[in] verbose
    * @return int 返回相似度最高的图片的索引
    */
-  bool localize(const Frame::Ptr &cur_frame /*cv::Mat &image*/,double &position,const bool &verbose=false);
+  bool localize(const Frame::Ptr &cur_frame, double &position,
+                const bool &verbose = false);
 
 private:
   std::vector<cv::Mat> loadImages(const std::string &index_filename);
@@ -58,7 +59,7 @@ private:
   std::vector<Frame::Ptr> frames_;
   std::deque<std::vector<float>> winFrames_;
 
-  std::vector<double> image_position; 
+  std::vector<double> image_position;
   int win_size_;
   double threshold_;
 };

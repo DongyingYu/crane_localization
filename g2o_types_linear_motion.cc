@@ -116,7 +116,7 @@ Vector2 EdgeLinearMotionOnlyPose::cam_project(const Vector3 &trans_xyz) const {
   return res;
 }
 
-// 
+//
 EdgeLinearMotion::EdgeLinearMotion(const Matrix3 &K) {
   resize(3);
   fx = K(0, 0);
@@ -149,7 +149,8 @@ void EdgeLinearMotion::computeError() {
   // std::cout << "[DEBUG]: Xc: " << Xc.transpose() << std::endl;
   // std::cout << "[DEBUG]: obs: " << obs.transpose() << std::endl;
   // std::cout << "[DEBUG]: proj: " << proj.transpose() << std::endl;
-  // std::cout << "[DEBUG]: _error: " << _error.transpose() << std::endl << std::endl;
+  // std::cout << "[DEBUG]: _error: " << _error.transpose() << std::endl <<
+  // std::endl;
 }
 // 在当前顶点的值下，该误差对优化变量的偏导数，Jacobian。
 void EdgeLinearMotion::linearizeOplus() {

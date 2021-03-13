@@ -62,13 +62,14 @@ cd ..
 
 ```bash
 # 定位系统
-g2o_path=/home/xt/Documents/data/3D-Mapping/3D-Reconstruction/case-base/crane_localization/third_party/g2o/lib
-opencv_path=/usr/local/opencv341/lib/
-export LD_LIBRARY_PATH=${g2o_path}:${opencv_path}
+g2o_path=./third_party/g2o/lib
+export LD_LIBRARY_PATH=${g2o_path}
 
 ./build/test/test_system <video_file> <config_yaml> <skip_frames>
 ./build/test/test_system /home/ipsg/dataset_temp/78_cut.mp4 ./conf/pipeline.yaml 0
 ./build/test/test_system /home/ipsg/dataset_temp/78.mp4 ./conf/pipeline.yaml 4300
+
+./build/test/test_system /data/DATASETS/ros_bag/BL-EX346HP-15M/crane/78.mp4 ./conf/pipeline.yaml 4300
 
 
 # DBoW2相似性评估

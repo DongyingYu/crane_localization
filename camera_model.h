@@ -69,7 +69,7 @@ public:
   CameraModelPinholeEqui(const std::vector<double> &intrinsic_vector,
                          const cv::Size &img_size,
                          const std::vector<double> &distortion_coeffs);
-  
+
   CameraModelPinholeEqui(const std::string &kalibr_camchain_yaml);
 
   void scale(const double &scale_factor) override;

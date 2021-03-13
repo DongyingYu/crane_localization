@@ -55,7 +55,7 @@ public:
 
   /**
    * @brief 计算优化后的mp_data_中的地图点的坐标平均值
-   * @return Eigen::Vector3d 
+   * @return Eigen::Vector3d
    */
   Eigen::Vector3d calAveMapPoint();
 

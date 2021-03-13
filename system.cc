@@ -28,10 +28,9 @@ System::System(const std::string &config_yaml) {
 
   // 其他初始化
   cur_map_ = std::make_shared<Map>();
-  locater = std::make_shared<Localization>(config_parser.vocabulary_,
-                                           config_parser.pre_saved_images_,
-                                           config_parser.threshold_,
-                                           config_parser.transpose_image_,3);
+  locater = std::make_shared<Localization>(
+      config_parser.vocabulary_, config_parser.pre_saved_images_,
+      config_parser.threshold_, config_parser.transpose_image_, 3);
   thread_ = std::thread(&System::run, this);
 }
 
@@ -55,6 +54,7 @@ double System::getPosition() {
   return position_;
 }
 
+// clang-format off
 void System::run() {
   while (1) {
     if (isInputQueueEmpty()) {
@@ -173,3 +173,4 @@ void System::run() {
     }
   }
 }
+// clang-format on
