@@ -4,6 +4,9 @@
 - [开发和测试](#开发和测试)
   - [相机参数标定](#相机参数标定)
   - [功能性测试](#功能性测试)
+- [docker](#docker)
+  - [image创建](#image创建)
+  - [image使用](#image使用)
 
 ## 金川工厂天车视觉定位
 
@@ -78,4 +81,61 @@ export LD_LIBRARY_PATH=${g2o_path}
 # 词典训练
 ./build/test/test_trainingVoc
 
+```
+
+## docker
+### image创建
+```bash
+# 宿主机中创建容器
+docker pull ubuntu:16.04
+#docker run --name crane_dev -it ubuntu:16.04 bash
+docker run --name crane_dev -v /home/xt/Documents/data/:/data/ -it ubuntu:16.04 bash
+```
+
+```bash
+# 在容器中安装依赖
+apt-get update
+apt-get install -y vim wget 
+apt-get install -y cmake build-essential gdb
+
+# yaml
+apt-get install -y libyaml-cpp-dev
+
+# eigen for g2o
+wget https://gitlab.com/libeigen/eigen/-/archive/3.3.4/eigen-3.3.4.tar.gz
+tar zxvf eigen-3.3.4.tar.gz && rm eigen-3.3.4.tar.gz
+cd eigen-3.3.4 && mkdir build && cd build
+cmake .. && make install 
+cd ../.. && rm -rf eigen-3.3.4
+
+# ffmpeg
+apt-get install -y software-properties-common
+
+add-apt-repository ppa:djcj/hybrid
+apt-get update
+apt-get -y install ffmpeg 
+
+# opencv 依赖
+apt-get -y install libavcodec-dev libavformat-dev libswscale-dev libgtk2.0-dev pkg-config
+# opencv 无contrib
+wget https://github.com/opencv/opencv/archive/3.4.1.tar.gz
+tar zxvf 3.4.1.tar.gz && rm 3.4.1.tar.gz 
+cd opencv-3.4.1 && mkdir build && cd build
+cmake .. && make -j && make install
+cd ../.. && rm -rf opencv-3.4.1
+
+# 测试天车定位程序正常运行（具体过程略）
+
+exit
+```
+```bash
+# 宿主机中保存修改，创建镜像，并将镜像推送至阿里云容器镜像服务中（需使用公司账号密码登录）
+docker commit crane_dev crane_localization:v0.1
+docker tag crane_localization:v0.1 registry.cn-hangzhou.aliyuncs.com/wattman/crane_localization:v0.1
+docker push registry.cn-hangzhou.aliyuncs.com/wattman/crane_localization:v0.1
+```
+
+### image使用
+```bash
+docker pull registry.cn-hangzhou.aliyuncs.com/wattman/crane_localization:v0.1
 ```
