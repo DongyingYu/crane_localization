@@ -26,6 +26,7 @@ System::System(const std::string &config_yaml) {
     transpose_image_ = config_parser.transpose_image_;
   }
   debug_draw_ = config_parser.debug_draw_;
+  scale_image_ = config_parser.scale_image_;
 
   // 其他初始化
   cur_map_ = std::make_shared<Map>();
@@ -44,6 +45,9 @@ void System::insertNewImage(const cv::Mat &img) {
   cv::Mat image = img;
   if (transpose_image_) {
     cv::transpose(img, image);
+  }
+  if (std::abs(scale_image_ - 1.0) > std::numeric_limits<float>::epsilon()) {
+    cv::resize(image, image, {0, 0}, scale_image_, scale_image_);
   }
   int rows = image.rows;
   int cols = image.cols;

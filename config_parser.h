@@ -15,6 +15,7 @@ public:
   ConfigParser(const std::string &config_yaml);
 
   bool transpose_image_;
+  double scale_image_;
   double debug_draw_;
   
   std::string camera_yaml_;

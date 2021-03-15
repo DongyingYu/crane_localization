@@ -49,6 +49,8 @@ private:
   CameraModel::Ptr camera_model_;
   // 内部处理时，是否将图像转置（相机模型中的参数也会跟着一起调整）
   bool transpose_image_ = false;
+  // 内部处理时，是否将图片缩放（缩小图片，为了减少计算量，注意需与scale_camera_model相对应）
+  double scale_image_ = 1.0;
 
   // 数据输入
   std::mutex mutex_input_;

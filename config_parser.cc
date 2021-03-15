@@ -31,6 +31,7 @@ ConfigParser::ConfigParser(const std::string &config_yaml) {
     throw std::runtime_error("open yaml failed: " + config_yaml);
   }
   getValue<bool>(node, "transpose_image", transpose_image_);
+  getValue<double>(node, "scale_image", scale_image_);
   getValue<double>(node, "debug_draw", debug_draw_);
 
   auto cam_node = node["camera_model"];
