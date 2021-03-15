@@ -28,7 +28,7 @@ void Map::clear() {
   }
 }
 
-int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
+int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame, const double &debug_draw) {
   std::cout << "[TRACK]: track new frame " << curr_frame->getFrameId()
             << std::endl;
   Frame::Ptr last_kf = getLastKeyFrame();
@@ -37,7 +37,7 @@ int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame) {
   std::vector<cv::DMatch> good_matches;
   std::vector<cv::Point2f> points1, points2;
   int n_match =
-      last_kf->matchWith(curr_frame, good_matches, points1, points2, true);
+      last_kf->matchWith(curr_frame, good_matches, points1, points2, debug_draw);
   if (n_match < 50) {
     std::cout
         << "[WARNING]: Too less matched keypoint, this may lead to wrong pose: "
@@ -272,6 +272,11 @@ void Map::clearRecentFrames() {
 
 void Map::debugPrintMap() {
   double scale = getScale();
+  {
+    std::unique_lock<std::mutex> lock(mutex_recent_frames_);
+    std::cout << "[INFO]: recent_frames_.size()=" << recent_frames_.size() 
+              << std::endl;
+  }
   // 输出地图点的均值
   {
     std::unique_lock<std::mutex> lock(mutex_mappoints_);
@@ -319,7 +324,8 @@ void Map::debugPrintMap() {
 
 const double Map::kCraneHeight = 9.0;
 
-bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
+bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2, 
+                     const double &debug_draw) {
   std::cout << "[INFO]: trying to initialize a map " << std::endl;
   // clear();
 
@@ -329,7 +335,7 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2) {
   // 1. 匹配两帧图像的特征点，计算单应矩阵
   std::vector<cv::DMatch> good_matches;
   std::vector<cv::Point2f> points1, points2;
-  frame1->matchWith(frame2, good_matches, points1, points2, true);
+  frame1->matchWith(frame2, good_matches, points1, points2, debug_draw);
 
   // todo: 增大误差阈值，因为没有矫正畸变参数
   std::vector<uchar> ransac_status;

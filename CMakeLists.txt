@@ -1,9 +1,22 @@
 cmake_minimum_required(VERSION 3.0.2)
 
-
 add_compile_options(-std=c++14)
-#add_compile_options(-g)
-add_compile_options(-O3)
+
+# default built type
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING
+      "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+      FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
+if(CMAKE_BUILD_TYPE MATCHES Release)
+  message(STATUS CMAKE_BUILD_TYPE ": ${CMAKE_BUILD_TYPE}")
+  add_compile_options(-O3)
+else(CMAKE_BUILD_TYPE MATCHES Release)
+  message(STATUS CMAKE_BUILD_TYPE ": ${CMAKE_BUILD_TYPE}")
+  add_compile_options(-g)
+  add_compile_options(-O0)
+endif(CMAKE_BUILD_TYPE MATCHES Release)
 
 find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV Library Status: ")

@@ -1,0 +1,9 @@
+transpose_image: true
+debug_draw: -1
+camera_model:
+  camera_yaml: ./conf/BL-EX346HP-15M.yaml
+  scale_camera_model: 1.0
+localization:
+  vocabulary: ./vocabulary/ORBvoc.txt
+  pre_saved_images: ./vocabulary/image_save/rgb.txt
+  threshold: 0.05

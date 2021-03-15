@@ -25,6 +25,7 @@ System::System(const std::string &config_yaml) {
     camera_model_->transpose();
     transpose_image_ = config_parser.transpose_image_;
   }
+  debug_draw_ = config_parser.debug_draw_;
 
   // 其他初始化
   cur_map_ = std::make_shared<Map>();
@@ -36,7 +37,7 @@ System::System(const std::string &config_yaml) {
 
 bool System::isInputQueueEmpty() {
   std::unique_lock<std::mutex> lock(mutex_input_);
-  return input_frames_.empty();
+  return input_images_.empty();
 }
 
 void System::insertNewImage(const cv::Mat &img) {
@@ -44,9 +45,21 @@ void System::insertNewImage(const cv::Mat &img) {
   if (transpose_image_) {
     cv::transpose(img, image);
   }
-  Frame::Ptr frame = std::make_shared<Frame>(image, camera_model_);
-  std::unique_lock<std::mutex> lock(mutex_input_);
-  input_frames_.emplace_back(frame);
+  int rows = image.rows;
+  int cols = image.cols;
+  if (rows > 0 && cols > 0 &&
+      rows == camera_model_->getImageSize().height &&
+      cols == camera_model_->getImageSize().width) {
+    std::unique_lock<std::mutex> lock(mutex_input_);
+    while(!input_images_.empty()){
+      std::cout << "[WARNING]: Drop an image because slam system's low fps" << std::endl;
+      input_images_.pop_front();
+    }
+    input_images_.emplace_back(image);
+  } else {
+    std::cout << "[WARNING]: invalid image size (width=" << cols
+              << " height=" << rows  << std::endl; 
+  }
 }
 
 double System::getPosition() {
@@ -65,17 +78,21 @@ void System::run() {
       continue;
     }
     {
-      std::unique_lock<std::mutex> lock(mutex_input_);
       last_frame_ = cur_frame_;
-      cur_frame_ = input_frames_.front();
-      input_frames_.pop_front();
+      cv::Mat image;
+      {
+        std::unique_lock<std::mutex> lock(mutex_input_);
+        image = input_images_.front();
+        input_images_.pop_front();
+      }
+      cur_frame_ = std::make_shared<Frame>(image, camera_model_);
     }
     if (!last_frame_) {
       // 只有一帧，啥事也不干
       continue;
     }
     if (!cur_map_->checkInitialized()) {
-      bool init_status = cur_map_->initialize(last_frame_, cur_frame_);
+      bool init_status = cur_map_->initialize(last_frame_, cur_frame_, debug_draw_);
       if(!init_status) {
         continue;
       }
@@ -103,7 +120,9 @@ void System::run() {
     } else {
       size_t frame_id = cur_frame_->getFrameId();
 
-      int track_status = cur_map_->trackNewFrameByKeyFrame(cur_frame_);
+      int track_status = cur_map_->trackNewFrameByKeyFrame(cur_frame_, debug_draw_);
+
+      cur_map_->debugPrintMap();
 
       if (track_status == 3) {
         std::cout << "\033[33m -------------------------Normal tracking-------------------------\033[0m" << std::endl;
@@ -159,12 +178,9 @@ void System::run() {
         cur_map_->clearRecentFrames();
         cur_map_->insertRecentFrame(cur_frame_);
 
-        cur_map_->debugPrintMap();
         // 关键帧优化
         G2oOptimizer::Ptr opt = cur_map_->buildG2oOptKeyFrameBa();
         opt->optimizeLinearMotion();
-        cur_map_->debugPrintMap();
-        std::cout << std::endl << std::endl;
 
         // 计算优化后的地图点的平均z值，计算尺度
         Eigen::Vector3d ave_kf_mp = opt->calAveMapPoint();

@@ -10,6 +10,7 @@
  */
 #include "system.h"
 #include <yaml-cpp/yaml.h>
+#include <chrono>
 
 int main(int argc, char **argv) {
   // 默认参数
@@ -62,7 +63,6 @@ int main(int argc, char **argv) {
   for (int cnt = 0;; ++cnt) {
     capture >> img;
     system->insertNewImage(img);
-
-    cv::waitKey();
+    cv::waitKey(5);
   }
 }

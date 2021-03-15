@@ -15,7 +15,7 @@
 opencv （在4.1.0上测试通过，3.4.1测试通过）
 Eigen >= 3.3 (for g2o)
 
-## 运行
+## 编译
 
 ```bash
 # 代码下载
@@ -29,22 +29,26 @@ cmake ..
 make -j
 cd ../../..
 
-#编译DBoW2(todo)
+#编译DBoW2
 mkdir build
 cd build
 cmake -D OpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..
 make -j
 cd ../../..
 
-#编译
+#编译Release
 mkdir build
 cd build
-cmake -DOpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..
+cmake -DCMAKE_BUILD_TYPE=Release -DOpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..
 make -j
 cd ..
 
-#运行(todo)
-
+#编译Debug
+mkdir debug
+cd debug
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+make -j
+cd ..
 ```
 
 ## 开发和测试
@@ -83,7 +87,7 @@ export LD_LIBRARY_PATH=${g2o_path}
 
 ```
 
-## docker
+## 部署上线
 ### image创建
 ```bash
 # 宿主机中创建容器
@@ -138,4 +142,30 @@ docker push registry.cn-hangzhou.aliyuncs.com/wattman/crane_localization:v0.1
 ### image使用
 ```bash
 docker pull registry.cn-hangzhou.aliyuncs.com/wattman/crane_localization:v0.1
+
+# 不图形展示
+sudo docker run --name crane_loc -v /home/wattman/crane_localization/:/root/crane_localization -it registry.cn-hangzhou.aliyuncs.com/wattman/crane_localization:v0.1 bash
+
+# 支持图形展示
+sudo docker run --name crane_loc -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /home/wattman/crane_localization/:/root/crane_localization -it registry.cn-hangzhou.aliyuncs.com/wattman/crane_localization:v0.1 bash
+
 ```
+
+### 运行
+```bash
+sudo docker exec -it crane_loc bash
+
+cd ~/crane_localization/crane_localization
+
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j
+cd ..
+
+video_rtsp="rtsp://admin:wattman2020@192.168.1.78:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1"
+config_yaml=./conf/pipeline_online.yaml
+skip_frames=0
+
+./build/test/test_system $video_rtsp $config_yaml $skip_frames > log/run_78.log &
+```
+

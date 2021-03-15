@@ -52,7 +52,7 @@ private:
 
   // 数据输入
   std::mutex mutex_input_;
-  std::list<Frame::Ptr> input_frames_;
+  std::list<cv::Mat> input_images_;
 
   // 临时变量
   Frame::Ptr cur_frame_ = nullptr;
@@ -74,4 +74,7 @@ private:
 
   // slam线程
   std::thread thread_;
+
+  // debug
+  double debug_draw_;
 };

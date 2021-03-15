@@ -52,7 +52,7 @@ public:
   int matchWith(const Frame::Ptr frame, std::vector<cv::DMatch> &good_matches,
                 std::vector<cv::Point2f> &points1,
                 std::vector<cv::Point2f> &points2,
-                const bool &debug_draw = false);
+                const double &debug_draw = -1);
 
   /**
    * @brief 切换世界坐标系，将世界坐标系src切换为dst，src和dst之间只差一个旋转

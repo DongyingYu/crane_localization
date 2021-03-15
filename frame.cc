@@ -100,7 +100,7 @@ int Frame::matchWith(const Frame::Ptr frame,
                      std::vector<cv::DMatch> &good_matches,
                      std::vector<cv::Point2f> &points1,
                      std::vector<cv::Point2f> &points2,
-                     const bool &debug_draw) {
+                     const double &debug_draw) {
 
   // 匹配特征点
   std::vector<cv::DMatch> all_matches;
@@ -223,13 +223,13 @@ int Frame::matchWith(const Frame::Ptr frame,
             << std::endl;
 
   // debug draw
-  if (debug_draw) {
+  if (debug_draw > 0) {
     std::cout << "[DEBUG]: debug draw for frame " << frame_id_ << " and "
               << frame->frame_id_ << std::endl;
     cv::Mat un_img_good_match;
     cv::drawMatches(un_img_, un_keypoints_, frame->un_img_,
                     frame->un_keypoints_, good_matches, un_img_good_match);
-    cv::resize(un_img_good_match, un_img_good_match, {0, 0}, 0.4, 0.4);
+    cv::resize(un_img_good_match, un_img_good_match, {0, 0}, debug_draw, debug_draw);
     cv::imshow("undistorted_good_matches", un_img_good_match);
   }
 

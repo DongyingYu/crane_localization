@@ -26,7 +26,7 @@ public:
   /**
    * @brief 跟踪新的一帧
    */
-  int trackNewFrameByKeyFrame(Frame::Ptr frame);
+  int trackNewFrameByKeyFrame(Frame::Ptr frame, const double &debug_draw = -1);
 
   /**
    * @brief 利用两帧进行单目初始化
@@ -36,7 +36,8 @@ public:
    * @param[in] frame2
    * @return Map::Ptr 返回初始化成功的地图，初始化失败则返回nullptr
    */
-  bool initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2);
+  bool initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2, 
+                  const double &debug_draw = -1);
 
   bool checkInitialized();
 
