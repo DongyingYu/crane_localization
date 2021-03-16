@@ -6,3 +6,5 @@ localization:
   vocabulary: ./vocabulary/ORBvoc.txt
   pre_saved_images: ./vocabulary/image_save/rgb.txt
   threshold: 0.05
+websocket:
+  server_address: ws://192.168.1.134:18001/ws?client_type=edge1&id=1

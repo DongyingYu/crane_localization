@@ -94,8 +94,10 @@ link_libraries(pthread
 add_executable(test_websocket
   test_websocket.cc
   ../websocket_endpoint.cpp
+  ../config_parser.cc
 )
-target_link_libraries(test_trainingVoc
+target_link_libraries(test_websocket
+  ${YAML_CPP_LIBRARIES}
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${Boost_LIBRARY_DIRS}
 )

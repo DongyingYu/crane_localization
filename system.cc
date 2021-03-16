@@ -154,6 +154,7 @@ void System::run() {
       if (cur_map_->checkIsNewKeyFrame(cur_frame_)) {
         std::cout << "[INFO]: Insert New KeyFrame " << frame_id << std::endl;
         cur_map_->insertKeyFrame(cur_frame_);
+        cur_map_->releaseLastKeyframeimg();
 
         // 删除所有最近的帧，仅仅保留当前帧
         cur_map_->clearRecentFrames();

@@ -19,20 +19,27 @@ int main(int argc, char **argv) {
   std::string video_file = "/home/ipsg/dataset_temp/78_cut.mp4";
   std::string yaml_file = "./conf/pipeline.yaml";
   int skip_frames = 1200;
+  int crane_id = 0;
   // 从命令行获取参数
   if (argc == 1) {
   } else if (argc == 3) {
-    video_file = argv[1];
-    yaml_file = argv[2];
+    crane_id = atoi(argv[1]);
+    video_file = argv[2];
   } else if (argc == 4) {
-    video_file = argv[1];
-    yaml_file = argv[2];
-    skip_frames = atoi(argv[3]);
-  } else {
+    crane_id = atoi(argv[1]);
+    video_file = argv[2];
+    yaml_file = argv[3];
+  } else if(argc == 5){
+    crane_id = atoi(argv[1]);
+    video_file = argv[2];
+    yaml_file = argv[3];
+    skip_frames = atoi(argv[4]);
+  }else {
     std::cout << "Usage: exec video_file yaml_file" << std::endl;
     std::cout << "       exec video_file yaml_file skip_frame" << std::endl;
   }
 
+  std::cout << "[INFO]: crane_id = " << crane_id << std::endl;
   std::cout << "[INFO]: video_file = " << video_file << std::endl;
   std::cout << "[INFO]: yaml_file = " << yaml_file << std::endl;
   std::cout << "[INFO]: skip_frame = " << skip_frames << std::endl;
@@ -63,6 +70,6 @@ int main(int argc, char **argv) {
     capture >> img;
     system->insertNewImage(img);
 
-    cv::waitKey();
+    cv::waitKey(5);
   }
 }

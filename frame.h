@@ -164,6 +164,9 @@ public:
   // 对vocabulary赋值，用以在localize()部分
   void setVocabulary(ORBVocabulary *voc);
 
+  // release image
+  void releaseImage();
+
 private:
   // 图片，特征点，描述符
   cv::Mat img_;

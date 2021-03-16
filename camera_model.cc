@@ -45,9 +45,7 @@ void CameraModelPinholeEqui::init() {
                                                           newK_, 1);
 
   new_intr_vec_ = {
-      newK_.at<double>(0, 0),
-      newK_.at<double>(1, 1),
-      newK_.at<double>(0, 2),
+      newK_.at<double>(0, 0), newK_.at<double>(1, 1), newK_.at<double>(0, 2),
       newK_.at<double>(1, 2),
   };
 

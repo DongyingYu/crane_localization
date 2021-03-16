@@ -145,6 +145,8 @@ public:
   */
   void setInitializeStatus(const bool &status);
 
+  void releaseLastKeyframeimg();
+
 private:
   std::mutex mutex_recent_frames_;
   std::map<size_t, Frame::Ptr> recent_frames_;

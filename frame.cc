@@ -208,18 +208,13 @@ int Frame::matchWith(const Frame::Ptr frame,
   for (const auto &m : /*matches_good*/better_matches) {
     auto kp1 = un_keypoints_[m.queryIdx];
     auto kp2 = frame->un_keypoints_[m.trainIdx];
-    // 1表示认为整个图像都可以，即无任何筛选
-    double half_center_factor = 0.6;
-    if (isCentralKp(kp1, half_center_factor) &&
-        isCentralKp(kp2, half_center_factor)) {
       good_matches.emplace_back(m);
       points1.emplace_back(kp1.pt);
       points2.emplace_back(kp2.pt);
-    }
   }
 
-  std::cout << "[INFO]: selected " << good_matches.size() << " matches from "
-            << better_matches.size() << " by position(central is better)"
+  std::cout << "[INFO]: selected " 
+            << good_matches.size() << " by position(central is better)"
             << std::endl;
 
   // debug draw
@@ -449,6 +444,10 @@ void Frame::debugPrintPose() {
 
 void Frame::setVocabulary(ORBVocabulary *voc){
   pORBvocabulary_ = voc;
+}
+
+void Frame::releaseImage(){
+  img_.release();
 }
 
 size_t Frame::total_frame_cnt_ = 0;
