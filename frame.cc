@@ -263,6 +263,12 @@ cv::KeyPoint Frame::getUnKeyPoints(const int &keypoint_idx) const {
   return un_keypoints_[keypoint_idx];
 }
 
+
+int Frame::getUnKeyPointsSize() const {
+  return un_keypoints_.size();
+}
+
+
 std::vector<int> Frame::getMappointId() const { return mappoints_id_; }
 
 int Frame::getMappointId(const int &keypoint_idx) const {

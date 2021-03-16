@@ -13,6 +13,7 @@
 #include "frame.h"
 #include "localization.h"
 #include "map.h"
+#include "websocket_endpoint.h"
 #include <chrono>
 #include <list>
 #include <mutex>
@@ -33,6 +34,8 @@ public:
    * @brief 插入新的一帧
    */
   void insertNewImage(const cv::Mat &img);
+
+  void setPosition(const double &pos);
 
   double getPosition();
 
@@ -76,6 +79,10 @@ private:
 
   // slam线程
   std::thread thread_;
+
+  // websocket
+
+  MySocket::websocket_endpoint ws_endpoint_;
 
   // debug
   double debug_draw_;

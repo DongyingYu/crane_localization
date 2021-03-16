@@ -53,6 +53,7 @@ add_executable(test_system
   ../g2o_types_linear_motion.cc
   ../localization.cc
   ../config_parser.cc
+  ../websocket_endpoint.cpp
 )
 target_link_libraries(test_system
   ${OpenCV_LIBS}
@@ -60,6 +61,7 @@ target_link_libraries(test_system
   ${g2o_libs}
   ${dbow2_lib}
   pthread
+  boost_system
 )
 
 
@@ -95,7 +97,7 @@ add_executable(test_websocket
   test_websocket.cc
   ../websocket_endpoint.cpp
 )
-target_link_libraries(test_trainingVoc
+target_link_libraries(test_websocket
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${Boost_LIBRARY_DIRS}
 )

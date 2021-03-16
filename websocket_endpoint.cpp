@@ -246,6 +246,43 @@ namespace MySocket
 		// g_wsClientConnection->record_sent_message(j_string);
 	}	
  
+ 	void websocket_endpoint::send(float posi_one, int id_one) {
+		websocketpp::lib::error_code ec;
+
+		// 按照此格式可以解析
+		json j1={
+			{"position",
+			  {
+					{
+						{"id", id_one},
+						{"position", posi_one}
+					}
+					// ,
+					// {
+					// 	{"id", id_two},
+					// 	{"position", posi_two}
+					// }
+				}
+			}
+		};
+		std::string j1_string = j1.dump();
+		json j=
+		{
+			{"type", "crane_info"},
+			{"data", j1_string}
+		};
+		std::cout << std::setw(4) << j << std::endl;
+		std::string j_string = j.dump();
+
+		g_wsEndPoint.send(g_wsClientConnection->get_hdl(), j_string, websocketpp::frame::opcode::text, ec);
+		if (ec) {
+			std::cout << "> Error sending message: " << ec.message() << std::endl;
+			return;
+		}
+		
+		// g_wsClientConnection->record_sent_message(j_string);
+	}	
+ 
 	
 	
 	void websocket_endpoint::show()

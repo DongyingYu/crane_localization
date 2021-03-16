@@ -32,6 +32,10 @@ namespace MySocket
 		void close();
  
 		void send(float posi_one, float posi_two, int id_one, int id_two);
+
+		// 发送一个天车的位置信息
+		void send(float posi_one, int id_one);
+
 		void show();
 		std::string parsing();
 	};

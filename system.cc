@@ -34,6 +34,8 @@ System::System(const std::string &config_yaml) {
       config_parser.vocabulary_, config_parser.pre_saved_images_,
       config_parser.threshold_, config_parser.transpose_image_, 3);
   thread_ = std::thread(&System::run, this);
+
+  ws_endpoint_.connect("ws://192.168.1.106:18001/ws?client_type=edge1&id=1");
 }
 
 bool System::isInputQueueEmpty() {
@@ -66,6 +68,11 @@ void System::insertNewImage(const cv::Mat &img) {
   }
 }
 
+void System::setPosition(const double &pos) {
+  std::unique_lock<std::mutex> lock(mutex_position_);
+  position_ = pos;
+}
+
 double System::getPosition() {
   std::unique_lock<std::mutex> lock(mutex_position_);
   return position_;
@@ -82,14 +89,18 @@ void System::run() {
       continue;
     }
     {
-      last_frame_ = cur_frame_;
       cv::Mat image;
       {
         std::unique_lock<std::mutex> lock(mutex_input_);
         image = input_images_.front();
         input_images_.pop_front();
       }
-      cur_frame_ = std::make_shared<Frame>(image, camera_model_);
+      Frame::Ptr frame = std::make_shared<Frame>(image, camera_model_);
+      // 特征点数等于零会导致程序退出。
+      if (frame->getUnKeyPointsSize() > 0) {
+        last_frame_ = cur_frame_;
+        cur_frame_ = frame;
+      }
     }
     if (!last_frame_) {
       // 只有一帧，啥事也不干
@@ -108,14 +119,14 @@ void System::run() {
       opt->optimizeLinearMotion();
       // 在这里之后进队cur_frame_对绝对为姿进行匹配用以后续计算offset,开始的两个关键阵仅取第2个关键帧用来计算
       {
-      double true_position;
-      auto status = locater->localize(cur_frame_,true_position,false);
-      if( status ){
-        cur_frame_->setFlag(true);
-        cur_frame_->setAbsPosition(true_position);
-        // 初始offset
-        cur_map_->calculateOffset();
-      }
+        double true_position;
+        auto status = locater->localize(cur_frame_, true_position, false);
+        if(status) {
+          cur_frame_->setFlag(true);
+          cur_frame_->setAbsPosition(true_position);
+          // 初始offset
+          cur_map_->calculateOffset();
+        }
       }
 
       std::cout << "[INFO]: The initialized map after g2o LinearMotion"
@@ -141,6 +152,9 @@ void System::run() {
                   << "[INFO]: Frame relative position: " << -position << std::endl
                   << "[INFO]: Frame absolute position: " << -position + offset_temp << std::endl
                   << std::endl;
+        position_ = -position + offset_temp;
+        // 需修改，天车ID从外部传入
+        ws_endpoint_.send(position_, 78);
       } else if(track_status == 2){
         // 跟踪丢时候的重新建立地图点，相当于开始新的初始化，只是初始位姿是给定值(备用)
         std::cout << "[WARNING]: Frame " << frame_id << std::endl
@@ -153,8 +167,7 @@ void System::run() {
         cur_map_->initialize(last_kf, cur_frame_);
         std::cout << "..........................Try to reinitialize out.........................." << std::endl;
         continue;
-      }else
-      {
+      } else {
         //若连续10帧与之前关键帧都跟踪不上，则重新初始化，is_initialized_置为false
         std::cout << "\033[33m -------------------------track frame failed with too few matches-------------------------\033[0m" << std::endl;
         if(cur_frame_->getFrameId() - id_failed == 1)

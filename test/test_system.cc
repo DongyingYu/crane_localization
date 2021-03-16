@@ -40,22 +40,17 @@ int main(int argc, char **argv) {
 
   auto system = std::make_shared<System>(yaml_file);
 
-  // skip some frames
-  cv::Mat img;
+  // cv::VideoCapture capture(video_file, CAP_FFMPEG);
   cv::VideoCapture capture(video_file);
 
-  // 捕获视频数据
-  // cv::VideoCapture video_capture(video_source, CAP_FFMPEG);              //
-  // Open input
+  if (!capture.isOpened()) {
+  	std::cout << "Could not open the input video: " << video_file 
+              << std::endl; 	
+    return -1;
+  }
 
-  // if (!video_capture.isOpened())
-  // {
-  // 	std::cout << "Could not open the input video: " << video_source <<
-  // std::endl; 	return -1;
-  // }
-
+  cv::Mat img;
   while (skip_frames-- > 0) {
-    // video_capture >> img;
     capture >> img;
   }
 

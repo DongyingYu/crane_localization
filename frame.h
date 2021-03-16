@@ -96,6 +96,7 @@ public:
   // 特征点 access
   std::vector<cv::KeyPoint> getUnKeyPoints() const;
   cv::KeyPoint getUnKeyPoints(const int &keypoint_idx) const;
+  int getUnKeyPointsSize() const;
 
   // 地图点索引 access
   std::vector<int> getMappointId() const;
