@@ -72,9 +72,14 @@ cd ..
 g2o_path=./third_party/g2o/lib
 export LD_LIBRARY_PATH=${g2o_path}
 
-./build/test/test_system <video_file> <config_yaml> <skip_frames>
+./build/test/test_system <crane_id> <video_file> <config_yaml> <skip_frames>
 ./build/test/test_system /home/ipsg/dataset_temp/78_cut.mp4 ./conf/pipeline.yaml 0
 ./build/test/test_system /home/ipsg/dataset_temp/78.mp4 ./conf/pipeline.yaml 4300
+
+./build/test/test_system 1 /home/ipsg/dataset_temp/78.mp4 ./conf/pipeline_online.yaml 4300
+
+./build/test_websocket
+./run.sh
 
 ./build/test/test_system /data/DATASETS/ros_bag/BL-EX346HP-15M/crane/78.mp4 ./conf/pipeline.yaml 4300
 

@@ -434,6 +434,7 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
   insertRecentFrame(frame1);
   insertRecentFrame(frame2);
 
+  frame1->releaseImage();
   insertKeyFrame(frame1);
   insertKeyFrame(frame2);
 
@@ -770,3 +771,12 @@ void Map::calculateOffset() {
 }
 
 void Map::setInitializeStatus(const bool &status) { is_initialized_ = status; }
+
+void Map::releaseLastKeyframeimg(){
+  std::unique_lock<std::mutex> lock(mutex_keyframes_);
+  if (keyframes_.empty()) {
+    return ;
+  }
+  Frame::Ptr last_keyframe = keyframes_.rbegin()->second;
+  last_keyframe->releaseImage();
+}

@@ -9,10 +9,6 @@
  *
  */
 #pragma once
-#include "ORBVocabulary.h"
-#include "camera_model.h"
-#include "third_party/DBoW2/DBoW2/BowVector.h"
-#include "third_party/DBoW2/DBoW2/FeatureVector.h"
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <fstream>
@@ -24,13 +20,17 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
+#include "ORBVocabulary.h"
+#include "camera_model.h"
+#include "third_party/DBoW2/DBoW2/BowVector.h"
+#include "third_party/DBoW2/DBoW2/FeatureVector.h"
 
 /**
  * @brief 普通图像帧
  * @note 使用ORB特征，基于hamming距离的暴力匹配
  */
 class Frame {
-public:
+ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
   using Ptr = std::shared_ptr<Frame>;
@@ -40,7 +40,8 @@ public:
   Frame(const cv::Mat &img);
   Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model);
   Frame(const cv::Mat &img, ORBVocabulary *voc);
-  Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model, ORBVocabulary *voc);
+  Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model,
+        ORBVocabulary *voc);
   /**
    * @brief 与另一帧进行特征点匹配，并根据距离，进行简单筛选
    *
@@ -71,9 +72,9 @@ public:
   DBoW2::BowVector getBowVoc();
 
   // 创建词典
-  static void
-  createVocabulary(ORBVocabulary &voc, std::string &filename,
-                   const std::vector<std::vector<cv::Mat>> &descriptors);
+  static void createVocabulary(
+      ORBVocabulary &voc, std::string &filename,
+      const std::vector<std::vector<cv::Mat>> &descriptors);
 
   /**
    * @brief 将地图点投影到当前帧
@@ -132,9 +133,9 @@ public:
    */
   void setFlag(const bool cal_flag);
 
-    /**
-   * @brief 获取是否参数与offset计算标志
-   */
+  /**
+ * @brief 获取是否参数与offset计算标志
+ */
   bool getFlag() const;
 
   /**
@@ -159,18 +160,21 @@ public:
   // 相机模型（包含畸变模型）
   CameraModel::Ptr camera_model_;
 
-  // 
+  //
   // Gridmatcher::Ptr grid_matcher_;
 
   // 对vocabulary赋值，用以在localize()部分
   void setVocabulary(ORBVocabulary *voc);
 
-private:
+  // release image
+  void releaseImage();
+
+ private:
   // 图片，特征点，描述符
   cv::Mat img_;
-  cv::Mat un_img_; // 去畸变后的图像
+  cv::Mat un_img_;  // 去畸变后的图像
   std::vector<cv::KeyPoint> keypoints_;
-  std::vector<cv::KeyPoint> un_keypoints_; // 去畸变后的特征点
+  std::vector<cv::KeyPoint> un_keypoints_;  // 去畸变后的特征点
   cv::Mat descriptors_;
 
   // 用于计算词袋（因为仅仅图像中央的特征点畸变较小，被用于跟踪，而词袋重定位不需要这个限制）
@@ -205,7 +209,7 @@ private:
   // 图像帧的绝对位置信息
   double abs_position_;
 
-private:
+ private:
   /**
    * @brief 仅供构造函数使用，进行初始化
    */

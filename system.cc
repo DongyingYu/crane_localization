@@ -12,8 +12,7 @@
 #include "config_parser.h"
 #include "utils.h"
 
-System::System(const std::string &config_yaml) {
-
+System::System(const std::string &config_yaml,const int &crane_id) : crane_id_(crane_id) {
   auto config_parser = ConfigParser(config_yaml);
   camera_model_ =
       std::make_shared<CameraModelPinholeEqui>(config_parser.camera_yaml_);
@@ -35,7 +34,22 @@ System::System(const std::string &config_yaml) {
       config_parser.threshold_, config_parser.transpose_image_, 3);
   thread_ = std::thread(&System::run, this);
 
-  ws_endpoint_.connect("ws://192.168.1.106:18001/ws?client_type=edge1&id=1");
+  // 获取服务器地址
+  std::string server_address = config_parser.server_address_;
+  ws_endpoint_.connect(server_address);
+
+  // bool done = false;
+  // while (!done) {
+  //   // 返回视频的http地址
+  //   bool link_status = ws_endpoint_.parsing();
+  //   if (!link_status)
+  //     continue;
+  //   else {
+  //     // 添加文件数据信息写入txt的操作，存储顺序：id rtsp流地址
+  //     done = true;
+  //   }
+  // }
+  // ws_endpoint_.connect("ws://192.168.1.106:18001/ws?client_type=edge1&id=1");
 }
 
 bool System::isInputQueueEmpty() {
@@ -53,18 +67,18 @@ void System::insertNewImage(const cv::Mat &img) {
   }
   int rows = image.rows;
   int cols = image.cols;
-  if (rows > 0 && cols > 0 &&
-      rows == camera_model_->getImageSize().height &&
+  if (rows > 0 && cols > 0 && rows == camera_model_->getImageSize().height &&
       cols == camera_model_->getImageSize().width) {
     std::unique_lock<std::mutex> lock(mutex_input_);
-    while(!input_images_.empty()){
-      std::cout << "[WARNING]: Drop an image because slam system's low fps" << std::endl;
+    while (!input_images_.empty()) {
+      std::cout << "[WARNING]: Drop an image because slam system's low fps"
+                << std::endl;
       input_images_.pop_front();
     }
     input_images_.emplace_back(image);
   } else {
     std::cout << "[WARNING]: invalid image size (width=" << cols
-              << " height=" << rows  << std::endl; 
+              << " height=" << rows << std::endl;
   }
 }
 
@@ -154,7 +168,7 @@ void System::run() {
                   << std::endl;
         position_ = -position + offset_temp;
         // 需修改，天车ID从外部传入
-        ws_endpoint_.send(position_, 78);
+        ws_endpoint_.send(position_, crane_id_);
       } else if(track_status == 2){
         // 跟踪丢时候的重新建立地图点，相当于开始新的初始化，只是初始位姿是给定值(备用)
         std::cout << "[WARNING]: Frame " << frame_id << std::endl
@@ -190,6 +204,7 @@ void System::run() {
       if (cur_map_->checkIsNewKeyFrame(cur_frame_)) {
         std::cout << "[INFO]: Insert New KeyFrame " << frame_id << std::endl;
         cur_map_->insertKeyFrame(cur_frame_);
+        cur_map_->releaseLastKeyframeimg();
 
         // 删除所有最近的帧，仅仅保留当前帧
         cur_map_->clearRecentFrames();

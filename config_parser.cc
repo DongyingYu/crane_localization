@@ -10,8 +10,8 @@
  */
 
 #include "config_parser.h"
-#include <iostream>
 #include <yaml-cpp/yaml.h>
+#include <iostream>
 
 template <typename T>
 static void getValue(const YAML::Node &node, const std::string &key, T &value) {
@@ -47,5 +47,11 @@ ConfigParser::ConfigParser(const std::string &config_yaml) {
   }
   getValue<std::string>(loc_node, "vocabulary", vocabulary_);
   getValue<std::string>(loc_node, "pre_saved_images", pre_saved_images_);
-  getValue<double>(loc_node,"threshold", threshold_);
+  getValue<double>(loc_node, "threshold", threshold_);
+
+  auto websocket_node = node["websocket"];
+  if (!websocket_node) {
+    throw std::runtime_error("could not find 'websocket' in node");
+  }
+  getValue<std::string>(websocket_node, "server_address", server_address_);
 }

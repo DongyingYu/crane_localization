@@ -15,7 +15,6 @@ MapPoint::MapPoint(float x, float y, float z) : x_(x), y_(y), z_(z) {
 }
 
 Eigen::Vector3d MapPoint::toEigenVector3d() {
-
   Eigen::Vector3d ret;
   {
     std::unique_lock<std::mutex> lock(mutex_);

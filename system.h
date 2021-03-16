@@ -28,7 +28,7 @@ public:
    *
    * @param config_yaml yaml文件中的相机参数部分，来源与kalibr标定结果
    */
-  System(const std::string &config_yaml);
+  System(const std::string &config_yaml,const int &crane_id);
 
   /**
    * @brief 插入新的一帧
@@ -86,4 +86,6 @@ private:
 
   // debug
   double debug_draw_;
+
+  int crane_id_;
 };
