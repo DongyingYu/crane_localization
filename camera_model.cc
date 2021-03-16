@@ -17,7 +17,8 @@ CameraModel::CameraModel() {}
 CameraModel::CameraModel(const std::string &camera_model,
                          const std::vector<double> &intrinsic_vector,
                          const cv::Size &img_size)
-    : camera_model_(camera_model), intr_vec_(intrinsic_vector),
+    : camera_model_(camera_model),
+      intr_vec_(intrinsic_vector),
       img_size_(img_size) {}
 
 CameraModel::CameraModel(const std::string &camera_model,
@@ -25,8 +26,10 @@ CameraModel::CameraModel(const std::string &camera_model,
                          const cv::Size &img_size,
                          const std::string &distortion_model,
                          const std::vector<double> &distortion_coeffs)
-    : camera_model_(camera_model), intr_vec_(intrinsic_vector),
-      img_size_(img_size), dist_model_(distortion_model),
+    : camera_model_(camera_model),
+      intr_vec_(intrinsic_vector),
+      img_size_(img_size),
+      dist_model_(distortion_model),
       dist_coef_(distortion_coeffs) {}
 
 cv::Size CameraModel::getImageSize() const { return img_size_; }
@@ -38,25 +41,22 @@ void CameraModelPinholeEqui::init() {
   double cx = intr_vec_[2], cy = intr_vec_[3];
   K_ = (cv::Mat_<double>(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
 
-  D_ = cv::Mat(dist_coef_.size(), 1, CV_64F, &dist_coef_);
+  D_ = cv::Mat(dist_coef_.size(), 1, CV_64F, dist_coef_.data());
 
   cv::Mat_<double> I = cv::Mat_<double>::eye(3, 3);
   cv::fisheye::estimateNewCameraMatrixForUndistortRectify(K_, D_, img_size_, I,
                                                           newK_, 1);
-
   new_intr_vec_ = {
-      newK_.at<double>(0, 0),
-      newK_.at<double>(1, 1),
-      newK_.at<double>(0, 2),
+      newK_.at<double>(0, 0), newK_.at<double>(1, 1), newK_.at<double>(0, 2),
       newK_.at<double>(1, 2),
   };
 
   map1_ = cv::Mat::zeros(img_size_, CV_16SC2);
   map2_ = cv::Mat::zeros(img_size_, CV_16UC1);
-  cv::fisheye::initUndistortRectifyMap(K_, D_, I, newK_, img_size_,
+  cv::fisheye::initUndistortRectifyMap(K_, D_, cv::Mat(), newK_, img_size_,
                                        map1_.type(), map1_, map2_);
 }
-
+// 对父类进行初始化，调用格式为：调用格式为“子类构造函数 : 父类构造函数”，
 CameraModelPinholeEqui::CameraModelPinholeEqui(
     const std::vector<double> &intrinsic_vector, const cv::Size &img_size,
     const std::vector<double> &distortion_coeffs)
@@ -103,8 +103,8 @@ void CameraModelPinholeEqui::scale(const double &scale_factor) {
   init();
 }
 
-CameraModelPinholeEqui
-CameraModelPinholeEqui::scaled(const double &scale_factor) {
+CameraModelPinholeEqui CameraModelPinholeEqui::scaled(
+    const double &scale_factor) {
   CameraModelPinholeEqui model = *this;
   model.scale(scale_factor);
   return model;
@@ -123,12 +123,11 @@ void CameraModelPinholeEqui::undistortImage(const cv::Mat &img,
     std::cout << "[ERROR]: expected image_size=" << img_size_ << " , bug got "
               << img.size() << std::endl;
   }
-  cv::fisheye::undistortImage(img, un_img, K_, D_, newK_, img_size_);
+  cv::fisheye::undistortImage(img, un_img, K_, D_, newK_);
 }
 
 void CameraModelPinholeEqui::undistortKeyPoint(
     const std::vector<cv::KeyPoint> &kps, std::vector<cv::KeyPoint> &un_kps) {
-
   if (kps.empty()) {
     return;
   }

@@ -9,9 +9,24 @@
  *
  */
 #include "map.h"
-#include "utils.h"
 #include <numeric>
 #include <utility>
+#include "utils.h"
+
+Map::Map() {}
+
+Map::Map(const int &sliding_window_local, const int &sliding_window_global)
+    : sliding_window_local_(sliding_window_local),
+      sliding_window_global_(sliding_window_global) {
+  std::cout
+      << "[INFO]: \033[33m The value of sliding_window_local_ is:   \033[0m "
+      << sliding_window_local_ << std::endl;
+  std::cout
+      << "[INFO]: \033[33m The value of sliding_window_global_ is: \033[0m "
+      << sliding_window_global_ << std::endl;
+}
+
+Map::~Map() {}
 
 void Map::clear() {
   {
@@ -28,7 +43,8 @@ void Map::clear() {
   }
 }
 
-int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame, const double &debug_draw) {
+int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame,
+                                 const double &debug_draw) {
   std::cout << "[TRACK]: track new frame " << curr_frame->getFrameId()
             << std::endl;
   Frame::Ptr last_kf = getLastKeyFrame();
@@ -36,15 +52,32 @@ int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame, const double &debug_draw
   // 1. 特征点匹配
   std::vector<cv::DMatch> good_matches;
   std::vector<cv::Point2f> points1, points2;
-  int n_match =
-      last_kf->matchWith(curr_frame, good_matches, points1, points2, debug_draw);
+  float ave_x;
+  int n_match = last_kf->matchWith(curr_frame, good_matches, points1, points2,
+                                   ave_x, debug_draw);
   if (n_match < 50) {
     std::cout
         << "[WARNING]: Too less matched keypoint, this may lead to wrong pose: "
         << n_match << std::endl;
   }
-  if (n_match < 10)
-    return 1;
+  diff_ave_ = ave_x;
+  // 对系统CPU占用减少作用并不明显，可见位姿计算部分消耗不大
+  // if(abs(ave_x - diff_ave_) < 0.1){
+  //   // 静止的情况下，仅获取位姿，将位姿输出
+  //   std::cout << "\033[31m [INFO]: The diff of ave_x and diffave : \033[0m"
+  //   << abs(ave_x - diff_ave_) << std::endl;
+  //   std::cout << "\033[31m [INFO]: The diff_x_ave is small enough, use the
+  //   pose of lastframe. \033[0m" << std::endl;
+  //   curr_frame->setPose(getLastFrame()->getPose());
+  //   // insertRecentFrame(curr_frame);
+
+  //   return 3;
+  // }
+  // diff_ave_ = ave_x;
+  // std::cout << "\033[31m [INFO]: The value of diff_ave_: \033[0m" <<
+  // diff_ave_
+  // << std::endl;
+  if (n_match < 10) return 1;
 
   // 2. 使用PnP给出当前帧的相机位姿
   int cnt_3d = 0;
@@ -71,6 +104,8 @@ int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame, const double &debug_draw
     return 1;
   } else {
     // 如果上一帧是关键帧，则返回不对当前帧进行处理，需重新初始化地图，否则继续进行后续(待添加)
+
+    // 对普通帧就是如下的处理情况，对未在地图点中的特征点进行三角化，并进行g2o优化求取位姿。
     curr_frame->setPose(getLastFrame()->getPose());
     // 优化当前帧curr_frame,及其相关的地图点
     G2oOptimizer::Ptr opt = buildG2oOptForFrame(curr_frame);
@@ -87,6 +122,7 @@ int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame, const double &debug_draw
   cv::Mat P2 = curr_frame->getProjectionMatrix();
 
   // 3. 将剩余配对特征点三角化
+  int invalid_3D_cnt = 0;
   for (const cv::DMatch &m : good_matches) {
     int mp_idx = last_kf->getMappointId(m.queryIdx);
     if (mp_idx >= 0) {
@@ -113,6 +149,7 @@ int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame, const double &debug_draw
 
       if (!(is_finite && is_depth_valid)) {
         std::cout << "[WARNING]: invalid x3D " << x3D.t() << std::endl;
+        invalid_3D_cnt++;
         continue;
       }
 
@@ -140,7 +177,6 @@ int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame, const double &debug_draw
       curr_frame->setMappointIdx(m.trainIdx, mp->getId());
     }
   }
-
   // 再次优化当前帧curr_frame,及其相关的地图点
   G2oOptimizer::Ptr opt = buildG2oOptForFrame(curr_frame);
   opt->optimizeLinearMotion();
@@ -151,9 +187,7 @@ int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame, const double &debug_draw
 
 bool Map::checkInitialized() { return is_initialized_; }
 
-G2oOptimizer::Ptr Map::buildG2oOptForFrame(const Frame::Ptr frame,
-                                           const size_t &sliding_window) {
-
+G2oOptimizer::Ptr Map::buildG2oOptForFrame(const Frame::Ptr frame) {
   std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
   std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
   std::map<size_t, std::vector<std::pair<size_t, size_t>>> obs_data;
@@ -163,7 +197,7 @@ G2oOptimizer::Ptr Map::buildG2oOptForFrame(const Frame::Ptr frame,
     std::unique_lock<std::mutex> lock(mutex_keyframes_);
     std::map<size_t, Frame::Ptr>::reverse_iterator rit;
     for (rit = keyframes_.rbegin(); rit != keyframes_.rend(); ++rit) {
-      if (frames_data.size() > sliding_window) {
+      if (frames_data.size() > sliding_window_local_) {
         break;
       }
       frames_data[rit->first] = std::pair<Frame::Ptr, bool>(rit->second, true);
@@ -181,6 +215,8 @@ G2oOptimizer::Ptr Map::buildG2oOptForFrame(const Frame::Ptr frame,
       if (mp_idx < 0) {
         continue;
       }
+      auto z_value = mappoints_[mp_idx].get()->getPointValue(3);
+      if (z_value > 10 || z_value < 0) continue;
       const auto &mp = mappoints_[mp_idx];
       mps_data[mp_idx] = std::pair<MapPoint::Ptr, bool>(mp, false);
     }
@@ -191,23 +227,23 @@ G2oOptimizer::Ptr Map::buildG2oOptForFrame(const Frame::Ptr frame,
     const size_t &mp_idx = it.first;
     const auto &mp = it.second.first;
     const auto &observation_tmp = mp->getObservation();
+
     std::vector<std::pair<size_t, size_t>> observation;
     for (const auto &obs : observation_tmp) {
-      if (frames_data.find(obs.first) != frames_data.end()) {
+      auto frame_id = obs.first;
+      if (frames_data.find(frame_id) != frames_data.end()) {
         observation.emplace_back(obs);
       }
     }
     obs_data[mp_idx] = observation;
     // 若地图点被两个以上关键帧观察到，不对地图点位置做出调整
-    if (observation.size() > 2)
-      mps_data[mp_idx].second = true;
+    if (observation.size() > 2) mps_data[mp_idx].second = true;
   }
 
   return std::make_shared<G2oOptimizer>(frames_data, mps_data, obs_data);
 }
 
-G2oOptimizer::Ptr Map::buildG2oOptKeyFrameBa(const size_t &sliding_window) {
-
+G2oOptimizer::Ptr Map::buildG2oOptKeyFrameBa() {
   std::map<size_t, std::pair<Frame::Ptr, bool>> frames_data;
   std::map<size_t, std::pair<MapPoint::Ptr, bool>> mps_data;
   std::map<size_t, std::vector<std::pair<size_t, size_t>>> obs_data;
@@ -216,7 +252,7 @@ G2oOptimizer::Ptr Map::buildG2oOptKeyFrameBa(const size_t &sliding_window) {
     std::unique_lock<std::mutex> lock(mutex_keyframes_);
     std::map<size_t, Frame::Ptr>::reverse_iterator rit;
     for (rit = keyframes_.rbegin(); rit != keyframes_.rend(); ++rit) {
-      if (frames_data.size() > sliding_window) {
+      if (frames_data.size() > sliding_window_global_) {
         break;
       }
       frames_data[rit->first] = std::pair<Frame::Ptr, bool>(rit->second, false);
@@ -240,6 +276,8 @@ G2oOptimizer::Ptr Map::buildG2oOptKeyFrameBa(const size_t &sliding_window) {
         if (mp_idx < 0) {
           continue;
         }
+        auto z_value = mappoints_[mp_idx].get()->getPointValue(3);
+        if (z_value > 10 || z_value < 0) continue;
         const auto &mp = mappoints_[mp_idx];
         mps_data[mp_idx] = std::pair<MapPoint::Ptr, bool>(mp, false);
       }
@@ -274,7 +312,7 @@ void Map::debugPrintMap() {
   double scale = getScale();
   {
     std::unique_lock<std::mutex> lock(mutex_recent_frames_);
-    std::cout << "[INFO]: recent_frames_.size()=" << recent_frames_.size() 
+    std::cout << "[INFO]: recent_frames_.size()=" << recent_frames_.size()
               << std::endl;
   }
   // 输出地图点的均值
@@ -324,7 +362,7 @@ void Map::debugPrintMap() {
 
 const double Map::kCraneHeight = 9.0;
 
-bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2, 
+bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
                      const double &debug_draw) {
   std::cout << "[INFO]: trying to initialize a map " << std::endl;
   // clear();
@@ -335,19 +373,18 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
   // 1. 匹配两帧图像的特征点，计算单应矩阵
   std::vector<cv::DMatch> good_matches;
   std::vector<cv::Point2f> points1, points2;
-  frame1->matchWith(frame2, good_matches, points1, points2, debug_draw);
+  float ave_x;
+  frame1->matchWith(frame2, good_matches, points1, points2, ave_x, debug_draw);
 
   // todo: 增大误差阈值，因为没有矫正畸变参数
   std::vector<uchar> ransac_status;
-  if (points1.size() == 0 || points2.size() == 0)
-    return false;
+  if (points1.size() == 0 || points2.size() == 0) return false;
   cv::Mat H = cv::findHomography(points1, points2, ransac_status, cv::RANSAC);
   std::cout << "H: " << std::endl << H << std::endl;
   int h_inliers = std::accumulate(ransac_status.begin(), ransac_status.end(), 0,
                                   [](int c1, int c2) { return c1 + c2; });
   std::cout << "[INFO]: Find H inliers: " << h_inliers << std::endl;
-  if (h_inliers == 0)
-    return false;
+  if (h_inliers == 0) return false;
 
   // 尝试利用先验知识（旋转为单位阵），手动分解H
   // K*(R-t*n/d)*K.inv() = H
@@ -415,7 +452,9 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
   if (inliers < x3D_inliers_threshold_) {
     std::cout << "[WARNING]: Too few mappoint inliers" << std::endl;
   }
-
+  // t_h = t_h / std::sqrt(t_h.at<double>(0) * t_h.at<double>(0) +
+  //                      t_h.at<double>(1) * t_h.at<double>(1) +
+  //                      t_h.at<double>(2) * t_h.at<double>(2));
   std::cout << "[INFO]: Recover Rt, mappoint inliers: " << inliers << std::endl;
   std::cout << "[INFO]: R_h: " << std::endl << R_h << std::endl;
   std::cout << "[INFO]: t: " << t_h.t() << std::endl;
@@ -434,6 +473,7 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
   insertRecentFrame(frame1);
   insertRecentFrame(frame2);
 
+  frame1->releaseImage();
   insertKeyFrame(frame1);
   insertKeyFrame(frame2);
 
@@ -476,13 +516,15 @@ int Map::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
                   const cv::Mat &K, std::vector<cv::Point2f> points1,
                   std::vector<cv::Point2f> points2, std::vector<uchar> &mask,
                   std::vector<MapPoint::Ptr> &mappoints, bool verbose) {
-
   // 因为相机是俯视地面，法向量必须是大致沿z轴的（z轴分量绝对值最大）
   if (std::fabs(n.at<double>(2, 0)) <= std::fabs(n.at<double>(0, 0)) ||
       std::fabs(n.at<double>(2, 0)) <= std::fabs(n.at<double>(1, 0))) {
     // return 0;
   }
 
+  // cv::Mat t_normalize = t / std::sqrt(t.at<double>(0) * t.at<double>(0) +
+  //                                    t.at<double>(1) * t.at<double>(1) +
+  //                                    t.at<double>(2) * t.at<double>(2));
   // 计算地图点，地图点在两个相机坐标系下的z值必须都为正
 
   // 在相机位置1参考系中，两相机光心
@@ -645,12 +687,19 @@ Eigen::Vector3d Map::getAveMapPoint() {
     }
   }
 
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
+      kf_mps;
   std::unique_lock<std::mutex> lock_mappoints(mutex_mappoints_);
   Eigen::Vector3d ret = Eigen::Vector3d::Zero();
   for (const int &mps_id : mappoints_index) {
-    ret += mappoints_[mps_id]->toEigenVector3d();
+    auto z_value = mappoints_[mps_id].get()->getPointValue(3);
+    if (z_value > 9 || z_value < 0.2) continue;
+    auto mp = mappoints_[mps_id];
+    kf_mps.emplace_back(mp->toEigenVector3d());
+    ret += mp->toEigenVector3d();
   }
-  ret = ret / mappoints_index.size();
+  statistic(kf_mps, "ave mp");
+  ret = ret / kf_mps.size();
   return ret;
 
   // std::unique_lock<std::mutex> lock(mutex_mappoints_);
@@ -703,6 +752,10 @@ Frame::Ptr Map::getLastKeyFrame() {
 
 bool Map::checkIsNewKeyFrame(Frame::Ptr &frame) {
   Frame::Ptr last_kf = getLastKeyFrame();
+  // 如果当前帧与关键帧之间再x方向上的像素差值大于20，必须插入关键帧
+  // if (diff_ave_ > 20) {
+  //   return true;
+  // }
 
   // 当前帧与上一帧相隔时间太短，则不宜为关键帧
   if (std::abs(frame->getFrameId() - last_kf->getFrameId() < 5)) {
@@ -770,3 +823,12 @@ void Map::calculateOffset() {
 }
 
 void Map::setInitializeStatus(const bool &status) { is_initialized_ = status; }
+
+void Map::releaseLastKeyframeimg() {
+  std::unique_lock<std::mutex> lock(mutex_keyframes_);
+  if (keyframes_.empty()) {
+    return;
+  }
+  Frame::Ptr last_keyframe = keyframes_.rbegin()->second;
+  last_keyframe->releaseImage();
+}

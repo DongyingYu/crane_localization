@@ -16,7 +16,7 @@
 #include <vector>
 
 class CameraModel {
-public:
+ public:
   using Ptr = std::shared_ptr<CameraModel>;
 
   CameraModel();
@@ -51,7 +51,7 @@ public:
 
   virtual cv::Mat getNewK() const = 0;
 
-protected:
+ protected:
   std::string camera_model_;
   std::vector<double> intr_vec_;
   cv::Size img_size_;
@@ -63,7 +63,7 @@ protected:
  * @brief Kalibr中的pinhole-equi即opencv中的fisheye
  */
 class CameraModelPinholeEqui : public CameraModel {
-public:
+ public:
   using Ptr = std::shared_ptr<CameraModelPinholeEqui>;
 
   CameraModelPinholeEqui(const std::vector<double> &intrinsic_vector,
@@ -91,7 +91,7 @@ public:
 
   cv::Mat getNewK() const override;
 
-private:
+ private:
   cv::Mat K_, newK_, D_;
   cv::Mat map1_, map2_;
   std::vector<double> new_intr_vec_;
@@ -101,3 +101,7 @@ private:
 
   void init();
 };
+
+
+// 使用OpenCV标定工具标定PinholeRadtan，畸变参数k1,k2,p1,p2,k3
+class CameraModelPinholeRadtan : public CameraModel {};

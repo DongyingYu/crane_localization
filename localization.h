@@ -1,3 +1,11 @@
+/*
+ * @file:  
+ * @Author: Dongying (yudong2817@sina.com)
+ * @brief:  
+ * @version:  
+ * @date:  Do not edit 
+ * @copyright: Copyright (c) 2021
+ */
 /**
  * @file /**
  * @file localization.h
@@ -55,11 +63,12 @@ private:
   std::vector<cv::Mat> loadImages(const std::string &index_filename);
 
   // todo: using shared_ptr
-  ORBVocabulary *pVocabulary_;
+  // using vocabulary_ = std::shared_ptr<Vocabulary>;
+  Vocabulary *vocabulary_;
   std::vector<Frame::Ptr> frames_;
   std::deque<std::vector<float>> winFrames_;
 
-  std::vector<double> image_position;
+  std::vector<double> image_position_;
   int win_size_;
   double threshold_;
 };

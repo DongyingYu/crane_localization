@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.0.2)
 
 add_compile_options(-std=c++14)
 
+set(CMAKE_BUILD_TYPE Release)
+
 # default built type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING
@@ -12,7 +14,7 @@ endif(NOT CMAKE_BUILD_TYPE)
 if(CMAKE_BUILD_TYPE MATCHES Release)
   message(STATUS CMAKE_BUILD_TYPE ": ${CMAKE_BUILD_TYPE}")
   add_compile_options(-O3)
-else(CMAKE_BUILD_TYPE MATCHES Release)
+else(CMAKE_BUILD_TYPE MATCHES Debug)
   message(STATUS CMAKE_BUILD_TYPE ": ${CMAKE_BUILD_TYPE}")
   add_compile_options(-g)
   add_compile_options(-O0)

@@ -1,5 +1,5 @@
 /**
- * @file ORBVocabulary.h
+ * @file Vocabulary.h
  * @author
  * @brief
  * @version 0.1
@@ -14,4 +14,4 @@
 #include "third_party/DBoW2/DBoW2/TemplatedVocabulary.h"
 
 typedef DBoW2::TemplatedVocabulary<DBoW2::FORB::TDescriptor, DBoW2::FORB>
-    ORBVocabulary;
+    Vocabulary;

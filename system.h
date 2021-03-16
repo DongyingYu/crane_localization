@@ -9,18 +9,18 @@
  *
  */
 #pragma once
+#include <chrono>
+#include <list>
+#include <mutex>
+#include <thread>
 #include "camera_model.h"
 #include "frame.h"
 #include "localization.h"
 #include "map.h"
 #include "websocket_endpoint.h"
-#include <chrono>
-#include <list>
-#include <mutex>
-#include <thread>
 
 class System {
-public:
+ public:
   using Ptr = std::shared_ptr<System>;
 
   /**
@@ -28,7 +28,7 @@ public:
    *
    * @param config_yaml yaml文件中的相机参数部分，来源与kalibr标定结果
    */
-  System(const std::string &config_yaml);
+  System(const std::string &config_yaml, const int &crane_id);
 
   /**
    * @brief 插入新的一帧
@@ -39,7 +39,9 @@ public:
 
   double getPosition();
 
-private:
+  void stop();
+
+ private:
   /**
    * @brief 初始化地图，并追踪新的一帧
    */
@@ -47,7 +49,7 @@ private:
 
   bool isInputQueueEmpty();
 
-private:
+ private:
   // 相机模型（包含畸变模型）
   CameraModel::Ptr camera_model_;
   // 内部处理时，是否将图像转置（相机模型中的参数也会跟着一起调整）
@@ -86,4 +88,6 @@ private:
 
   // debug
   double debug_draw_;
+
+  int crane_id_;
 };

@@ -15,6 +15,7 @@ add_executable(test_undistort_fisheye
   ../camera_model.cc
   ../frame.cc
   ../utils.cc
+  ../gridmatcher.cc
 )
 target_link_libraries(test_undistort_fisheye
   ${OpenCV_LIBS}
@@ -32,6 +33,7 @@ add_executable(test_initialize_map
   ../mappoint.cc
   ../camera_model.cc
   ../g2o_types_linear_motion.cc
+  ../gridmatcher.cc
 )
 target_link_libraries(test_initialize_map
   ${OpenCV_LIBS}
@@ -54,6 +56,7 @@ add_executable(test_system
   ../localization.cc
   ../config_parser.cc
   ../websocket_endpoint.cpp
+  ../gridmatcher.cc
 )
 target_link_libraries(test_system
   ${OpenCV_LIBS}
@@ -71,17 +74,20 @@ add_executable(test_DBoW2
   ../frame.cc
   ../utils.cc
   ../localization.cc
+  ../gridmatcher.cc
 )
 target_link_libraries(test_DBoW2
   ${OpenCV_LIBS}
   ${dbow2_lib}
   pthread
+  boost_system
 )
 
 add_executable(test_trainingVoc
   test_trainingVoc.cc
   ../frame.cc
   ../utils.cc
+  ../gridmatcher.cc
 )
 target_link_libraries(test_trainingVoc
   ${OpenCV_LIBS}
@@ -96,8 +102,10 @@ link_libraries(pthread
 add_executable(test_websocket
   test_websocket.cc
   ../websocket_endpoint.cpp
+  ../config_parser.cc
 )
 target_link_libraries(test_websocket
+  ${YAML_CPP_LIBRARIES}
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${Boost_LIBRARY_DIRS}
 )

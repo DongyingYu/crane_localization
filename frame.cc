@@ -9,6 +9,7 @@
  *
  */
 #include "frame.h"
+#include "gridmatcher.h"
 #include "utils.h"
 
 Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }
@@ -18,14 +19,14 @@ Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model)
   init();
 }
 
-Frame::Frame(const cv::Mat &img, ORBVocabulary *voc)
-    : pORBvocabulary_(voc), img_(img.clone()) {
+Frame::Frame(const cv::Mat &img, Vocabulary *voc)
+    : vocabulary_(voc), img_(img.clone()) {
   init();
 }
 
 Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model,
-             ORBVocabulary *voc)
-    : img_(img), camera_model_(camera_model), pORBvocabulary_(voc) {
+             Vocabulary *voc)
+    : img_(img), camera_model_(camera_model), vocabulary_(voc) {
   init();
 }
 
@@ -67,7 +68,7 @@ void Frame::init() {
     } else {
       keypoints_bow_.emplace_back(kp);
 
-      if (isCentralKp(kp, 0.6)) {
+      if (isCentralKp(kp, 0.85)) {
         keypoints_.emplace_back(kp);
       }
     }
@@ -76,7 +77,7 @@ void Frame::init() {
   // 2. 去畸变
   if (camera_model_) {
     camera_model_->undistortKeyPoint(keypoints_, un_keypoints_);
-    //camera_model_->undistortImage(img_, un_img_);
+    // camera_model_->undistortImage(img_, un_img_);
     un_img_ = img_.clone();
   } else {
     un_keypoints_ = keypoints;
@@ -99,14 +100,15 @@ void Frame::init() {
 int Frame::matchWith(const Frame::Ptr frame,
                      std::vector<cv::DMatch> &good_matches,
                      std::vector<cv::Point2f> &points1,
-                     std::vector<cv::Point2f> &points2,
+                     std::vector<cv::Point2f> &points2, float &ave_x,
                      const double &debug_draw) {
-
+  std::cout << "[INFO]: The value of debug_draw is :  " << debug_draw
+            << std::endl;
   // 匹配特征点
   std::vector<cv::DMatch> all_matches;
   matcher_->match(descriptors_, frame->descriptors_, all_matches);
 
-  
+  /*
   // 统计匹配距离（Hamming）的最大值和最小值
   double dmin = 1;
   double dmax = 0;
@@ -115,7 +117,6 @@ int Frame::matchWith(const Frame::Ptr frame,
     dmax = m.distance > dmax ? m.distance : dmax;
   }
 
-  
   // 根据经验，筛选匹配
   std::vector<cv::DMatch> tmp_matches;
   std::vector<cv::Point2f> pts1, pts2, pts_diff;
@@ -135,7 +136,6 @@ int Frame::matchWith(const Frame::Ptr frame,
   }
   std::cout << "[INFO]: selected " << tmp_matches.size() << " matches from "
             << all_matches.size() << " by match distance." << std::endl;
-
 
   // 根据运动约束，检测配对点是否合理
   cv::Point2f ave, stddev;
@@ -182,45 +182,42 @@ int Frame::matchWith(const Frame::Ptr frame,
   calAveStddev(pts_diff, ave, stddev, true);
   std::cout << "[INFO]: Point uv diff, ave " << ave << " stddev " << stddev
             << std::endl;
-  
-  /*
-  std::vector<bool> vbInliers;
-  Gridmatcher::Ptr gridmatch = std::make_shared<Gridmatcher>(this->un_keypoints_,this->img_.size(),
-                                              frame->un_keypoints_,frame->img_.size(),all_matches);
-	int num_inliers = gridmatch->GetInlierMask(vbInliers,cv::Size(40,40) ,false, false);
-	cout << "[INFO]: Get total " << num_inliers << " matches." << endl;
 
-	// collect matches
-  std::vector<cv::DMatch>  matches_good;
-	for (size_t i = 0; i < vbInliers.size(); ++i)
-	{
-		if (vbInliers[i] == true)
-		{
-			matches_good.push_back(all_matches[i]);
-		}
-	}
-	std::cout << "[INFO]: matches_good size   " << matches_good.size() << std::endl; 
+  ave_x = ave.x;
   */
+  ave_x = 0;
+  std::vector<bool> vbInliers;
+  Gridmatcher::Ptr gridmatch = std::make_shared<Gridmatcher>(
+      this->un_keypoints_, this->img_.size(), frame->un_keypoints_,
+      frame->img_.size(), all_matches);
+  int num_inliers =
+      gridmatch->GetInlierMask(vbInliers, cv::Size(20, 20), false, false);
+  cout << "[INFO]: Get total " << num_inliers << " matches." << endl;
+
+  // collect matches
+  std::vector<cv::DMatch> matches_good;
+  for (size_t i = 0; i < vbInliers.size(); ++i) {
+    if (vbInliers[i] == true) {
+      matches_good.push_back(all_matches[i]);
+    }
+  }
+  std::cout << "[INFO]: matches_good size   " << matches_good.size()
+            << std::endl;
+
   // 优先使用靠近图像中间的特征点（越往边缘，畸变越严重）
   good_matches.clear();
   points1.clear();
   points2.clear();
-  for (const auto &m : /*matches_good*/better_matches) {
+  for (const auto &m : matches_good /*better_matches*/) {
     auto kp1 = un_keypoints_[m.queryIdx];
     auto kp2 = frame->un_keypoints_[m.trainIdx];
-    // 1表示认为整个图像都可以，即无任何筛选
-    double half_center_factor = 0.6;
-    if (isCentralKp(kp1, half_center_factor) &&
-        isCentralKp(kp2, half_center_factor)) {
-      good_matches.emplace_back(m);
-      points1.emplace_back(kp1.pt);
-      points2.emplace_back(kp2.pt);
-    }
+    good_matches.emplace_back(m);
+    points1.emplace_back(kp1.pt);
+    points2.emplace_back(kp2.pt);
   }
 
-  std::cout << "[INFO]: selected " << good_matches.size() << " matches from "
-            << better_matches.size() << " by position(central is better)"
-            << std::endl;
+  std::cout << "[INFO]: selected " << good_matches.size()
+            << " by position(central is better)" << std::endl;
 
   // debug draw
   if (debug_draw > 0) {
@@ -229,8 +226,10 @@ int Frame::matchWith(const Frame::Ptr frame,
     cv::Mat un_img_good_match;
     cv::drawMatches(un_img_, un_keypoints_, frame->un_img_,
                     frame->un_keypoints_, good_matches, un_img_good_match);
-    cv::resize(un_img_good_match, un_img_good_match, {0, 0}, debug_draw, debug_draw);
+    cv::resize(un_img_good_match, un_img_good_match, {0, 0}, debug_draw,
+               debug_draw);
     cv::imshow("undistorted_good_matches", un_img_good_match);
+    // cv::waitKey();
   }
 
   return good_matches.size();
@@ -263,11 +262,7 @@ cv::KeyPoint Frame::getUnKeyPoints(const int &keypoint_idx) const {
   return un_keypoints_[keypoint_idx];
 }
 
-
-int Frame::getUnKeyPointsSize() const {
-  return un_keypoints_.size();
-}
-
+int Frame::getUnKeyPointsSize() const { return un_keypoints_.size(); }
 
 std::vector<int> Frame::getMappointId() const { return mappoints_id_; }
 
@@ -376,13 +371,13 @@ std::vector<cv::Mat> Frame::toDescriptorVector() {
 void Frame::computeBoW() {
   std::vector<cv::Mat> vCurrentDesc = toDescriptorVector();
   // BdWVec为Bow特征向量，FeatVec为正向索引
-  pORBvocabulary_->transform(vCurrentDesc, bow_vec_, feat_vec_, 4);
+  vocabulary_->transform(vCurrentDesc, bow_vec_, feat_vec_, 4);
 }
 
 DBoW2::BowVector Frame::getBowVoc() { return bow_vec_; }
 
 void Frame::createVocabulary(
-    ORBVocabulary &voc, std::string &filename,
+    Vocabulary &voc, std::string &filename,
     const std::vector<std::vector<cv::Mat>> &descriptors) {
   std::cout << " Creating vocabulary. May take some time ... " << std::endl;
   voc.create(descriptors);
@@ -421,18 +416,13 @@ bool Frame::isCentralKp(const cv::KeyPoint &kp,
   }
 }
 
-void Frame::setFlag(const bool cal_flag)
-{
-  offset_flag_ = cal_flag;
-}
+void Frame::setFlag(const bool cal_flag) { offset_flag_ = cal_flag; }
 
-bool Frame::getFlag() const {return offset_flag_;}
+bool Frame::getFlag() const { return offset_flag_; }
 
-void Frame::setAbsPosition(const double &position){
-  abs_position_ = position;
-}
+void Frame::setAbsPosition(const double &position) { abs_position_ = position; }
 
-double Frame::getAbsPosition() const { return abs_position_;} 
+double Frame::getAbsPosition() const { return abs_position_; }
 
 void Frame::debugDraw(const double &scale_image) {
   std::cout << "[DEBUG]: debug draw" << std::endl;
@@ -453,8 +443,11 @@ void Frame::debugPrintPose() {
             << toString(t) << std::endl;
 }
 
-void Frame::setVocabulary(ORBVocabulary *voc){
-  pORBvocabulary_ = voc;
+void Frame::setVocabulary(Vocabulary *voc) { vocabulary_ = voc; }
+
+void Frame::releaseImage() {
+  img_.release();
+  un_img_.release();
 }
 
 size_t Frame::total_frame_cnt_ = 0;

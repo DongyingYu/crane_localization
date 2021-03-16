@@ -11,9 +11,10 @@
 
 #include "frame.h"
 #include "localization.h"
+#include "websocket_endpoint.h"
 
 int main(int argc, char **argv) {
-  std::string video_file = "/home/ipsg/dataset_temp/78_cut.mp4";
+  std::string video_file = "/home/ipsg/dataset_temp/78_test_o.mp4";
   int skip_frames = 0;
 
   // skip some frames
@@ -24,17 +25,22 @@ int main(int argc, char **argv) {
     skip_frames--;
   }
 
-  // auto location = std::make_shared<Localization>(
-  //     "./vocabulary/ORBvoc.txt", "./vocabulary/image_save/rgb.txt", 3);
+  auto location = std::make_shared<Localization>(
+      "./vocabulary/ORBvoc.txt", "./vocabulary/image_save2/rgb.txt", 0.01, false,
+      3);
 
-  // int cnt = 0;
-  // while (1) {
-  //   cnt++;
-  //   capture >> img;
-  //   cv::imshow("image_video", img);
-  //   int index = location->localize(img, true);
-  //   cv::waitKey();
-  // }
+  int cnt = 0;
+  while (1) {
+    cnt++;
+    capture >> img;
+    // cv::imshow("image_video", img);
+    Frame::Ptr frame = std::make_shared<Frame>(img);
+    double position;
+    bool status = location->localize(frame, position, true);
+    std::cout << "The frame cnt : " << cnt << std::endl;
+    std::cout << "The crane position is : " << position << std::endl;
+    cv::waitKey(50);
+  }
 
   return 0;
 }

@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   const DBoW2::WeightingType weight = DBoW2::TF_IDF;
   const DBoW2::ScoringType score = DBoW2::L1_NORM;
 
-  ORBVocabulary voc(k, levels, weight, score);
+  Vocabulary voc(k, levels, weight, score);
   std::string vocName = "/home/ipsg/crane_localization/Vocabulary/MyVoc.txt";
   Frame::createVocabulary(voc, vocName, features);
 

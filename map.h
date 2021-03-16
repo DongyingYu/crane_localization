@@ -9,20 +9,23 @@
  *
  */
 #pragma once
+#include <mutex>
+#include <numeric>  // for std::accumulate
+#include <vector>
 #include "frame.h"
 #include "mappoint.h"
 #include "optimizer.h"
-#include <mutex>
-#include <numeric> // for std::accumulate
-#include <vector>
 
 class Map {
-
-public:
+ public:
   using Ptr = std::shared_ptr<Map>;
 
-  Map() {}
+  Map();
 
+  Map(const int &sliding_window_local, const int &sliding_window_global);
+
+
+  ~Map();
   /**
    * @brief 跟踪新的一帧
    */
@@ -36,7 +39,7 @@ public:
    * @param[in] frame2
    * @return Map::Ptr 返回初始化成功的地图，初始化失败则返回nullptr
    */
-  bool initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2, 
+  bool initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
                   const double &debug_draw = -1);
 
   bool checkInitialized();
@@ -79,19 +82,16 @@ public:
    * @note 该帧相关的地图点是否需要优化？
    *
    * @param[in out] frame
-   * @param[in out] sliding_window
    * @return G2oOptimizer::Ptr
    */
-  G2oOptimizer::Ptr buildG2oOptForFrame(const Frame::Ptr frame,
-                                        const size_t &sliding_window = 5);
+  G2oOptimizer::Ptr buildG2oOptForFrame(const Frame::Ptr frame);
 
   /**
    * @brief 获取G2oInput，用于关键帧滑窗优化
    *
-   * @param[in out] sliding_window
    * @return G2oOptimizer::Ptr
    */
-  G2oOptimizer::Ptr buildG2oOptKeyFrameBa(const size_t &sliding_window = 5);
+  G2oOptimizer::Ptr buildG2oOptKeyFrameBa();
 
   /**
    * @brief 清空地图
@@ -146,7 +146,9 @@ public:
   */
   void setInitializeStatus(const bool &status);
 
-private:
+  void releaseLastKeyframeimg();
+
+ private:
   std::mutex mutex_recent_frames_;
   std::map<size_t, Frame::Ptr> recent_frames_;
   int max_recent_frames_ = 50;
@@ -165,7 +167,14 @@ private:
   // 相对位置与绝对位置之间的偏移量
   double offset_ = 0.0;
 
-private:
+  // 图像帧与关键帧x方向上的统计值差
+  float diff_ave_ = 0.0;
+
+  //设置优化窗口大小
+  int sliding_window_local_ = 5;
+  int sliding_window_global_ = 5;
+
+ private:
   /**
    * @brief 三角测量计算地图点在世界坐标系中的坐标 (参照ORB_SLAM2，稍有改动)
    *

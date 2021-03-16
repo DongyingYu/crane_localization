@@ -1,3 +1,4 @@
+# kailibr 
 cam0:
   cam_overlaps: []
   camera_model: pinhole
@@ -7,3 +8,13 @@ cam0:
   intrinsics: [2394.3172302171947, 2648.8056802299297, 1242.8769964884666, 737.2368181585232]
   resolution: [2560, 1440]
   rostopic: camera/image_raw
+
+# python -- opencv calib_result   2
+# cam0:
+#   cam_overlaps: []
+#   camera_model: pinhole
+#   distortion_coeffs: [-1.45086299,  3.69816983,  0.01120005,  0.01063321]
+#   distortion_model: equidistant
+#   intrinsics: [2910.03360, 3258.20009, 1263.04576, 694.422101]
+#   resolution: [2560, 1440]
+#   rostopic: camera/image_raw

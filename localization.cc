@@ -7,7 +7,6 @@
  *
  * @copyright Copyright (c) 2021
  */
-
 #include "localization.h"
 
 Localization::Localization(const std::string &vocab_file,
@@ -16,8 +15,8 @@ Localization::Localization(const std::string &vocab_file,
                            const int &win_size)
     : threshold_(threshold), win_size_(win_size) {
   // 1. load vocabulary
-  pVocabulary_ = new ORBVocabulary();
-  bool bVocLoad = pVocabulary_->loadFromTextFile(vocab_file);
+  vocabulary_ = new Vocabulary();
+  bool bVocLoad = vocabulary_->loadFromTextFile(vocab_file);
   if (!bVocLoad) {
     std::string msg = "[ERROR]: Load vocabulary failed " + vocab_file;
     throw std::runtime_error(msg);
@@ -34,7 +33,7 @@ Localization::Localization(const std::string &vocab_file,
     if (transpose_image) {
       cv::transpose(images[i], images[i]);
     }
-    Frame::Ptr frame = std::make_shared<Frame>(images[i], pVocabulary_);
+    Frame::Ptr frame = std::make_shared<Frame>(images[i], vocabulary_);
     frame->computeBoW();
     frames_.emplace_back(frame);
   }
@@ -45,13 +44,13 @@ Localization::~Localization() {}
 bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
                             const bool &verbose) {
   // Frame::Ptr frame = std::make_shared<Frame>(cur_frame->getImage(),
-  // pVocabulary_);
-  cur_frame->setVocabulary(pVocabulary_);
+  // vocabulary_);
+  cur_frame->setVocabulary(vocabulary_);
   cur_frame->computeBoW();
   auto bow_vec = cur_frame->getBowVoc();
   std::vector<float> score_temp;
   for (int i = 0; i < frames_.size(); i++) {
-    float s = pVocabulary_->score(frames_[i]->getBowVoc(), bow_vec);
+    float s = vocabulary_->score(frames_[i]->getBowVoc(), bow_vec);
     if (s < 0 || s > 1) {
       s = 0.0;
     }
@@ -114,13 +113,12 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
     cur_frame->getImage().copyTo(output(cv::Rect(best_frame->getImage().cols, 0,
                                                  cur_frame->getImage().cols,
                                                  cur_frame->getImage().rows)));
-
     cv::resize(output, output, {0, 0}, 0.6, 0.6);
     std::cout << output.size() << std::endl;
 
     cv::imshow("Image contrast", output);
   }
-  position = image_position[vscore[0].second];
+  position = image_position_[vscore[0].second];
   std::cout << "[INFO]: The value of threshold: " << threshold_ << std::endl;
   if (vscore[0].first > threshold_)
     return true;
@@ -148,7 +146,7 @@ std::vector<cv::Mat> Localization::loadImages(const std::string &filename) {
       image_indexex.push_back(index);
       // std::cout << "The size of image_index is:   " << image_indexex.size()
       // << std::endl;
-      image_position.push_back(true_position);
+      image_position_.push_back(true_position);
     }
   }
 

@@ -1,3 +1,11 @@
+/*
+ * @file:
+ * @Author: Dongying (yudong2817@sina.com)
+ * @brief:
+ * @version:
+ * @date:  Do not edit
+ * @copyright: Copyright (c) 2021
+ */
 /**
  * @file utils.h
  * @author xiaotaw (you@domain.com)
@@ -19,6 +27,14 @@
  * @brief 统计数据中的最大值、最小值、平均值，并输出到屏幕
  */
 void statistic(const std::vector<double> &data, const std::string &name);
+
+void statistic(const std::vector<Eigen::Vector3d,
+                                 Eigen::aligned_allocator<Eigen::Vector3d>> &data,
+               const std::string &name);
+
+void histogram(const std::vector<double> &data, const double &min_v = 0,
+               const double &max_v = 2, const double &interval = 0.1,
+               const std::string &prefix_str = "histogram");
 
 void calAveStddev(const std::vector<double> &data, double &ave, double &stddev);
 

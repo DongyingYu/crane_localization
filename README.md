@@ -32,7 +32,7 @@ cd ../../..
 #编译DBoW2
 mkdir build
 cd build
-cmake -D OpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..
+F
 make -j
 cd ../../..
 
@@ -72,9 +72,17 @@ cd ..
 g2o_path=./third_party/g2o/lib
 export LD_LIBRARY_PATH=${g2o_path}
 
-./build/test/test_system <video_file> <config_yaml> <skip_frames>
+./build/test/test_system <crane_id> <video_file> <config_yaml> <skip_frames>
 ./build/test/test_system /home/ipsg/dataset_temp/78_cut.mp4 ./conf/pipeline.yaml 0
 ./build/test/test_system /home/ipsg/dataset_temp/78.mp4 ./conf/pipeline.yaml 4300
+
+./build/test/test_system 1 /home/ipsg/dataset_temp/78.mp4 ./conf/pipeline_online.yaml 4300
+./build/test/test_system 1 /home/ipsg/dataset_temp/output.mp4 ./conf/pipeline_online.yaml 0
+./build/test/test_system 1 /home/ipsg/dataset_temp/78_cut_3.mp4 ./conf/pipeline_online.yaml 0
+./build/test/test_system 1 /home/ipsg/dataset_temp/78_cut_4.mp4 ./conf/pipeline_online.yaml 0
+
+./build/test_websocket
+./run.sh
 
 ./build/test/test_system /data/DATASETS/ros_bag/BL-EX346HP-15M/crane/78.mp4 ./conf/pipeline.yaml 4300
 
@@ -167,5 +175,8 @@ config_yaml=./conf/pipeline_online.yaml
 skip_frames=0
 
 ./build/test/test_system $video_rtsp $config_yaml $skip_frames > log/run_78.log &
+
+
+./build/test/test_system 1 rtsp://admin:wattman2020@192.168.1.78:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1 ./conf/pipeline_online.yaml 0 > log/run_78.log &
 ```
 

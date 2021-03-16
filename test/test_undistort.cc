@@ -1,11 +1,3 @@
-/*
- * @file:
- * @Author: Dongying (yudong2817@sina.com)
- * @brief:
- * @version:
- * @date:  Do not edit
- * @copyright: Copyright (c) 2021
- */
 #include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d.hpp>
@@ -16,27 +8,26 @@ using namespace cv;
 
 int main() {
 
-  std::string video_dir =
-      "/home/xt/Documents/data/DATASETS/ros_bag/BL-EX346HP-15M/";
-  std::string video_file = video_dir + "192.168.1.146_01_20210205105528697.mp4";
+  std::string video_file = "/home/ipsg/dataset_temp/calib/calib_4.mp4";
   VideoCapture capture(video_file);
 
   double scale = 1;
   int width = 2560 / int(scale);
   int height = 1440 / int(scale);
   cv::Size frame_size(width, height);
-  double fx = 2428.05872198 / scale;
-  double fy = 1439.05448033 / scale;
-  double cx = 1439.05448033 / scale;
-  double cy = 846.58407292 / scale;
-  double k1 = -0.85227746;
-  double k2 = 0.57019705;
-  double r1 = -0.0330824;
-  double r2 = -0.02863118;
+  double fx = 2910.033608 / scale;
+  double fy = 3258.20009 / scale;
+  double cx = 1263.04576 / scale;
+  double cy = 694.422101 / scale;
+  double k1 = -1.45086299;
+  double k2 = 3.69816983;
+  double r1 = 0.01120005;
+  double r2 =  0.01063321;
+  double r3 = -5.41547612;
   Mat camera_matrix = (Mat_<double>(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
 
-  std::vector<double> _dist_coeffs = {k1, k2, r1, r2};
-  cv::Mat dist_coeffs = cv::Mat(4, 1, CV_64F, &_dist_coeffs[0]);
+  std::vector<double> _dist_coeffs = {k1, k2, r1, r2, r3};
+  cv::Mat dist_coeffs = cv::Mat(5, 1, CV_64F, &_dist_coeffs[0]);
   cv::Mat new_camera_matrix = cv::getOptimalNewCameraMatrix(
       camera_matrix, dist_coeffs, frame_size, 0, frame_size);
 

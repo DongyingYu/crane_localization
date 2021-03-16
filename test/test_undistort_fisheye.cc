@@ -8,14 +8,14 @@
  * @copyright Copyright (c) 2021
  *
  */
-#include "camera_model.h"
-#include "frame.h"
+#include <yaml-cpp/yaml.h>
 #include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/opencv.hpp>
 #include <vector>
-#include <yaml-cpp/yaml.h>
+#include "camera_model.h"
+#include "frame.h"
 using namespace std;
 using namespace cv;
 
@@ -89,6 +89,7 @@ int main(int argc, char **argv) {
     frame->debugDraw(draw_scale);
 
     camera_model->undistort(img, un_img);
+    // camera_model->undistortImage(img, un_img);
 
     cv::Mat img_kp, un_img_kp;
     cv::drawKeypoints(un_img, frame->getUnKeyPoints(), un_img_kp,
@@ -96,6 +97,7 @@ int main(int argc, char **argv) {
                       cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
     resize(un_img_kp, un_img_kp, {0, 0}, draw_scale, draw_scale);
     imshow("undistorted", un_img_kp);
+    if (waitKey(30) == 27) break;
     waitKey();
   }
   return 0;

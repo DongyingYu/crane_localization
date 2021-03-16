@@ -15,7 +15,6 @@ MapPoint::MapPoint(float x, float y, float z) : x_(x), y_(y), z_(z) {
 }
 
 Eigen::Vector3d MapPoint::toEigenVector3d() {
-
   Eigen::Vector3d ret;
   {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -47,6 +46,20 @@ std::vector<std::pair<size_t, size_t>> MapPoint::getObservation() {
 int MapPoint::getObservationSize() {
   std::unique_lock<std::mutex> lock(mutex_observation_);
   return observations_.size();
+}
+
+int MapPoint::getPointValue(const int &num){
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (num == 1)
+  {
+    return x_;
+  }else if (num == 2)
+  {
+    return y_;
+  }else
+  {
+    return z_;
+  }
 }
 
 size_t MapPoint::total_mp_cnt_ = 0;

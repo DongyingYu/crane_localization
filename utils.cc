@@ -33,6 +33,72 @@ void statistic(const std::vector<double> &data, const std::string &prefix_str) {
             << std::endl;
 }
 
+void histogram(const std::vector<double> &data, const double &min_v,
+               const double &max_v, const double &interval,
+               const std::string &prefix_str) {
+  int num_bins = 2 + std::ceil((max_v - min_v) / interval);
+  std::vector<int> hist(22, 0);
+  for (const auto &d : data) {
+    if (d < min_v) {
+      hist[0]++;
+    } else if (d > max_v) {
+      hist[21]++;
+    } else {
+      hist[int(d / interval)]++;
+    }
+  }
+
+  std::cout << prefix_str << " ";
+  for (const auto &it : hist) {
+    std::cout << it << " ";
+  }
+  std::cout << std::endl;
+}
+
+void statistic(
+    const std::vector<Eigen::Vector3d,
+                      Eigen::aligned_allocator<Eigen::Vector3d>> &data,
+    const std::string &prefix_str) {
+  int cnt = 0;
+  Eigen::Vector3d sum, ave, max_v, min_v;
+
+  if (!data.empty()) {
+    cnt = data.size();
+    Eigen::Vector3d zero = Eigen::Vector3d::Zero();
+    sum = std::accumulate(data.begin(), data.end(), zero);
+    ave = sum / cnt;
+
+    std::vector<double> xs, ys, zs;
+    Eigen::Vector3d accum = Eigen::Vector3d::Zero();
+    for (const auto &it : data) {
+      xs.emplace_back(it[0]);
+      ys.emplace_back(it[1]);
+      zs.emplace_back(it[2]);
+      accum += (it - ave).asDiagonal() * (it - ave);
+    }
+    auto xmm = std::minmax_element(xs.begin(), xs.end());
+    auto ymm = std::minmax_element(ys.begin(), ys.end());
+    auto zmm = std::minmax_element(zs.begin(), zs.end());
+
+    histogram(zs,0,2,0.1,"histogram of kf_mps");
+
+    min_v = Eigen::Vector3d(*xmm.first, *ymm.first, *zmm.first);
+    max_v = Eigen::Vector3d(*xmm.second, *ymm.second, *zmm.second);
+
+    Eigen::Vector3d stddev = Eigen::Vector3d::Zero();
+    if (cnt > 1) {
+      auto ave_accum = accum / (cnt - 1);
+      stddev = Eigen::Vector3d(std::sqrt(ave_accum[0]), std::sqrt(ave_accum[1]),
+                               std::sqrt(ave_accum[2]));
+    }
+
+    std::cout << prefix_str << " cnt: " << cnt << " min: " << min_v.transpose()
+              << " max: " << max_v.transpose() << " ave: " << ave.transpose()
+              << " sum: " << sum.transpose() << " stddev: " << stddev
+              << std::endl;
+  }
+}
+
 void calAveStddev(const std::vector<double> &data, double &ave,
                   double &stddev) {
   if (data.empty()) {

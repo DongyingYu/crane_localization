@@ -9,11 +9,11 @@
  *
  */
 #include "optimizer.h"
+#include <cmath>  // for M_PI
 #include "utils.h"
-#include <cmath> // for M_PI
 
 // 去注释，可查看优化调试信息
-//#define G2O_OPT_VERBOSE
+// #define G2O_OPT_VERBOSE
 
 #ifdef G2O_OPT_VERBOSE
 #define VERBOSE__ true
@@ -29,9 +29,8 @@
  * @param[in out] edges_data 按frame_id索引的所有边
  */
 template <typename EdgeType>
-static void
-debugPrintEdges(bool compute_error,
-                std::map<size_t, std::vector<EdgeType *>> edges_data) {
+static void debugPrintEdges(
+    bool compute_error, std::map<size_t, std::vector<EdgeType *>> edges_data) {
 #ifdef G2O_OPT_VERBOSE
   std::vector<double> chi2s_all;
   for (auto &it : edges_data) {
@@ -50,7 +49,7 @@ debugPrintEdges(bool compute_error,
                          std::to_string(frame_id));
   }
   statistic(chi2s_all, "[DEBUG]: G2o Optimization, Chi2 for all frames");
-#endif // G2O_OPT_VERBOSE
+#endif  // G2O_OPT_VERBOSE
 }
 
 void G2oOptimizer::optimize(const int &n_iteration) {
@@ -136,11 +135,24 @@ void G2oOptimizer::optimize(const int &n_iteration) {
   }
 
   // optimize
-  optimizer.initializeOptimization();
-  debugPrintEdges(true, edges_data);
-  optimizer.optimize(n_iteration);
-  debugPrintEdges(false, edges_data);
+  // 设置优化次数
+  for (size_t i = 0; i < 2; i++) {
+    optimizer.initializeOptimization();
+    debugPrintEdges(true, edges_data);
+    optimizer.optimize(n_iteration);
+    debugPrintEdges(false, edges_data);
 
+    for (auto &it : edges_data) {
+      auto &edges = it.second;
+      for (auto &e : edges) {
+        e->computeError();
+        double chi2 = e->chi2();
+        if (chi2 > 20) {
+          e->setLevel(1);
+        }
+      }
+    }
+  }
   // optimize result
   // camera pose
   for (auto &it : frames_data_) {
@@ -165,19 +177,6 @@ void G2oOptimizer::optimize(const int &n_iteration) {
     Eigen::Vector3d evec = v->estimate();
     mp->fromEigenVector3d(evec);
   }
-
-  // // release resource
-  // for (int i=0; i<int(optimizer.vertices().size()); ++i) {
-  //   auto v = optimizer.vertices()[i];
-  //   delete v;
-  // }
-  // for (int i=0; i<int(optimizer.edges().size()); ++i) {
-  //   auto e = optimizer.edges()[i];
-  //   delete e;
-  // }
-  // optimizer.clear();
-  // delete solver;
-  // solver = nullptr;
 }
 
 /**
@@ -305,10 +304,23 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
   }
 
   // optimize
-  optimizer.initializeOptimization();
-  debugPrintEdges(true, edges_data);
-  optimizer.optimize(n_iteration);
-  debugPrintEdges(false, edges_data);
+  for (size_t i = 0; i < 2; i++) {
+    optimizer.initializeOptimization();
+    debugPrintEdges(true, edges_data);
+    optimizer.optimize(n_iteration);
+    debugPrintEdges(false, edges_data);
+
+    for (auto &it : edges_data) {
+      auto &edges = it.second;
+      for (auto &e : edges) {
+        e->computeError();
+        double chi2 = e->chi2();
+        if (chi2 > 20) {
+          e->setLevel(1);
+        }
+      }
+    }
+  }
 
   // recover result
   Eigen::Matrix3d Rwc = v_rot->estimate().toRotationMatrix();
@@ -349,10 +361,15 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
 
 Eigen::Vector3d G2oOptimizer::calAveMapPoint() {
   Eigen::Vector3d ave_kf_mp = Eigen::Vector3d::Zero();
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
+      kf_mps;
   for (auto &it : mps_data_) {
     auto &mp = it.second.first;
+    if (mp->toEigenVector3d()[2] > 9 || mp->toEigenVector3d()[2] < 0.2) continue;
+    kf_mps.emplace_back(mp->toEigenVector3d());
     ave_kf_mp += mp->toEigenVector3d();
   }
-  ave_kf_mp /= mps_data_.size();
+  statistic(kf_mps, "ave mp");
+  ave_kf_mp /= kf_mps.size();
   return ave_kf_mp;
 }
