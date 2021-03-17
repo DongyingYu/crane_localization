@@ -15,7 +15,10 @@
 #include "websocket_endpoint.h"
 
 int main(int argc, char **argv) {
-  std::string config_yaml;
+  std::string config_yaml = "./conf/pipeline_online.yaml";
+  if(argc == 2){
+    config_yaml = argv[1];
+  }
   auto config_parser = ConfigParser(config_yaml);
   std::string server_address = config_parser.server_address_;
   bool done = false;

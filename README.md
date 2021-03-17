@@ -167,10 +167,14 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j
 cd ..
 
+crane_id=1
 video_rtsp="rtsp://admin:wattman2020@192.168.1.78:554/Streaming/Channels/101?transportmode=unicast&profile=Profile_1"
 config_yaml=./conf/pipeline_online.yaml
 skip_frames=0
 
-./build/test/test_system $video_rtsp $config_yaml $skip_frames > log/run_78.log &
+./build/test/test_system $crane_id $video_rtsp $config_yaml $skip_frames > log/run.log &
+
+shell run
+sh run.sh
 ```
 

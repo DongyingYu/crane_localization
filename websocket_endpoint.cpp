@@ -326,7 +326,7 @@ void websocket_endpoint::show() {
 
 void websocket_endpoint::craneInfosave() {
   std::ofstream fcrane_info;
-  fcrane_info.open("./conf/crane_info.txt");
+  fcrane_info.open("./conf/crane_info_test.txt");
   for (auto &f : crane_info_) {
     fcrane_info << f.first << " " << f.second << std::endl;
   }
