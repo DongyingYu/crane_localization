@@ -1,8 +1,9 @@
 #! /bin/bash
 # ./build/test/test_websocket
-# head -1 means Only read the first row data.
-cat ./conf/crane_info.txt | head -1 | while read line;
+# head -n 1 means Only read the first row data. tail -n +1 means read from the first line;
+count=0;
+cat ./conf/crane_info.txt | head -n 2 | tail -n +2 | while read line;
 do
-   ./build/test/test_system ${line} ./conf/pipeline_online.yaml 0 & 
+   let count+=1;
+   ./build/test/test_system ${line} ./conf/pipeline_online.yaml 0 > log/run_info$count.log & 
 done
-wait
