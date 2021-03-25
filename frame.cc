@@ -440,7 +440,7 @@ void Frame::debugPrintPose() {
 
 void Frame::setVocabulary(ORBVocabulary *voc) { pORBvocabulary_ = voc; }
 
-void Frame::releaseImage() { img_.release(); }
+void Frame::releaseImage() { img_.release(); un_img_.release(); }
 
 size_t Frame::total_frame_cnt_ = 0;
 

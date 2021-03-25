@@ -192,7 +192,7 @@ void System::run() {
 
         if(cnt_failed > 10){
           cur_map_->setInitializeStatus(false);
-          history_maps_.emplace_back(cur_map_);
+//          history_maps_.emplace_back(cur_map_);
           cur_map_ = std::make_shared<Map>();
           std::cout << "\033[33m -------------------------system fails for 10 consecutive frames, reinitialize-------------------------\033[0m" << std::endl;
         }
@@ -203,8 +203,8 @@ void System::run() {
       // 判断是否插入关键帧
       if (cur_map_->checkIsNewKeyFrame(cur_frame_)) {
         std::cout << "[INFO]: Insert New KeyFrame " << frame_id << std::endl;
+        cur_map_->releaseLastKeyframeimg();	
         cur_map_->insertKeyFrame(cur_frame_);
-        cur_map_->releaseLastKeyframeimg();
 
         // 删除所有最近的帧，仅仅保留当前帧
         cur_map_->clearRecentFrames();
