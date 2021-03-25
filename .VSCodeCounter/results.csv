@@ -1,9 +1,0 @@
-"filename", "language", "C++", "comment", "blank", "total"
-"/home/ipsg/study/crane_localization/test/test_DBoW2.cc", "C++", 28, 12, 7, 47
-"/home/ipsg/study/crane_localization/test/test_initialize_map.cc", "C++", 67, 5, 14, 86
-"/home/ipsg/study/crane_localization/test/test_system.cc", "C++", 46, 17, 8, 71
-"/home/ipsg/study/crane_localization/test/test_trainingVoc.cc", "C++", 50, 18, 9, 77
-"/home/ipsg/study/crane_localization/test/test_undistort.cc", "C++", 58, 3, 9, 70
-"/home/ipsg/study/crane_localization/test/test_undistort_fisheye.cc", "C++", 79, 15, 10, 104
-"/home/ipsg/study/crane_localization/test/test_websocket.cc", "C++", 28, 37, 11, 76
-"Total", "-", 356, 107, 68, 531
