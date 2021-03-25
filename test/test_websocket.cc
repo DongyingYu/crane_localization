@@ -16,8 +16,7 @@
 
 int main(int argc, char **argv) {
   std::string config_yaml = "./conf/pipeline_online.yaml";
-  if(argc == 2)
-  {
+  if(argc == 2){
     config_yaml = argv[1];
   }
   auto config_parser = ConfigParser(config_yaml);

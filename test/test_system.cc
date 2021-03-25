@@ -1,11 +1,3 @@
-/*
- * @file:  
- * @Author: Dongying (yudong2817@sina.com)
- * @brief:  
- * @version:  
- * @date:  Do not edit 
- * @copyright: Copyright (c) 2021
- */
 /**
  * @file test_system.cc
  * @author xiaotaw (you@domain.com)
