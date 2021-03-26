@@ -27,7 +27,7 @@ Localization::Localization(const std::string &vocab_file,
   if (images.empty()) {
     std::cout << "[WARNING]: No pre-saved keyframes" << std::endl;
   }
-  std::cout << "The number of images:  " << images.size() << std::endl;
+  std::cout << "[INFO]: The number of images:  " << images.size() << std::endl;
 
   for (int i = 0; i < images.size(); i++) {
     if (transpose_image) {
@@ -35,6 +35,7 @@ Localization::Localization(const std::string &vocab_file,
     }
     Frame::Ptr frame = std::make_shared<Frame>(images[i], vocabulary_);
     frame->computeBoW();
+    frame->releaseImage();
     frames_.emplace_back(frame);
   }
 }

@@ -25,7 +25,7 @@ git clone --recursive git@gitlab.com:3d-mapping/3d-reconstruction/case-base/cran
 cd third_party/g2o
 mkdir build
 cd build
-cmake ..
+cmake -DOpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..
 make -j
 cd ../../..
 

@@ -102,19 +102,13 @@ int Frame::matchWith(const Frame::Ptr frame,
                      std::vector<cv::Point2f> &points1,
                      std::vector<cv::Point2f> &points2, float &ave_x,
                      const double &debug_draw) {
-<<<<<<< HEAD
   std::cout << "[INFO]: The value of debug_draw is :  " << debug_draw
             << std::endl;
-=======
->>>>>>> origin/master
   // 匹配特征点
   std::vector<cv::DMatch> all_matches;
   matcher_->match(descriptors_, frame->descriptors_, all_matches);
 
-<<<<<<< HEAD
   /*
-=======
->>>>>>> origin/master
   // 统计匹配距离（Hamming）的最大值和最小值
   double dmin = 1;
   double dmax = 0;

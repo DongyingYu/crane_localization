@@ -1,10 +1,10 @@
 /**
- * @Author: Dongying
- * @Date: 2021-03-04 11:03:54
- * @LastEditTime: 2021-03-17 10:57:38
- * @LastEditors: Please set LastEditors
- * @Description: 0.1
- * @FilePath: /WebSocket2/websocket_endpoint.cpp
+ * @author: Dongying
+ * @date: 2021-03-04 11:03:54
+ * @lastEditTime: 2021-03-17 10:57:38
+ * @lastEditors: Please set LastEditors
+ * @description: 0.1
+ * @filePath: /WebSocket2/websocket_endpoint.cpp
  */
 
 #include "websocket_endpoint.h"

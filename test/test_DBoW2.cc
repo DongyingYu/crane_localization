@@ -26,13 +26,16 @@ int main(int argc, char **argv) {
   }
 
   auto location = std::make_shared<Localization>(
-      "./vocabulary/ORBvoc.txt", "./vocabulary/image_save2/rgb.txt", 0.01, false,
-      3);
+      "./vocabulary/ORBvoc.txt", "./vocabulary/image_save2/rgb.txt", 0.01,
+      false, 3);
 
   int cnt = 0;
   while (1) {
     cnt++;
     capture >> img;
+    // 现场部署时需要用
+    // if(cnt%3 != 0)
+    //   continue;
     // cv::imshow("image_video", img);
     Frame::Ptr frame = std::make_shared<Frame>(img);
     double position;

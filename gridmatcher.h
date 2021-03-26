@@ -21,7 +21,7 @@
 using namespace std;
 
 // 8 possible rotation and each one is 3 X 3
-
+// 经验值，根据效果调整
 const int THRESH_FACTOR = 6;
 
 const int mRotationPatterns[8][9] = {1, 2, 3, 4, 5, 6, 7, 8, 9,

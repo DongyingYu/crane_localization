@@ -92,11 +92,12 @@ void System::insertNewImage(const cv::Mat &img) {
   if (rows > 0 && cols > 0 && rows == camera_model_->getImageSize().height &&
       cols == camera_model_->getImageSize().width) {
     std::unique_lock<std::mutex> lock(mutex_input_);
-    while (!input_images_.empty()) {
+    while (input_images_.size() > 10) {
       std::cout << "[WARNING]: Drop an image because slam system's low fps"
                 << std::endl;
       input_images_.pop_front();
     }
+    std::cout << "\033[33m image save list's size: \033[0m " << input_images_.size()  << std::endl;
     input_images_.emplace_back(image);
   } else {
     std::cout << "[WARNING]: invalid image size (width=" << cols
