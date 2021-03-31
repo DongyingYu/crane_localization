@@ -33,6 +33,8 @@ ConfigParser::ConfigParser(const std::string &config_yaml) {
   getValue<bool>(node, "transpose_image", transpose_image_);
   getValue<double>(node, "scale_image", scale_image_);
   getValue<double>(node, "debug_draw", debug_draw_);
+  getValue<bool>(node, "pop_frame", pop_frame_);
+  getValue<bool>(node, "save_position", save_position_);
 
   auto cam_node = node["camera_model"];
   if (!cam_node) {
@@ -46,10 +48,14 @@ ConfigParser::ConfigParser(const std::string &config_yaml) {
     throw std::runtime_error("could not find 'localization' in node");
   }
   getValue<std::string>(loc_node, "vocabulary", vocabulary_);
-  getValue<std::string>(loc_node, "pre_saved_images_one", pre_saved_images_one_);
-  getValue<std::string>(loc_node, "pre_saved_images_two", pre_saved_images_two_);
-  getValue<std::string>(loc_node, "pre_saved_images_thr", pre_saved_images_thr_);
-  getValue<std::string>(loc_node, "pre_saved_images_fou", pre_saved_images_fou_);
+  getValue<std::string>(loc_node, "pre_saved_images_one",
+                        pre_saved_images_one_);
+  getValue<std::string>(loc_node, "pre_saved_images_two",
+                        pre_saved_images_two_);
+  getValue<std::string>(loc_node, "pre_saved_images_thr",
+                        pre_saved_images_thr_);
+  getValue<std::string>(loc_node, "pre_saved_images_fou",
+                        pre_saved_images_fou_);
   getValue<double>(loc_node, "threshold", threshold_);
 
   auto websocket_node = node["websocket"];
@@ -62,6 +68,8 @@ ConfigParser::ConfigParser(const std::string &config_yaml) {
   if (!optimization_node) {
     throw std::runtime_error("could not find 'optimization' in node");
   }
-  getValue<int>(optimization_node, "sliding_window_size_local", sliding_window_size_local_);
-  getValue<int>(optimization_node, "sliding_window_size_global", sliding_window_size_global_);
+  getValue<int>(optimization_node, "sliding_window_size_local",
+                sliding_window_size_local_);
+  getValue<int>(optimization_node, "sliding_window_size_global",
+                sliding_window_size_global_);
 }

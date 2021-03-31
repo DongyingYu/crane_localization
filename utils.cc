@@ -55,7 +55,7 @@ void histogram(const std::vector<double> &data, const double &min_v,
   std::cout << std::endl;
 }
 
-void statistic(
+double statistic(
     const std::vector<Eigen::Vector3d,
                       Eigen::aligned_allocator<Eigen::Vector3d>> &data,
     const std::string &prefix_str) {
@@ -97,6 +97,7 @@ void statistic(
               << " sum: " << sum.transpose() << " stddev: " << stddev
               << std::endl;
   }
+  return ave[2];
 }
 
 void calAveStddev(const std::vector<double> &data, double &ave,

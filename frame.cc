@@ -68,7 +68,7 @@ void Frame::init() {
     } else {
       keypoints_bow_.emplace_back(kp);
 
-      if (isCentralKp(kp, 0.85)) {
+      if (isCentralKp(kp, 0.8)) {
         keypoints_.emplace_back(kp);
       }
     }
@@ -185,6 +185,7 @@ int Frame::matchWith(const Frame::Ptr frame,
 
   ave_x = ave.x;
   */
+
   ave_x = 0;
   std::vector<bool> vbInliers;
   Gridmatcher::Ptr gridmatch = std::make_shared<Gridmatcher>(
@@ -211,6 +212,8 @@ int Frame::matchWith(const Frame::Ptr frame,
   for (const auto &m : matches_good /*better_matches*/) {
     auto kp1 = un_keypoints_[m.queryIdx];
     auto kp2 = frame->un_keypoints_[m.trainIdx];
+    auto pt_diff = kp1.pt - kp2.pt;
+    if (abs(pt_diff.y) > 10) continue;
     good_matches.emplace_back(m);
     points1.emplace_back(kp1.pt);
     points2.emplace_back(kp2.pt);

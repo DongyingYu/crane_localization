@@ -1,6 +1,6 @@
-/*
+/*** 
  * @file:  
- * @Author: Dongying (yudong2817@sina.com)
+ * @author: Dongying (yudong2817@sina.com)
  * @brief:  
  * @version:  
  * @date:  Do not edit 

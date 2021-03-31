@@ -73,7 +73,7 @@ class System {
   std::vector<Map::Ptr> history_maps_;
 
   // 绝对位置定位
-  Localization::Ptr locater;
+  Localization::Ptr locater_;
 
   // 当前的位置，不一定是实时传入的图片对应的相机位置，可能有延迟。
   std::mutex mutex_position_;
@@ -90,4 +90,7 @@ class System {
   double debug_draw_;
 
   int crane_id_;
+  
+  bool pop_frame_;
+  bool save_position_;
 };

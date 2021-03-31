@@ -4,7 +4,6 @@
  * @brief
  * @version 0.1
  * @date 2021-02-19
- *
  * @copyright Copyright (c) 2021
  *
  */
@@ -27,6 +26,8 @@ System::System(const std::string &config_yaml, const int &crane_id)
   }
   debug_draw_ = config_parser.debug_draw_;
   scale_image_ = config_parser.scale_image_;
+  pop_frame_ = config_parser.pop_frame_;
+  save_position_ = config_parser.save_position_;
 
   std::string pre_load_images;
   if (crane_id == 1) {
@@ -49,7 +50,7 @@ System::System(const std::string &config_yaml, const int &crane_id)
   // 其他初始化
   cur_map_ = std::make_shared<Map>(config_parser.sliding_window_size_local_,
                                    config_parser.sliding_window_size_global_);
-  locater = std::make_shared<Localization>(
+  locater_ = std::make_shared<Localization>(
       config_parser.vocabulary_, pre_load_images, config_parser.threshold_,
       config_parser.transpose_image_, 3);
   thread_ = std::thread(&System::run, this);
@@ -92,12 +93,15 @@ void System::insertNewImage(const cv::Mat &img) {
   if (rows > 0 && cols > 0 && rows == camera_model_->getImageSize().height &&
       cols == camera_model_->getImageSize().width) {
     std::unique_lock<std::mutex> lock(mutex_input_);
-    while (input_images_.size() > 10) {
-      std::cout << "[WARNING]: Drop an image because slam system's low fps"
-                << std::endl;
-      input_images_.pop_front();
+    if (pop_frame_) {
+      while (input_images_.size() > 10) {
+        std::cout << "[WARNING]: Drop an image because slam system's low fps"
+                  << std::endl;
+        input_images_.pop_front();
+      }
     }
-    std::cout << "\033[33m image save list's size: \033[0m " << input_images_.size()  << std::endl;
+    std::cout << "\033[33m image save list's size: \033[0m "
+              << input_images_.size() << std::endl;
     input_images_.emplace_back(image);
   } else {
     std::cout << "[WARNING]: invalid image size (width=" << cols
@@ -122,6 +126,13 @@ void System::run() {
     // 图像帧跟踪失败 标记标记信息
   int cnt_failed;
   int id_failed;
+  // 初始化保存位置信息的文件
+  std::ofstream fout_frame("./frame_position.csv", std::ios::out);
+  fout_frame.close();
+  std::ofstream fout_keyframe("./keyframe_position.csv", std::ios::out);
+  fout_keyframe.close();
+  std::ofstream fout_keyframe_update("./keyframe_position_update.csv", std::ios::out);
+  fout_keyframe_update.close();
   while (1) {
     if (isInputQueueEmpty()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -159,7 +170,7 @@ void System::run() {
       // 在这里之后进队cur_frame_对绝对为姿进行匹配用以后续计算offset,开始的两个关键阵仅取第2个关键帧用来计算
       {
         double true_position;
-        auto status = locater->localize(cur_frame_, true_position, false);
+        auto status = locater_->localize(cur_frame_, true_position, false);
         if(status) {
           cur_frame_->setFlag(true);
           cur_frame_->setAbsPosition(true_position);
@@ -183,6 +194,17 @@ void System::run() {
         Eigen::Quaterniond q(cur_frame_->getEigenRotWc());
         Eigen::Vector3d twc = cur_frame_->getEigenTransWc();
         double scale = cur_map_->getScale();
+        // 保存图像帧相对位置信息
+        if(save_position_){
+          ofstream keyframe_position("./frame_position.csv", ios::app);
+          keyframe_position.setf(ios::fixed, ios::floatfield);
+          keyframe_position.precision(6);
+          keyframe_position  << cur_frame_->getFrameId()
+                             << ","
+                             << twc[0]
+                             << std::endl;
+          keyframe_position.close();
+        }
         std::cout << "[INFO]: test the value of scale:   " << scale << std::endl;
         double position = twc[0] * scale;
         // 加上偏移量输出绝对位置信息
@@ -231,7 +253,6 @@ void System::run() {
         cur_map_->releaseLastKeyframeimg();
         cur_map_->insertKeyFrame(cur_frame_);
 
-
         // 删除所有最近的帧，仅仅保留当前帧
         cur_map_->clearRecentFrames();
         cur_map_->insertRecentFrame(cur_frame_);
@@ -239,6 +260,22 @@ void System::run() {
         // 关键帧优化
         G2oOptimizer::Ptr opt = cur_map_->buildG2oOptKeyFrameBa();
         opt->optimizeLinearMotion();
+
+        // 保存关键帧位置信息,保存经过优化后的当前关键帧位置
+        if(save_position_){
+          ofstream keyframe_position("./keyframe_position.csv", ios::app);
+          keyframe_position.setf(ios::fixed, ios::floatfield);
+          keyframe_position.precision(6);
+          keyframe_position  << cur_frame_->getFrameId()
+                             << ","
+                             << cur_frame_->getEigenTransWc()[0]
+                             << std::endl;
+          keyframe_position.close();
+        }
+
+        if(save_position_){
+          cur_map_->saveKeyframeposition();
+        }
 
         // 计算优化后的地图点的平均z值，计算尺度
         Eigen::Vector3d ave_kf_mp = opt->calAveMapPoint();
@@ -249,7 +286,7 @@ void System::run() {
         
         double true_position;
 
-        auto status = locater->localize(cur_frame_,true_position,false);
+        auto status = locater_->localize(cur_frame_,true_position,false);
         if( status ){
           cur_frame_->setFlag(true);
           cur_frame_->setAbsPosition(true_position);

@@ -497,6 +497,16 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
   for (const auto &mp : mappoints) {
     insertMapPoint(mp);
   }
+
+  ofstream keyframe_position("./keyframe_position.csv", ios::app);
+  keyframe_position.setf(ios::fixed, ios::floatfield);
+  keyframe_position.precision(6);
+  keyframe_position << frame1->getEigenTransWc()[0] << std::endl
+                    << frame2->getEigenTransWc()[0] << std::endl;
+  keyframe_position.close();
+
+  saveKeyframeposition();
+
   // std::cout << "[Debug]: test one ... " << std::endl;
   // 4. 利用天车高度的先验，计算尺度
   ave_kf_mp_ = getAveMapPoint();
@@ -758,18 +768,21 @@ bool Map::checkIsNewKeyFrame(Frame::Ptr &frame) {
   // }
 
   // 当前帧与上一帧相隔时间太短，则不宜为关键帧
-  if (std::abs(frame->getFrameId() - last_kf->getFrameId() < 5)) {
+  // 若丢了较多帧，邻近几帧移动距离会足够可插入关键帧
+  if (std::abs(frame->getFrameId() - last_kf->getFrameId() < 2)) {
     return false;
   }
 
   // 当前帧与上一个关键帧之间的平移量过小，也不宜关键帧
   Eigen::Vector3d trans = frame->getEigenTransWc();
   Eigen::Vector3d last_kf_trans = last_kf->getEigenTransWc();
-  double scale = getScale();
-  if (std::abs((trans - last_kf_trans).norm() * scale) < 0.2) {
+  if (std::abs((trans[0] - last_kf_trans[0])) < 0.02) {
     return false;
   }
-
+  // double scale = getScale();
+  // if (std::abs((trans - last_kf_trans).norm() * scale) < 0.2) {
+  //   return false;
+  // }
   return true;
 }
 
@@ -831,4 +844,20 @@ void Map::releaseLastKeyframeimg() {
   }
   Frame::Ptr last_keyframe = keyframes_.rbegin()->second;
   last_keyframe->releaseImage();
+}
+
+void Map::saveKeyframeposition() {
+  std::unique_lock<std::mutex> lock(mutex_keyframes_);
+  if (keyframes_.empty()) {
+    return;
+  }
+  ofstream keyframe_position_update("./keyframe_position_update.csv", ios::app);
+  for (auto &it : keyframes_) {
+    keyframe_position_update.setf(ios::fixed, ios::floatfield);
+    keyframe_position_update.precision(6);
+    keyframe_position_update << it.first << "," << it.second->getEigenTransWc()[0]
+                      << std::endl;
+  }
+  keyframe_position_update << std::endl;
+  keyframe_position_update.close();
 }

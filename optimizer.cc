@@ -369,7 +369,8 @@ Eigen::Vector3d G2oOptimizer::calAveMapPoint() {
     kf_mps.emplace_back(mp->toEigenVector3d());
     ave_kf_mp += mp->toEigenVector3d();
   }
-  statistic(kf_mps, "ave mp");
+  // 有点问题
+  double ave_z = statistic(kf_mps, "ave mp");
   ave_kf_mp /= kf_mps.size();
   return ave_kf_mp;
 }

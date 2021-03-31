@@ -148,6 +148,8 @@ class Map {
 
   void releaseLastKeyframeimg();
 
+  void saveKeyframeposition();
+
  private:
   std::mutex mutex_recent_frames_;
   std::map<size_t, Frame::Ptr> recent_frames_;

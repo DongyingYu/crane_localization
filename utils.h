@@ -1,11 +1,3 @@
-/*
- * @file:
- * @Author: Dongying (yudong2817@sina.com)
- * @brief:
- * @version:
- * @date:  Do not edit
- * @copyright: Copyright (c) 2021
- */
 /**
  * @file utils.h
  * @author xiaotaw (you@domain.com)
@@ -28,7 +20,7 @@
  */
 void statistic(const std::vector<double> &data, const std::string &name);
 
-void statistic(const std::vector<Eigen::Vector3d,
+double statistic(const std::vector<Eigen::Vector3d,
                                  Eigen::aligned_allocator<Eigen::Vector3d>> &data,
                const std::string &name);
 

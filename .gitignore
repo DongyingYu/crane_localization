@@ -38,6 +38,11 @@
 build/
 debug/
 
+# Output information
+debug.txt
+frame_position.csv
+keyframe_position.csv
+
 # run log
 log/
 
@@ -49,4 +54,5 @@ vocabulary/*voc.txt.tar.gz
 
 vocabulary/image_save2/
 vocabulary/image_save/
-vocabulary/image_save.tar.gz
+vocabulary/image_save.tar.g
+vocabulary/

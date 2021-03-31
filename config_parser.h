@@ -1,11 +1,3 @@
-/*
- * @file:  
- * @Author: Dongying (yudong2817@sina.com)
- * @brief:  
- * @version:  
- * @date:  Do not edit 
- * @copyright: Copyright (c) 2021
- */
 /**
  * @file config_parser.h
  * @author xiaotaw (you@domain.com)
@@ -40,4 +32,7 @@ class ConfigParser {
 
   int sliding_window_size_local_;
   int sliding_window_size_global_;
+
+  bool pop_frame_;
+  bool save_position_;
 };
