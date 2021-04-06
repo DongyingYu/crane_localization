@@ -15,9 +15,11 @@
 
 Map::Map() {}
 
-Map::Map(const int &sliding_window_local, const int &sliding_window_global)
+Map::Map(const int &sliding_window_local, const int &sliding_window_global,
+         const int &crane_id)
     : sliding_window_local_(sliding_window_local),
-      sliding_window_global_(sliding_window_global) {
+      sliding_window_global_(sliding_window_global),
+      crane_id_(crane_id) {
   std::cout
       << "[INFO]: \033[33m The value of sliding_window_local_ is:   \033[0m "
       << sliding_window_local_ << std::endl;
@@ -820,12 +822,22 @@ void Map::calculateOffset() {
       double position_abs = v.second->getAbsPosition();
 
       Eigen::Vector3d twc = v.second->getEigenTransWc();
-      double position_estimate = twc[0] * scale_;
+      // double position_estimate = twc[0] * scale_;
+      double position_estimate;
+      if (crane_id_ == 4) {
+        position_estimate = -twc[0] * 13.18 + 2.72;
+      } else if (crane_id_ == 3) {
+        position_estimate = -twc[0] * 6.75 + 66.13;
+      } else if (crane_id_ == 2) {
+        position_estimate = -twc[0] * 12.53 + 3.53;
+      } else {
+        position_estimate = -twc[0] * 12.53 + 3.53;
+      }
       std::cout << "[INFO]: The value of twc[0]:  " << twc[0] << std::endl;
       std::cout << "[INFO]: The value of position_estimate:  "
                 << position_estimate << std::endl;
 
-      offset_vec.emplace_back(position_abs + position_estimate);
+      offset_vec.emplace_back(position_abs - position_estimate);
       std::cout << "[INFO]: The value of position_abs:  " << position_abs
                 << std::endl;
     }
@@ -855,8 +867,8 @@ void Map::saveKeyframeposition() {
   for (auto &it : keyframes_) {
     keyframe_position_update.setf(ios::fixed, ios::floatfield);
     keyframe_position_update.precision(6);
-    keyframe_position_update << it.first << "," << it.second->getEigenTransWc()[0]
-                      << std::endl;
+    keyframe_position_update << it.first << ","
+                             << it.second->getEigenTransWc()[0] << std::endl;
   }
   keyframe_position_update << std::endl;
   keyframe_position_update.close();

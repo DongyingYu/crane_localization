@@ -14,7 +14,7 @@
 #include "websocket_endpoint.h"
 
 int main(int argc, char **argv) {
-  std::string video_file = "/home/ipsg/dataset_temp/78_test_o.mp4";
+  std::string video_file = "/home/ipsg/Downloads/qq-files/1330332817/file_recv/74_3_2(28).mp4";
   int skip_frames = 0;
 
   // skip some frames
@@ -26,13 +26,16 @@ int main(int argc, char **argv) {
   }
 
   auto location = std::make_shared<Localization>(
-      "./vocabulary/ORBvoc.txt", "./vocabulary/image_save2/rgb.txt", 0.01,
-      false, 3);
+      "./vocabulary/ORBvoc.txt", "./vocabulary/image_save3/rgb.txt", 0.01,
+      true, 3);
 
   int cnt = 0;
-  while (1) {
-    cnt++;
+  for (int cnt = 0;; ++cnt){
     capture >> img;
+    if(img.rows == 0 || img.cols == 0) continue;
+    // 输入图像的尺寸变换与先验图像尺寸不同不会影响匹配,但是transpose影响非常大，如果transpose不同，会带来问题
+    cv::transpose(img,img);
+    cv::resize(img,img,{0,0},0.5,0.5);
     // 现场部署时需要用
     // if(cnt%3 != 0)
     //   continue;
