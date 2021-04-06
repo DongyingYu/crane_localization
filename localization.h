@@ -1,11 +1,3 @@
-/*** 
- * @file:  
- * @author: Dongying (yudong2817@sina.com)
- * @brief:  
- * @version:  
- * @date:  Do not edit 
- * @copyright: Copyright (c) 2021
- */
 /**
  * @file /**
  * @file localization.h

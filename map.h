@@ -22,8 +22,8 @@ class Map {
 
   Map();
 
-  Map(const int &sliding_window_local, const int &sliding_window_global);
-
+  Map(const int &sliding_window_local, const int &sliding_window_global,
+      const int &crane_id);
 
   ~Map();
   /**
@@ -175,6 +175,7 @@ class Map {
   //设置优化窗口大小
   int sliding_window_local_ = 5;
   int sliding_window_global_ = 5;
+  int crane_id_;
 
  private:
   /**

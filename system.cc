@@ -49,7 +49,8 @@ System::System(const std::string &config_yaml, const int &crane_id)
   }
   // 其他初始化
   cur_map_ = std::make_shared<Map>(config_parser.sliding_window_size_local_,
-                                   config_parser.sliding_window_size_global_);
+                                   config_parser.sliding_window_size_global_,
+                                   crane_id_);
   locater_ = std::make_shared<Localization>(
       config_parser.vocabulary_, pre_load_images, config_parser.threshold_,
       config_parser.transpose_image_, 3);
@@ -161,6 +162,7 @@ void System::run() {
       if(!init_status) {
         continue;
       }
+      cur_map_->setOffset(0.0);
       int cnt_failed=1;
       int id_failed=0;
 
@@ -206,14 +208,25 @@ void System::run() {
           keyframe_position.close();
         }
         std::cout << "[INFO]: test the value of scale:   " << scale << std::endl;
-        double position = twc[0] * scale;
+        /*double position = twc[0] * scale;*/
+        double position;
+        if(crane_id_ == 4){
+          // 4号天车曲线拟合数据
+          position = -twc[0] * 13.18 + 2.72; 
+        }else if(crane_id_ == 3){
+          position = -twc[0] * 6.75 + 66.13; 
+        } else if(crane_id_ == 2){
+          position = -twc[0] * 12.53 + 3.53; 
+        }else{
+          position = -twc[0] * 12.53 + 3.53; 
+        }
         // 加上偏移量输出绝对位置信息
         double offset_temp = cur_map_->getOffset();
         std::cout << "[INFO]: Frame " << frame_id << ", " << toString(q) << ", " << std::endl
-                  << "[INFO]: Frame relative position: " << -position << std::endl
-                  << "[INFO]: Frame absolute position: " << -position + offset_temp << std::endl
+                  << "[INFO]: Frame relative position: " << /*-position*/position << std::endl
+                  << "[INFO]: Frame absolute position: " << /*-position* + offset_temp */position + offset_temp << std::endl
                   << std::endl;
-        position_ = -position + offset_temp;
+        position_ = position + offset_temp;
         // 需修改，天车ID从外部传入
         ws_endpoint_.send(position_, crane_id_);
       } else if(track_status == 2){

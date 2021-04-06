@@ -9,9 +9,9 @@ camera_model:
 localization:
   vocabulary: ./vocabulary/ORBvoc.txt
   pre_saved_images_one: ./vocabulary/image_save/rgb.txt
-  pre_saved_images_two: ./vocabulary/image_save/rgb.txt  
-  pre_saved_images_thr: ./vocabulary/image_save/rgb.txt
-  pre_saved_images_fou: ./vocabulary/image_save/rgb.txt
+  pre_saved_images_two: ./vocabulary/image_save2/rgb.txt  
+  pre_saved_images_thr: ./vocabulary/image_save3/rgb.txt
+  pre_saved_images_fou: ./vocabulary/image_save4/rgb.txt
   threshold: 0.05
 websocket:
   server_address: ws://192.168.1.106:18001/ws?client_type=edge1&id=1
