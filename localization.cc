@@ -86,6 +86,7 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
               << "The index is: " << vscore[i].second << std::endl;
   }
   std::pair<float, int> compare_result(0.0, 0);
+  int index = 0;
   for (int i = 0; i < 5; i++) {
     std::cout << "The " << i << "  number of vscore is : " << vscore[i].first
               << "The index is: " << vscore[i].second << std::endl;
@@ -95,7 +96,7 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
         if (vscore[j].second <= (vscore[i].second + 3))
           score_compare = score_compare + vscore[j].first;
       }
-    } else if (vscore[i].second == (vscore.size() - 4)) {
+    } else if (vscore[i].second >= (vscore.size() - 4)) {
       for (int j = 0; j < vscore.size(); j++) {
         if (vscore[j].second >= (vscore[i].second - 3))
           score_compare = score_compare + vscore[j].first;
@@ -112,9 +113,16 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
     if (score_compare > compare_result.first) {
       compare_result.first = score_compare;
       compare_result.second = vscore[i].second;
+      index = i;
     }
   }
-  std::cout << "[INFO]: The final score result : " << compare_result.first
+  if (compare_result.first == 0) {
+    compare_result.first = vscore[0].first;
+    compare_result.second = vscore[0].second;
+    index = 0;
+  }
+  std::cout << "[INFO]: The final score result : "
+            << vscore[index].first /*compare_result.first*/
             << "   " << compare_result.second << std::endl;
   // 计算共享单词个数
   // for ( DBoW2::BowVector::const_iterator
@@ -128,7 +136,8 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
             << std::endl;
 
   if (verbose) {
-    Frame::Ptr &best_frame = frames_[vscore[0].second];
+    Frame::Ptr &best_frame =
+        frames_[compare_result.second /*vscore[0].second*/];
     std::cout << cur_frame->getImage().size() << std::endl << std::endl;
     std::cout << best_frame->getImage().size() << std::endl
               << std::endl
@@ -138,6 +147,12 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
         max(best_frame->getImage().rows, cur_frame->getImage().rows);
     const int width = best_frame->getImage().cols + cur_frame->getImage().cols;
 
+    const int height_roi =
+        max(best_frame->getImageRoi().rows, cur_frame->getImageRoi().rows);
+    const int width_roi =
+        best_frame->getImageRoi().cols + cur_frame->getImageRoi().cols;
+    cv::Mat output_roi(height_roi, width_roi, CV_8UC3, cv::Scalar(0, 0, 0));
+
     cv::Mat output(height, width, CV_8UC3, cv::Scalar(0, 0, 0));
     std::cout << output.size() << std::endl;
 
@@ -146,12 +161,20 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
     cur_frame->getImage().copyTo(output(cv::Rect(best_frame->getImage().cols, 0,
                                                  cur_frame->getImage().cols,
                                                  cur_frame->getImage().rows)));
+    best_frame->getImageRoi().copyTo(output_roi(cv::Rect(
+        0, 0, best_frame->getImageRoi().cols, best_frame->getImageRoi().rows)));
+    cur_frame->getImageRoi().copyTo(output_roi(cv::Rect(best_frame->getImageRoi().cols, 0,
+                                                 cur_frame->getImageRoi().cols,
+                                                 cur_frame->getImageRoi().rows)));
+
     cv::resize(output, output, {0, 0}, 0.6, 0.6);
+    cv::resize(output_roi, output_roi, {0, 0}, 0.6, 0.6);
     std::cout << output.size() << std::endl;
 
     cv::imshow("Image contrast", output);
+    cv::imshow("Image_roi contrast", output_roi);
   }
-  position = image_position_[vscore[0].second];
+  position = image_position_[compare_result.second /*vscore[0].second*/];
   std::cout << "[INFO]: The value of threshold: " << threshold_ << std::endl;
 
   if (vscore[compare_result.second].first > threshold_)

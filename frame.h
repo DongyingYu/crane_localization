@@ -120,6 +120,7 @@ class Frame {
 
   cv::Mat getImage() const;
 
+  cv::Mat getImageRoi() const;
   // 获取去畸变后的K
   Eigen::Matrix3d getEigenNewK() const;
 
@@ -173,6 +174,7 @@ class Frame {
   // 图片，特征点，描述符
   cv::Mat img_;
   cv::Mat un_img_;  // 去畸变后的图像
+  cv::Mat img_roi_; // ROI区域
   std::vector<cv::KeyPoint> keypoints_;
   std::vector<cv::KeyPoint> un_keypoints_;  // 去畸变后的特征点
   cv::Mat descriptors_;

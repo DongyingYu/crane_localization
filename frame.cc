@@ -33,10 +33,17 @@ Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model,
 void Frame::init() {
   assert(!img_.empty());
 
+  // 获取图像ROI区域
+  cv::Mat image = img_.clone();
+  cv::Rect roi = cvRect(0, 0, image.cols, image.rows / 6);
+  img_roi_ = image(roi);
+  // cv::imshow("image_roi", img_roi_);
   // 1. 特征点计算
   // 1.1 计算Oriented FAST角点
+  std::vector<cv::KeyPoint> keypoints_roi;
   std::vector<cv::KeyPoint> keypoints;
   detector_->detect(img_, keypoints);
+  detector_->detect(img_roi_, keypoints_roi);
 
   // 1.2去除部分不可用的特征点， (注：图片可能被转置了)
   // ①左上角和右下角的字幕的干扰
@@ -45,32 +52,48 @@ void Frame::init() {
   double x_s = img_.cols * (img_.cols > img_.rows ? lf : sf);
   double y_s = img_.rows * (img_.cols > img_.rows ? sf : lf);
 
+  double x_s_roi = img_roi_.cols * (1.5 / 12.0);
+  double y_s_roi = img_roi_.rows;
+
   auto isSubtitle = [&](const cv::KeyPoint &kp) {
     return (kp.pt.x < x_s && kp.pt.y < y_s) ||
            (kp.pt.x > img_.cols - x_s && kp.pt.y > img_.rows - y_s);
   };
 
+  auto isSubtitle_roi = [&](const cv::KeyPoint &kp) {
+    return (kp.pt.x < x_s_roi && kp.pt.y < y_s_roi);
+  };
+
   // ②因畸变导致长边两端的区域不可用(各约1/8)
-  const double outer_boarder_factor = 1.0 / 6;
+  const double outer_boarder_factor = 1.0 / 8;
   auto isOuterBoarder = [&](const cv::KeyPoint &kp) {
     if (img_.cols > img_.rows) {
-      return (/*kp.pt.x < img_.cols * outer_boarder_factor || */
-             kp.pt.x > img_.cols * (1 - outer_boarder_factor));
+      return (kp.pt.x < img_.cols * outer_boarder_factor ||
+              kp.pt.x > img_.cols * (1 - outer_boarder_factor));
     } else {
-      return (kp.pt.y < img_.rows * outer_boarder_factor /*||
-             kp.pt.y > img_.rows * (1 - outer_boarder_factor)*/);
+      return (kp.pt.y < img_.rows * outer_boarder_factor ||
+              kp.pt.y > img_.rows * (1 - outer_boarder_factor));
     }
   };
 
-  for (const cv::KeyPoint &kp : keypoints) {
-    if (isSubtitle(kp) /*|| isOuterBoarder(kp)*/) {
-      continue;
-    } else if (isOuterBoarder(kp)) {
-      keypoints_bow_.emplace_back(kp);
+  for (const cv::KeyPoint &kp : keypoints_roi) {
+    if (isSubtitle_roi(kp)) {
       continue;
     } else {
-      // keypoints_bow_.emplace_back(kp);
+      keypoints_bow_.emplace_back(kp);
+    }
+  }
 
+  for (const cv::KeyPoint &kp : keypoints) {
+    if (isSubtitle(kp)) {
+      continue;
+    }
+    // if (/*kp.pt.x > img_.cols * (1 - 1.0 / 6)*/ kp.pt.y < img_.rows * 1.0 /
+    // 6)
+    //   keypoints_bow_.emplace_back(kp);
+    if (isOuterBoarder(kp)) {
+      continue;
+    } else {
       if (isCentralKp(kp, 0.8)) {
         keypoints_.emplace_back(kp);
       }
@@ -80,6 +103,7 @@ void Frame::init() {
   // 2. 去畸变
   if (camera_model_) {
     camera_model_->undistortKeyPoint(keypoints_, un_keypoints_);
+    camera_model_->undistortKeyPoint(keypoints_bow_, keypoints_bow_);
     // camera_model_->undistortImage(img_, un_img_);
     un_img_ = img_.clone();
   } else {
@@ -98,6 +122,13 @@ void Frame::init() {
   // 4. 其他初始化
   mappoints_id_ = std::vector<int>(keypoints_.size(), -1);
   frame_id_ = Frame::total_frame_cnt_++;
+
+  std::cout << "[INFO]:  The frame id :  " << this->frame_id_
+            << " and the number of keypoints :  " << keypoints.size()
+            << std::endl;
+  std::cout << "[INFO]:  The frame id :  " << this->frame_id_
+            << " and the number of roi keypoints :  " << keypoints_roi.size()
+            << std::endl;
 }
 
 int Frame::matchWith(const Frame::Ptr frame,
@@ -375,7 +406,7 @@ std::vector<cv::Mat> Frame::toDescriptorVector() {
 }
 
 void Frame::computeBoW() {
-  cv::drawKeypoints(this->img_, this->keypoints_bow_, this->img_,
+  cv::drawKeypoints(this->img_roi_, this->keypoints_bow_, this->img_roi_,
                     cv::Scalar(0, 255, 255),
                     cv::DrawMatchesFlags::DEFAULT /*DRAW_RICH_KEYPOINTS*/);
   std::vector<cv::Mat> vCurrentDesc = toDescriptorVector();
@@ -409,6 +440,8 @@ Eigen::Matrix3d Frame::getEigenNewK() const {
 }
 
 cv::Mat Frame::getImage() const { return img_; }
+
+cv::Mat Frame::getImageRoi() const { return img_roi_; }
 
 bool Frame::isCentralKp(const cv::KeyPoint &kp,
                         const double &half_center_factor) {
@@ -457,6 +490,7 @@ void Frame::setVocabulary(Vocabulary *voc) { vocabulary_ = voc; }
 void Frame::releaseImage() {
   img_.release();
   un_img_.release();
+  img_roi_.release();
 }
 
 size_t Frame::total_frame_cnt_ = 0;

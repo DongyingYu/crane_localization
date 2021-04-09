@@ -109,3 +109,9 @@ target_link_libraries(test_websocket
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${Boost_LIBRARY_DIRS}
 )
+
+# SSIM
+add_executable(test_SSIM test_SSIM.cc)
+target_link_libraries(test_SSIM
+  ${OpenCV_LIBS}
+)
