@@ -51,22 +51,25 @@ void Frame::init() {
   };
 
   // ②因畸变导致长边两端的区域不可用(各约1/8)
-  const double outer_boarder_factor = 1.0 / 8;
+  const double outer_boarder_factor = 1.0 / 6;
   auto isOuterBoarder = [&](const cv::KeyPoint &kp) {
     if (img_.cols > img_.rows) {
-      return (kp.pt.x < img_.cols * outer_boarder_factor) ||
-             (kp.pt.x > img_.cols * (1 - outer_boarder_factor));
+      return (/*kp.pt.x < img_.cols * outer_boarder_factor || */
+             kp.pt.x > img_.cols * (1 - outer_boarder_factor));
     } else {
-      return (kp.pt.y < img_.rows * outer_boarder_factor) ||
-             (kp.pt.y > img_.rows * (1 - outer_boarder_factor));
+      return (kp.pt.y < img_.rows * outer_boarder_factor /*||
+             kp.pt.y > img_.rows * (1 - outer_boarder_factor)*/);
     }
   };
 
   for (const cv::KeyPoint &kp : keypoints) {
-    if (isSubtitle(kp) || isOuterBoarder(kp)) {
+    if (isSubtitle(kp) /*|| isOuterBoarder(kp)*/) {
+      continue;
+    } else if (isOuterBoarder(kp)) {
+      keypoints_bow_.emplace_back(kp);
       continue;
     } else {
-      keypoints_bow_.emplace_back(kp);
+      // keypoints_bow_.emplace_back(kp);
 
       if (isCentralKp(kp, 0.8)) {
         keypoints_.emplace_back(kp);
@@ -372,6 +375,9 @@ std::vector<cv::Mat> Frame::toDescriptorVector() {
 }
 
 void Frame::computeBoW() {
+  cv::drawKeypoints(this->img_, this->keypoints_bow_, this->img_,
+                    cv::Scalar(0, 255, 255),
+                    cv::DrawMatchesFlags::DEFAULT /*DRAW_RICH_KEYPOINTS*/);
   std::vector<cv::Mat> vCurrentDesc = toDescriptorVector();
   // BdWVec为Bow特征向量，FeatVec为正向索引
   vocabulary_->transform(vCurrentDesc, bow_vec_, feat_vec_, 4);

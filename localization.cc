@@ -35,7 +35,7 @@ Localization::Localization(const std::string &vocab_file,
     }
     Frame::Ptr frame = std::make_shared<Frame>(images[i], vocabulary_);
     frame->computeBoW();
-    frame->releaseImage();
+    // frame->releaseImage();
     frames_.emplace_back(frame);
   }
 }
@@ -80,10 +80,42 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
               return a.first > b.first;
             });
   std::cout << "The size of vscore: " << vscore.size() << std::endl;
+  for (int i = 0; i < vscore.size(); i++) {
+    std::cout << "The " << i << "  number of vscore is : " << vscore[i].first
+              << "   "
+              << "The index is: " << vscore[i].second << std::endl;
+  }
+  std::pair<float, int> compare_result(0.0, 0);
   for (int i = 0; i < 5; i++) {
     std::cout << "The " << i << "  number of vscore is : " << vscore[i].first
-              << std::endl;
+              << "The index is: " << vscore[i].second << std::endl;
+    float score_compare = 0;
+    if (vscore[i].second <= 2) {
+      for (int j = 0; j < vscore.size(); j++) {
+        if (vscore[j].second <= (vscore[i].second + 3))
+          score_compare = score_compare + vscore[j].first;
+      }
+    } else if (vscore[i].second == (vscore.size() - 4)) {
+      for (int j = 0; j < vscore.size(); j++) {
+        if (vscore[j].second >= (vscore[i].second - 3))
+          score_compare = score_compare + vscore[j].first;
+      }
+    } else {
+      for (int j = 0; j < vscore.size(); j++) {
+        if (vscore[j].second >= (vscore[i].second - 3) &&
+            vscore[j].second <= (vscore[i].second + 3)) {
+          score_compare = score_compare + vscore[j].first;
+        }
+      }
+    }
+    score_compare = score_compare - vscore[i].first;
+    if (score_compare > compare_result.first) {
+      compare_result.first = score_compare;
+      compare_result.second = vscore[i].second;
+    }
   }
+  std::cout << "[INFO]: The final score result : " << compare_result.first
+            << "   " << compare_result.second << std::endl;
   // 计算共享单词个数
   // for ( DBoW2::BowVector::const_iterator
   // vit=frames[frames.size()-1]->bow_vec_.begin(),
@@ -121,7 +153,8 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
   }
   position = image_position_[vscore[0].second];
   std::cout << "[INFO]: The value of threshold: " << threshold_ << std::endl;
-  if (vscore[0].first > threshold_)
+
+  if (vscore[compare_result.second].first > threshold_)
     return true;
   else
     return false;

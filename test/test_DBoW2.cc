@@ -14,7 +14,7 @@
 #include "websocket_endpoint.h"
 
 int main(int argc, char **argv) {
-  std::string video_file = "/home/ipsg/Downloads/qq-files/1330332817/file_recv/74_3_2(28).mp4";
+  std::string video_file = "/home/ipsg/dataset_temp/74_new_test_cut.mp4";
   int skip_frames = 0;
 
   // skip some frames
@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
     if(img.rows == 0 || img.cols == 0) continue;
     // 输入图像的尺寸变换与先验图像尺寸不同不会影响匹配,但是transpose影响非常大，如果transpose不同，会带来问题
     cv::transpose(img,img);
-    cv::resize(img,img,{0,0},0.5,0.5);
+    // cv::resize(img,img,{0,0},0.5,0.5);
     // 现场部署时需要用
     // if(cnt%3 != 0)
     //   continue;
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     bool status = location->localize(frame, position, true);
     std::cout << "The frame cnt : " << cnt << std::endl;
     std::cout << "The crane position is : " << position << std::endl;
-    cv::waitKey(50);
+    cv::waitKey();
   }
 
   return 0;
