@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 
 add_compile_options(-std=c++14)
 
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 # default built type
 if(NOT CMAKE_BUILD_TYPE)

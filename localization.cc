@@ -40,6 +40,26 @@ Localization::Localization(const std::string &vocab_file,
   }
 }
 
+Localization::Localization(const std::string &preload_keyframes,
+                           const double &threshold, const bool &transpose_image,
+                           const int &win_size)
+    : threshold_SSIM_(threshold), win_size_SSIM_(win_size) {
+  // load offline images
+  std::vector<cv::Mat> images = loadImages(preload_keyframes);
+  if (images.empty()) {
+    std::cout << "[WARNING]: No pre-saved keyframes" << std::endl;
+  }
+  for (int i = 0; i < images.size(); i++) {
+    if (transpose_image) {
+      cv::transpose(images[i], images[i]);
+    }
+  // 后续只需传入到frame中然后截取部分图像，用以计算SSIM即可
+  Frame::Ptr frame = std::make_shared<Frame>(images[i]);
+  frame->computeSSIM();
+  frames_.emplace_back(frame);
+  }
+}
+
 Localization::~Localization() {}
 
 bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
@@ -163,9 +183,9 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
                                                  cur_frame->getImage().rows)));
     best_frame->getImageRoi().copyTo(output_roi(cv::Rect(
         0, 0, best_frame->getImageRoi().cols, best_frame->getImageRoi().rows)));
-    cur_frame->getImageRoi().copyTo(output_roi(cv::Rect(best_frame->getImageRoi().cols, 0,
-                                                 cur_frame->getImageRoi().cols,
-                                                 cur_frame->getImageRoi().rows)));
+    cur_frame->getImageRoi().copyTo(output_roi(cv::Rect(
+        best_frame->getImageRoi().cols, 0, cur_frame->getImageRoi().cols,
+        cur_frame->getImageRoi().rows)));
 
     cv::resize(output, output, {0, 0}, 0.6, 0.6);
     cv::resize(output_roi, output_roi, {0, 0}, 0.6, 0.6);
@@ -177,7 +197,116 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
   position = image_position_[compare_result.second /*vscore[0].second*/];
   std::cout << "[INFO]: The value of threshold: " << threshold_ << std::endl;
 
-  if (vscore[compare_result.second].first > threshold_)
+  if (vscore[index].first > threshold_)
+    return true;
+  else
+    return false;
+}
+
+bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
+                                   double &position, const bool &verbose) {
+  cur_frame->computeSSIM();
+  // image_convert、mu、mu_2、sigma_2
+  auto ssim_cur_frame = cur_frame->getSSIMData();
+  std::vector<float> score_temp;
+  for (int i = 0; i < frames_.size(); i++) {
+    auto ssim_pre_frame = frames_[i]->getSSIMData();
+    cv::Mat I1_I2 = ssim_pre_frame[0].mul(ssim_cur_frame[0]);
+    cv::Mat mu1_mu2 = ssim_pre_frame[1].mul(ssim_cur_frame[1]);
+    cv::Mat sigma_I1I2;
+    cv::GaussianBlur(I1_I2, sigma_I1I2, cv::Size(11, 11), 1.5);
+    sigma_I1I2 -= mu1_mu2;
+    cv::Mat temp1, temp2, temp3;
+    temp1 = 2 * mu1_mu2 + c1_;
+    temp2 = 2 * sigma_I1I2 + c2_;
+    //temp3 = temp1.mul(temp2);
+    temp3 = temp2.clone();
+    temp1 = ssim_cur_frame[2] + ssim_pre_frame[2] + c1_;
+    temp2 = ssim_cur_frame[3] + ssim_pre_frame[3] + c2_;
+    //temp1 = temp1.mul(temp2);
+    temp1 = temp2.clone();
+    cv::Mat ssim_map;
+    cv::divide(temp3, temp1, ssim_map);
+    cv::Scalar mssim = cv::mean(ssim_map);
+    float score = (mssim.val[2] + mssim.val[1] + mssim.val[0]) / 3 * 100;
+    if (score < 0 || score > 100) {
+      score = 0.0;
+    }
+    score_temp.emplace_back(score);
+  }
+
+  if (winFrames_.size() >= win_size_SSIM_) {
+    winFrames_.pop_front();
+  }
+  winFrames_.push_back(score_temp);
+
+  auto vscore = std::vector<std::pair<float, int>>(
+      frames_.size(), std::pair<float, int>(0.0, 0));
+
+  for (int i = 0; i < score_temp.size(); i++) {
+    float sum_score_temp = 0.0;
+    for (int j = 0; j < winFrames_.size(); j++) {
+      sum_score_temp = sum_score_temp + winFrames_[j][i];
+    }
+    vscore[i].first = sum_score_temp;
+    vscore[i].second = i;
+  }
+
+  // 降序排列，筛选出排在前五的的分值
+  std::sort(vscore.begin(), vscore.end(),
+            [](const pair<float, int> &a, const pair<float, int> &b) {
+              return a.first > b.first;
+            });
+  std::cout << "The size of vscore: " << vscore.size() << std::endl;
+  for (int i = 0; i < 5; i++) {
+    std::cout << "The " << i << "  number of vscore is : " << vscore[i].first
+              << "   "
+              << "The index is: " << vscore[i].second << std::endl;
+  }
+
+  if (verbose) {
+    Frame::Ptr &best_frame = frames_[vscore[0].second];
+    std::cout << cur_frame->getImage().size() << std::endl << std::endl;
+    std::cout << best_frame->getImage().size() << std::endl
+              << std::endl
+              << std::endl;
+
+    const int height =
+        max(best_frame->getImage().rows, cur_frame->getImage().rows);
+    const int width = best_frame->getImage().cols + cur_frame->getImage().cols;
+
+    const int height_roi =
+        max(best_frame->getImageRoi().rows, cur_frame->getImageRoi().rows);
+    const int width_roi =
+        best_frame->getImageRoi().cols + cur_frame->getImageRoi().cols;
+    cv::Mat output_roi(height_roi, width_roi, CV_8UC3, cv::Scalar(0, 0, 0));
+
+    cv::Mat output(height, width, CV_8UC3, cv::Scalar(0, 0, 0));
+    std::cout << output.size() << std::endl;
+
+    best_frame->getImage().copyTo(output(cv::Rect(
+        0, 0, best_frame->getImage().cols, best_frame->getImage().rows)));
+    cur_frame->getImage().copyTo(output(cv::Rect(best_frame->getImage().cols, 0,
+                                                 cur_frame->getImage().cols,
+                                                 cur_frame->getImage().rows)));
+    best_frame->getImageRoi().copyTo(output_roi(cv::Rect(
+        0, 0, best_frame->getImageRoi().cols, best_frame->getImageRoi().rows)));
+    cur_frame->getImageRoi().copyTo(output_roi(cv::Rect(
+        best_frame->getImageRoi().cols, 0, cur_frame->getImageRoi().cols,
+        cur_frame->getImageRoi().rows)));
+
+    cv::resize(output, output, {0, 0}, 0.6, 0.6);
+    cv::resize(output_roi, output_roi, {0, 0}, 0.6, 0.6);
+    std::cout << output.size() << std::endl;
+
+    cv::imshow("Image contrast", output);
+    cv::imshow("Image_roi contrast", output_roi);
+  }
+
+  position = image_position_[vscore[0].second];
+  std::cout << "[INFO]: The value of threshold: " << threshold_ << std::endl;
+
+  if (vscore[0].first > threshold_)
     return true;
   else
     return false;

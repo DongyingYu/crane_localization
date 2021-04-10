@@ -40,10 +40,10 @@ void Frame::init() {
   // cv::imshow("image_roi", img_roi_);
   // 1. 特征点计算
   // 1.1 计算Oriented FAST角点
-  std::vector<cv::KeyPoint> keypoints_roi;
+  // std::vector<cv::KeyPoint> keypoints_roi;
   std::vector<cv::KeyPoint> keypoints;
   detector_->detect(img_, keypoints);
-  detector_->detect(img_roi_, keypoints_roi);
+  // detector_->detect(img_roi_, keypoints_roi);
 
   // 1.2去除部分不可用的特征点， (注：图片可能被转置了)
   // ①左上角和右下角的字幕的干扰
@@ -52,17 +52,17 @@ void Frame::init() {
   double x_s = img_.cols * (img_.cols > img_.rows ? lf : sf);
   double y_s = img_.rows * (img_.cols > img_.rows ? sf : lf);
 
-  double x_s_roi = img_roi_.cols * (1.5 / 12.0);
-  double y_s_roi = img_roi_.rows;
+  // double x_s_roi = img_roi_.cols * (1.5 / 12.0);
+  // double y_s_roi = img_roi_.rows;
 
   auto isSubtitle = [&](const cv::KeyPoint &kp) {
     return (kp.pt.x < x_s && kp.pt.y < y_s) ||
            (kp.pt.x > img_.cols - x_s && kp.pt.y > img_.rows - y_s);
   };
 
-  auto isSubtitle_roi = [&](const cv::KeyPoint &kp) {
-    return (kp.pt.x < x_s_roi && kp.pt.y < y_s_roi);
-  };
+  // auto isSubtitle_roi = [&](const cv::KeyPoint &kp) {
+  //   return (kp.pt.x < x_s_roi && kp.pt.y < y_s_roi);
+  // };
 
   // ②因畸变导致长边两端的区域不可用(各约1/8)
   const double outer_boarder_factor = 1.0 / 8;
@@ -76,13 +76,13 @@ void Frame::init() {
     }
   };
 
-  for (const cv::KeyPoint &kp : keypoints_roi) {
-    if (isSubtitle_roi(kp)) {
-      continue;
-    } else {
-      keypoints_bow_.emplace_back(kp);
-    }
-  }
+  // for (const cv::KeyPoint &kp : keypoints_roi) {
+  //   if (isSubtitle_roi(kp)) {
+  //     continue;
+  //   } else {
+  //     keypoints_bow_.emplace_back(kp);
+  //   }
+  // }
 
   for (const cv::KeyPoint &kp : keypoints) {
     if (isSubtitle(kp)) {
@@ -94,6 +94,7 @@ void Frame::init() {
     if (isOuterBoarder(kp)) {
       continue;
     } else {
+      keypoints_bow_.emplace_back(kp);
       if (isCentralKp(kp, 0.8)) {
         keypoints_.emplace_back(kp);
       }
@@ -103,7 +104,7 @@ void Frame::init() {
   // 2. 去畸变
   if (camera_model_) {
     camera_model_->undistortKeyPoint(keypoints_, un_keypoints_);
-    camera_model_->undistortKeyPoint(keypoints_bow_, keypoints_bow_);
+    // camera_model_->undistortKeyPoint(keypoints_bow_, keypoints_bow_);
     // camera_model_->undistortImage(img_, un_img_);
     un_img_ = img_.clone();
   } else {
@@ -113,7 +114,7 @@ void Frame::init() {
 
   // 3. 描述子计算（BRIEF）
   extrator_->compute(img_, keypoints_, descriptors_);
-  extrator_->compute(img_, keypoints_bow_, descriptors_bow_);
+  // extrator_->compute(img_, keypoints_bow_, descriptors_bow_);
   if (keypoints_.size() < 50) {
     std::cout << "[WARNING]: too few keypoints detected " << keypoints_.size()
               << std::endl;
@@ -126,9 +127,9 @@ void Frame::init() {
   std::cout << "[INFO]:  The frame id :  " << this->frame_id_
             << " and the number of keypoints :  " << keypoints.size()
             << std::endl;
-  std::cout << "[INFO]:  The frame id :  " << this->frame_id_
-            << " and the number of roi keypoints :  " << keypoints_roi.size()
-            << std::endl;
+  // std::cout << "[INFO]:  The frame id :  " << this->frame_id_
+  //           << " and the number of roi keypoints :  " << keypoints_roi.size()
+  //           << std::endl;
 }
 
 int Frame::matchWith(const Frame::Ptr frame,
@@ -492,6 +493,32 @@ void Frame::releaseImage() {
   un_img_.release();
   img_roi_.release();
 }
+
+void Frame::computeSSIM() {
+  cv::Mat image = img_roi_.clone();
+  cv::Mat image_temp;
+  image.convertTo(image_temp, CV_32F);
+  // cv::cvtColor(image, image_temp, CV_BGR2GRAY);
+  std::cout << "[INFO]: image size : " << image_temp.size()
+            << "\t image channel : " << image_temp.channels() << std::endl;
+  cv::waitKey();
+  ssim_data_.emplace_back(image_temp);
+  // 图像数据平方
+  cv::Mat image_2 = image_temp.mul(image_temp);
+  // 均值
+  cv::Mat mu;
+  cv::GaussianBlur(image_temp, mu, cv::Size(11, 11), 1.5);
+  ssim_data_.emplace_back(mu);
+  cv::Mat mu2 = mu.mul(mu);
+  ssim_data_.emplace_back(mu2);
+  // 方差
+  cv::Mat sigma2;
+  cv::GaussianBlur(image_2, sigma2, cv::Size(11, 11), 1.5);
+  sigma2 -= mu2;
+  ssim_data_.emplace_back(sigma2);
+}
+
+std::vector<cv::Mat> Frame::getSSIMData() { return ssim_data_; }
 
 size_t Frame::total_frame_cnt_ = 0;
 

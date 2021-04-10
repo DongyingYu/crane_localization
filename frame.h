@@ -170,11 +170,15 @@ class Frame {
   // release image
   void releaseImage();
 
+  void computeSSIM();
+
+  std::vector<cv::Mat> getSSIMData();
+
  private:
   // 图片，特征点，描述符
   cv::Mat img_;
-  cv::Mat un_img_;  // 去畸变后的图像
-  cv::Mat img_roi_; // ROI区域
+  cv::Mat un_img_;   // 去畸变后的图像
+  cv::Mat img_roi_;  // ROI区域
   std::vector<cv::KeyPoint> keypoints_;
   std::vector<cv::KeyPoint> un_keypoints_;  // 去畸变后的特征点
   cv::Mat descriptors_;
@@ -210,6 +214,8 @@ class Frame {
   bool offset_flag_ = false;
   // 图像帧的绝对位置信息
   double abs_position_;
+
+  std::vector<cv::Mat> ssim_data_;
 
  private:
   /**

@@ -63,6 +63,10 @@ cd ..
 ./build/test/test_distortion_fisheye
 ```
 
+```bash
+./build/test/test_SSIM /home/ipsg/sensors/crane_localization/vocabulary/image_save3/300.png /home/ipsg/sensors/crane_localization/vocabulary/image_save3/345.png
+```
+
 ### 功能性测试
 
 注：需修改g2o_path，以及用于测试的mp4视频的路径

@@ -111,7 +111,16 @@ target_link_libraries(test_websocket
 )
 
 # SSIM
-add_executable(test_SSIM test_SSIM.cc)
+add_executable(test_SSIM 
+  test_SSIM.cc
+  ../frame.cc
+  ../utils.cc
+  ../localization.cc
+  ../gridmatcher.cc
+)
 target_link_libraries(test_SSIM
   ${OpenCV_LIBS}
+  ${dbow2_lib}
+  pthread
+  boost_system
 )

@@ -1,5 +1,4 @@
 /**
- * @file /**
  * @file localization.h
  * @author Dongying (yudong2817@sina.com)
  * @brief
@@ -10,8 +9,6 @@
  */
 #pragma once
 
-#include "ORBVocabulary.h"
-#include "frame.h"
 #include <chrono>
 #include <list>
 #include <mutex>
@@ -22,10 +19,11 @@
 #include <queue>
 #include <thread>
 #include <utility>
+#include "ORBVocabulary.h"
+#include "frame.h"
 
 class Localization {
-
-public:
+ public:
   using Ptr = std::shared_ptr<Localization>;
 
   /**
@@ -39,6 +37,9 @@ public:
   Localization(const std::string &vocab_file,
                const std::string &preload_keyframes, const double &threshold,
                const bool &transpose_image = false, const int &win_size = 3);
+  Localization(const std::string &preload_keyframes, const double &threshold,
+               const bool &transpose_image = false, const int &win_size = 3);
+
   ~Localization();
 
   /**
@@ -51,7 +52,10 @@ public:
   bool localize(const Frame::Ptr &cur_frame, double &position,
                 const bool &verbose = false);
 
-private:
+  bool localizeByMSSIM(const Frame::Ptr &cur_frame, double &position,
+                       const bool &verbose = false);
+
+ private:
   std::vector<cv::Mat> loadImages(const std::string &index_filename);
 
   // todo: using shared_ptr
@@ -63,4 +67,11 @@ private:
   std::vector<double> image_position_;
   int win_size_;
   double threshold_;
+
+  int win_size_SSIM_;
+  double threshold_SSIM_;
+
+  double const c1_ = 6.5025;
+  double const c2_ = 58.5225;
+
 };
