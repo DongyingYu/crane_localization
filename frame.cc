@@ -12,7 +12,14 @@
 #include "gridmatcher.h"
 #include "utils.h"
 
-Frame::Frame(const cv::Mat &img) : img_(img.clone()) { init(); }
+Frame::Frame(const cv::Mat &img) : img_(img.clone()) {
+  // init();
+  cv::Mat image = img_.clone();
+  // cv::Rect roi = cvRect(0, 0, image.cols, image.rows / 6);
+  cv::Rect roi = cvRect(image.cols / 8, 0, image.cols / 8 * 7, image.rows / 6);
+  img_roi_ = image(roi);
+  cv::resize(img_roi_, img_roi_, {0, 0}, 0.5, 0.5);
+}
 
 Frame::Frame(const cv::Mat &img, const CameraModel::Ptr &camera_model)
     : img_(img.clone()), camera_model_(camera_model) {
@@ -35,9 +42,12 @@ void Frame::init() {
 
   // 获取图像ROI区域
   cv::Mat image = img_.clone();
-  cv::Rect roi = cvRect(0, 0, image.cols, image.rows / 6);
+  // cv::Rect roi = cvRect(0, 0, image.cols, image.rows / 6);
+  cv::Rect roi = cvRect(image.cols / 8, 0, image.cols / 8 * 7, image.rows / 6);
   img_roi_ = image(roi);
+  // cv::resize(img_roi_, img_roi_, {0, 0}, 0.5, 0.5);
   // cv::imshow("image_roi", img_roi_);
+  // cv::waitKey();
   // 1. 特征点计算
   // 1.1 计算Oriented FAST角点
   // std::vector<cv::KeyPoint> keypoints_roi;
@@ -501,7 +511,6 @@ void Frame::computeSSIM() {
   // cv::cvtColor(image, image_temp, CV_BGR2GRAY);
   std::cout << "[INFO]: image size : " << image_temp.size()
             << "\t image channel : " << image_temp.channels() << std::endl;
-  cv::waitKey();
   ssim_data_.emplace_back(image_temp);
   // 图像数据平方
   cv::Mat image_2 = image_temp.mul(image_temp);
@@ -516,6 +525,7 @@ void Frame::computeSSIM() {
   cv::GaussianBlur(image_2, sigma2, cv::Size(11, 11), 1.5);
   sigma2 -= mu2;
   ssim_data_.emplace_back(sigma2);
+  std::cout << "-----computeSSIM done ! -------" << std::endl;
 }
 
 std::vector<cv::Mat> Frame::getSSIMData() { return ssim_data_; }

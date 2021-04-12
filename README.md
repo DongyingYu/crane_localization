@@ -40,6 +40,7 @@ cd ../../..
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DOpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..
+(cmake -DOpenCV_DIR="/usr/local/opencv341/share/OpenCV" ..)
 make -j
 cd ..
 
@@ -91,6 +92,8 @@ export LD_LIBRARY_PATH=${g2o_path}
 ./build/test/test_system 4 /home/ipsg/dataset_temp/77_location.mp4 ./conf/pipeline_online.yaml 0
 ./build/test/test_system 3 /home/ipsg/dataset_temp/74_location.mp4 ./conf/pipeline_online.yaml 0
 ./build/test/test_system 3 /home/ipsg/dataset_temp/74_closing.mp4 ./conf/pipeline_online.yaml 0
+
+./build/test/test_system 3 /home/ipsg/dataset_temp/74_new_test_cut.mp4 ./conf/pipeline_online.yaml 0
 
 ./build/test_websocket
 ./run.sh

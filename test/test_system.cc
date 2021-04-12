@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
     // if(cnt%3 != 0)
     //   continue;
     system->insertNewImage(img);
-    cv::waitKey(50);
+    cv::waitKey();
   }
   system->stop();
 }

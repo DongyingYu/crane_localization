@@ -51,9 +51,12 @@ System::System(const std::string &config_yaml, const int &crane_id)
   cur_map_ = std::make_shared<Map>(config_parser.sliding_window_size_local_,
                                    config_parser.sliding_window_size_global_,
                                    crane_id_);
-  locater_ = std::make_shared<Localization>(
-      config_parser.vocabulary_, pre_load_images, config_parser.threshold_,
-      config_parser.transpose_image_, 3);
+  // locater_ = std::make_shared<Localization>(
+  //     config_parser.vocabulary_, pre_load_images, config_parser.threshold_,
+  //     config_parser.transpose_image_, 3);
+  locater_ =
+      std::make_shared<Localization>(pre_load_images, config_parser.threshold_,
+                                     config_parser.transpose_image_, 1);
   thread_ = std::thread(&System::run, this);
 
   // 获取服务器地址
@@ -172,8 +175,9 @@ void System::run() {
       // 在这里之后进队cur_frame_对绝对为姿进行匹配用以后续计算offset,开始的两个关键阵仅取第2个关键帧用来计算
       {
         double true_position;
-        auto status = locater_->localize(cur_frame_, true_position, false);
+        auto status = locater_->localizeByMSSIM(cur_frame_, true_position, false);
         if(status) {
+          std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
           cur_frame_->setFlag(true);
           cur_frame_->setAbsPosition(true_position);
           // 初始offset
@@ -299,8 +303,9 @@ void System::run() {
         
         double true_position;
 
-        auto status = locater_->localize(cur_frame_,true_position,false);
+        auto status = locater_->localizeByMSSIM(cur_frame_,true_position,false);
         if( status ){
+          std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
           cur_frame_->setFlag(true);
           cur_frame_->setAbsPosition(true_position);
           // 更新offset

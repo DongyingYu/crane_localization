@@ -35,7 +35,7 @@ Localization::Localization(const std::string &vocab_file,
     }
     Frame::Ptr frame = std::make_shared<Frame>(images[i], vocabulary_);
     frame->computeBoW();
-    // frame->releaseImage();
+    frame->releaseImage();
     frames_.emplace_back(frame);
   }
 }
@@ -53,10 +53,11 @@ Localization::Localization(const std::string &preload_keyframes,
     if (transpose_image) {
       cv::transpose(images[i], images[i]);
     }
-  // 后续只需传入到frame中然后截取部分图像，用以计算SSIM即可
-  Frame::Ptr frame = std::make_shared<Frame>(images[i]);
-  frame->computeSSIM();
-  frames_.emplace_back(frame);
+    // 后续只需传入到frame中然后截取部分图像，用以计算SSIM即可
+    Frame::Ptr frame = std::make_shared<Frame>(images[i]);
+    frame->computeSSIM();
+    // frame->releaseImage();
+    frames_.emplace_back(frame);
   }
 }
 
@@ -188,7 +189,7 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
         cur_frame->getImageRoi().rows)));
 
     cv::resize(output, output, {0, 0}, 0.6, 0.6);
-    cv::resize(output_roi, output_roi, {0, 0}, 0.6, 0.6);
+    // cv::resize(output_roi, output_roi, {0, 0}, 0.6, 0.6);
     std::cout << output.size() << std::endl;
 
     cv::imshow("Image contrast", output);
@@ -219,11 +220,11 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
     cv::Mat temp1, temp2, temp3;
     temp1 = 2 * mu1_mu2 + c1_;
     temp2 = 2 * sigma_I1I2 + c2_;
-    //temp3 = temp1.mul(temp2);
+    // temp3 = temp1.mul(temp2);
     temp3 = temp2.clone();
     temp1 = ssim_cur_frame[2] + ssim_pre_frame[2] + c1_;
     temp2 = ssim_cur_frame[3] + ssim_pre_frame[3] + c2_;
-    //temp1 = temp1.mul(temp2);
+    // temp1 = temp1.mul(temp2);
     temp1 = temp2.clone();
     cv::Mat ssim_map;
     cv::divide(temp3, temp1, ssim_map);
@@ -263,7 +264,55 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
               << "   "
               << "The index is: " << vscore[i].second << std::endl;
   }
+  bool is_selected_one = false;
+  if ((abs(vscore[0].first - 2 * vscore[1].first + vscore[2].first) > 1.0) &&
+      ((vscore[0].first - vscore[1].first) /
+           (vscore[1].first - vscore[2].first) <
+       7.0) &&
+      ((vscore[0].first - vscore[1].first) /
+           (vscore[1].first - vscore[2].first) >
+       3.0) &&
+      (abs(image_position_[vscore[0].second] -
+           image_position_[vscore[1].second]) < 1.5)) {
+    is_selected_one = true;
+    std::cout << "\033[31m Screening state of optimal score --one! \033[0m "
+              << std::endl;
+  } else {
+    is_selected_one = false;
+  }
 
+  bool is_selected_two = false;
+  if ((vscore[0].first - vscore[1].first) > 0.5 &&
+      abs(vscore[0].second - vscore[1].second) > 2 &&
+      abs(vscore[0].second - vscore[2].second) > 2) {
+    is_selected_two = true;
+    std::cout << "\033[31m Screening state of optimal score --two! \033[0m "
+              << std::endl;
+  } else {
+    is_selected_two = false;
+  }
+
+  bool is_selected_three = false;
+  if (vscore[0].first > 75) {
+    std::cout << "\033[31m Screening state of optimal score --three! \033[0m "
+              << std::endl;
+    is_selected_three = true;
+  } else {
+    is_selected_three = false;
+  }
+
+  // float score_sum = 0.0;
+  // for (int i = 0; i < 5; i++) {
+  //   score_sum = score_sum + vscore[i].first;
+  // }
+  // if (score_sum / 5.0 > 68) {
+  //   std::cout << "\033[31m Screening state of optimal score --four! \033[0m "
+  //             << std::endl;
+  //   is_selected = true;
+  // } else {
+  //   is_selected = false;
+  // }
+  bool selected = (is_selected_one || is_selected_two || is_selected_three);
   if (verbose) {
     Frame::Ptr &best_frame = frames_[vscore[0].second];
     std::cout << cur_frame->getImage().size() << std::endl << std::endl;
@@ -303,12 +352,10 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
     cv::imshow("Image_roi contrast", output_roi);
   }
 
-  position = image_position_[vscore[0].second];
-  std::cout << "[INFO]: The value of threshold: " << threshold_ << std::endl;
-
-  if (vscore[0].first > threshold_)
+  if (selected) {
+    position = image_position_[vscore[0].second];
     return true;
-  else
+  } else
     return false;
 }
 
