@@ -476,6 +476,7 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
   insertRecentFrame(frame2);
 
   frame1->releaseImage();
+  frame1->releaseSSIMdata();
   insertKeyFrame(frame1);
   insertKeyFrame(frame2);
 
@@ -812,7 +813,7 @@ void Map::setOffset(const double &offset) { offset_ = offset; }
 
 double Map::getOffset() { return offset_; }
 
-void Map::calculateOffset() {
+void Map::calculateOffset(const double &k1,const double &k2,const double &k3,const double &k4) {
   int cnt = 0;
   double sum = 0.0;
   std::vector<double> offset_vec;
@@ -825,13 +826,13 @@ void Map::calculateOffset() {
       // double position_estimate = twc[0] * scale_;
       double position_estimate;
       if (crane_id_ == 4) {
-        position_estimate = -twc[0] * 13.18 + 2.72;
+        position_estimate = -twc[0] * k4;
       } else if (crane_id_ == 3) {
-        position_estimate = -twc[0] * 6.75 + 66.13;
+        position_estimate = -twc[0] * k3;
       } else if (crane_id_ == 2) {
-        position_estimate = -twc[0] * 12.53 + 3.53;
+        position_estimate = -twc[0] * k2;
       } else {
-        position_estimate = -twc[0] * 12.53 + 3.53;
+        position_estimate = -twc[0] * k1;
       }
       std::cout << "[INFO]: The value of twc[0]:  " << twc[0] << std::endl;
       std::cout << "[INFO]: The value of position_estimate:  "
@@ -856,6 +857,7 @@ void Map::releaseLastKeyframeimg() {
   }
   Frame::Ptr last_keyframe = keyframes_.rbegin()->second;
   last_keyframe->releaseImage();
+  last_keyframe->releaseSSIMdata();
 }
 
 void Map::saveKeyframeposition() {

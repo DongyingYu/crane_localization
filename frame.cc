@@ -95,16 +95,10 @@ void Frame::init() {
   // }
 
   for (const cv::KeyPoint &kp : keypoints) {
-    if (isSubtitle(kp)) {
-      continue;
-    }
-    // if (/*kp.pt.x > img_.cols * (1 - 1.0 / 6)*/ kp.pt.y < img_.rows * 1.0 /
-    // 6)
-    //   keypoints_bow_.emplace_back(kp);
-    if (isOuterBoarder(kp)) {
+    if (isSubtitle(kp) || isOuterBoarder(kp)) {
       continue;
     } else {
-      keypoints_bow_.emplace_back(kp);
+      // keypoints_bow_.emplace_back(kp);
       if (isCentralKp(kp, 0.8)) {
         keypoints_.emplace_back(kp);
       }
@@ -233,6 +227,7 @@ int Frame::matchWith(const Frame::Ptr frame,
 
   ave_x = 0;
   std::vector<bool> vbInliers;
+  // 使用keypoints_比un_keypoints_更合理
   Gridmatcher::Ptr gridmatch = std::make_shared<Gridmatcher>(
       this->un_keypoints_, this->img_.size(), frame->un_keypoints_,
       frame->img_.size(), all_matches);
@@ -504,31 +499,53 @@ void Frame::releaseImage() {
   img_roi_.release();
 }
 
+void Frame::releaseSSIMdata(){
+  x_.release();
+  mu_.release();
+  mu2_.release();
+  sigma2_.release();
+}
+
 void Frame::computeSSIM() {
   cv::Mat image = img_roi_.clone();
   cv::Mat image_temp;
   image.convertTo(image_temp, CV_32F);
-  // cv::cvtColor(image, image_temp, CV_BGR2GRAY);
-  std::cout << "[INFO]: image size : " << image_temp.size()
-            << "\t image channel : " << image_temp.channels() << std::endl;
-  ssim_data_.emplace_back(image_temp);
+  x_.release();
+  mu_.release();
+  mu2_.release();
+  sigma2_.release();
+  // std::cout << "[INFO]: image size : " << image_temp.size()
+  //           << "\t image channel : " << image_temp.channels() << std::endl;
+  // ssim_data_.clear();
+  // std::vector<cv::Mat> tmp;
+  // ssim_data_.swap(tmp);
+  // ssim_data_.emplace_back(image_temp);
+  x_ = image_temp.clone();
+
   // 图像数据平方
   cv::Mat image_2 = image_temp.mul(image_temp);
   // 均值
   cv::Mat mu;
   cv::GaussianBlur(image_temp, mu, cv::Size(11, 11), 1.5);
-  ssim_data_.emplace_back(mu);
+  // ssim_data_.emplace_back(mu);
+  mu_ = mu.clone();
   cv::Mat mu2 = mu.mul(mu);
-  ssim_data_.emplace_back(mu2);
+  // ssim_data_.emplace_back(mu2);
+  mu2_ = mu2.clone();
   // 方差
   cv::Mat sigma2;
   cv::GaussianBlur(image_2, sigma2, cv::Size(11, 11), 1.5);
   sigma2 -= mu2;
-  ssim_data_.emplace_back(sigma2);
-  std::cout << "-----computeSSIM done ! -------" << std::endl;
+  // ssim_data_.emplace_back(sigma2);
+  sigma2_ = sigma2.clone();
 }
 
 std::vector<cv::Mat> Frame::getSSIMData() { return ssim_data_; }
+
+cv::Mat Frame::getSSIMDatax() { return x_; }
+cv::Mat Frame::getSSIMDatamu() { return mu_; }
+cv::Mat Frame::getSSIMDatamu2() { return mu2_; }
+cv::Mat Frame::getSSIMDatasigma2() { return sigma2_; }
 
 size_t Frame::total_frame_cnt_ = 0;
 

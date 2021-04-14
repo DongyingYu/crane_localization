@@ -139,7 +139,8 @@ class Map {
   /**
    * @brief 由关键帧数据计算偏移量
    */
-  void calculateOffset();
+  void calculateOffset(const double &k1, const double &k2, const double &k3,
+                       const double &k4);
 
   /**
   * @brief 设置系统是否初始化状态

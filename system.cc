@@ -125,6 +125,47 @@ double System::getPosition() {
 
 void System::stop() { thread_.join(); }
 
+void System::updatecoef(const std::vector<cv::Point2f> &points) {
+  int size = points.size();
+  double a = 0.0, b = 0.0, c = 0.0;
+  if (size < 2) {
+    return;
+  }
+  double x_mean = 0;
+  double y_mean = 0;
+  for (int i = 0; i < size; i++) {
+    x_mean += points[i].x;
+    y_mean += points[i].y;
+  }
+  x_mean /= size;
+  y_mean /= size;  //至此，计算出了 x y 的均值
+
+  double Dxx = 0, Dxy = 0, Dyy = 0;
+
+  for (int i = 0; i < size; i++) {
+    Dxx += (points[i].x - x_mean) * (points[i].x - x_mean);
+    Dxy += (points[i].x - x_mean) * (points[i].y - y_mean);
+    Dyy += (points[i].y - y_mean) * (points[i].y - y_mean);
+  }
+  double lambda =
+      ((Dxx + Dyy) - sqrt((Dxx - Dyy) * (Dxx - Dyy) + 4 * Dxy * Dxy)) / 2.0;
+  double den = sqrt(Dxy * Dxy + (lambda - Dxx) * (lambda - Dxx));
+  a = Dxy / den;
+  b = (lambda - Dxx) / den;
+  c = -a * x_mean - b * y_mean;
+
+  // if (crane_id_ == 4) {
+  //   k4_ = a / b;
+  // } else if (crane_id_ == 3) {
+  //   k3_ = a / b;
+  // } else if (crane_id_ == 2) {
+  //   k2_ = a / b;
+  // } else {
+  //   k1_ = a / b;
+  // }
+  std::cout << "\033[33m The Calculation results of k value:  \033[0m " << a / b << std::endl;
+}
+
 // clang-format off
 void System::run() {
     // 图像帧跟踪失败 标记标记信息
@@ -174,14 +215,15 @@ void System::run() {
       opt->optimizeLinearMotion();
       // 在这里之后进队cur_frame_对绝对为姿进行匹配用以后续计算offset,开始的两个关键阵仅取第2个关键帧用来计算
       {
+        // 获取先验帧的绝对位置信息
         double true_position;
         auto status = locater_->localizeByMSSIM(cur_frame_, true_position, false);
         if(status) {
           std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
           cur_frame_->setFlag(true);
           cur_frame_->setAbsPosition(true_position);
-          // 初始offset
-          cur_map_->calculateOffset();
+          // 初始offset，offset计算方式存在问题，后续需要解决.
+          cur_map_->calculateOffset(k1_,k2_,k3_,k4_);
         }
       }
 
@@ -216,18 +258,18 @@ void System::run() {
         double position;
         if(crane_id_ == 4){
           // 4号天车曲线拟合数据
-          position = -twc[0] * 13.18 + 2.72; 
+          position = -twc[0] * k4_; 
         }else if(crane_id_ == 3){
-          position = -twc[0] * 6.75 + 66.13; 
-        } else if(crane_id_ == 2){
-          position = -twc[0] * 12.53 + 3.53; 
+          position = -twc[0] * k3_; 
+        }else if(crane_id_ == 2){
+          position = -twc[0] * k2_; 
         }else{
-          position = -twc[0] * 12.53 + 3.53; 
+          position = -twc[0] * k1_; 
         }
         // 加上偏移量输出绝对位置信息
         double offset_temp = cur_map_->getOffset();
         std::cout << "[INFO]: Frame " << frame_id << ", " << toString(q) << ", " << std::endl
-                  << "[INFO]: Frame relative position: " << /*-position*/position << std::endl
+                  << "[INFO]: Frame Pseudo absolute position: " << /*-position*/position << std::endl
                   << "[INFO]: Frame absolute position: " << /*-position* + offset_temp */position + offset_temp << std::endl
                   << std::endl;
         position_ = position + offset_temp;
@@ -306,10 +348,21 @@ void System::run() {
         auto status = locater_->localizeByMSSIM(cur_frame_,true_position,false);
         if( status ){
           std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
+          points_data_.emplace_back(cur_frame_->getEigenTransWc()[0],true_position);
+          std::cout << "\033[33m The points_data size:  \033[0m " << points_data_.size() << std::endl;
+          if(points_data_.size() == 10){
+            updatecoef(points_data_);
+            // 清空point_data_
+            {
+              std::vector<cv::Point2f> tmp;
+              points_data_.swap(tmp);
+            }
+          }  
           cur_frame_->setFlag(true);
           cur_frame_->setAbsPosition(true_position);
           // 更新offset
-          cur_map_->calculateOffset();
+          cur_map_->calculateOffset(k1_,k2_,k3_,k4_);
+
         }
 
         std::cout << "[INFO]: The size of keyframes are : " << cur_map_->getKeyframesSize() << std::endl;

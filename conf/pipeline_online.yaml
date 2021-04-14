@@ -1,7 +1,7 @@
 transpose_image: true
 scale_image: 0.5
 debug_draw: 1
-pop_frame: false
+pop_frame: true
 save_position: true
 camera_model:
   camera_yaml: ./conf/BL-EX346HP-15M.yaml

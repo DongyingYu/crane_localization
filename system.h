@@ -41,6 +41,8 @@ class System {
 
   void stop();
 
+  void updatecoef(const std::vector<cv::Point2f> &points);
+
  private:
   /**
    * @brief 初始化地图，并追踪新的一帧
@@ -86,11 +88,21 @@ class System {
 
   MySocket::websocket_endpoint ws_endpoint_;
 
+  // Points data for line fitting
+  // std::vector<cv::Point2f> points_data_= std::vector<cv::Point2f>(10,cv::Point2f(0.0,0.0));
+  std::vector<cv::Point2f> points_data_;
+
   // debug
   double debug_draw_;
 
   int crane_id_;
-  
+
   bool pop_frame_;
   bool save_position_;
+
+  // 对应于4辆天车的初始尺度，运行中不断更新
+  double k1_ = 12.53;
+  double k2_ = 12.53;
+  double k3_ = 6.75;
+  double k4_ = 13.18;
 };

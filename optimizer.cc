@@ -317,6 +317,10 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
         double chi2 = e->chi2();
         if (chi2 > 20) {
           e->setLevel(1);
+          // e->vertices()[1]->id(); --> frame_id
+          // e->vertices()[2]->id(); --> mp_id
+          // mp = mps_data[mp_id].second.fist
+          // mp->obsxxx.erase(frame_id);
         }
       }
     }
@@ -357,6 +361,8 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
 
     mp->fromEigenVector3d(evec);
   }
+
+
 }
 
 Eigen::Vector3d G2oOptimizer::calAveMapPoint() {

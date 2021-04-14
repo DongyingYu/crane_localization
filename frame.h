@@ -170,9 +170,16 @@ class Frame {
   // release image
   void releaseImage();
 
+  void releaseSSIMdata();
+
   void computeSSIM();
 
   std::vector<cv::Mat> getSSIMData();
+
+  cv::Mat getSSIMDatax();
+  cv::Mat getSSIMDatamu();
+  cv::Mat getSSIMDatamu2();
+  cv::Mat getSSIMDatasigma2();
 
  private:
   // 图片，特征点，描述符
@@ -216,6 +223,12 @@ class Frame {
   double abs_position_;
 
   std::vector<cv::Mat> ssim_data_;
+
+  cv::Mat x_;
+  cv::Mat mu_;
+  cv::Mat mu2_;
+  cv::Mat sigma2_;
+
 
  private:
   /**

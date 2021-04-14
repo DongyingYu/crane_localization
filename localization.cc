@@ -56,7 +56,7 @@ Localization::Localization(const std::string &preload_keyframes,
     // 后续只需传入到frame中然后截取部分图像，用以计算SSIM即可
     Frame::Ptr frame = std::make_shared<Frame>(images[i]);
     frame->computeSSIM();
-    // frame->releaseImage();
+    frame->releaseImage();
     frames_.emplace_back(frame);
   }
 }
@@ -208,12 +208,12 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
                                    double &position, const bool &verbose) {
   cur_frame->computeSSIM();
   // image_convert、mu、mu_2、sigma_2
-  auto ssim_cur_frame = cur_frame->getSSIMData();
+  // auto ssim_cur_frame = cur_frame->getSSIMData2();
   std::vector<float> score_temp;
   for (int i = 0; i < frames_.size(); i++) {
-    auto ssim_pre_frame = frames_[i]->getSSIMData();
-    cv::Mat I1_I2 = ssim_pre_frame[0].mul(ssim_cur_frame[0]);
-    cv::Mat mu1_mu2 = ssim_pre_frame[1].mul(ssim_cur_frame[1]);
+    // auto ssim_pre_frame = frames_[i]->getSSIMData2();
+    cv::Mat I1_I2 = frames_[i]->getSSIMDatax().mul(cur_frame->getSSIMDatax());
+    cv::Mat mu1_mu2 = frames_[i]->getSSIMDatamu().mul(cur_frame->getSSIMDatamu());
     cv::Mat sigma_I1I2;
     cv::GaussianBlur(I1_I2, sigma_I1I2, cv::Size(11, 11), 1.5);
     sigma_I1I2 -= mu1_mu2;
@@ -222,8 +222,8 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
     temp2 = 2 * sigma_I1I2 + c2_;
     // temp3 = temp1.mul(temp2);
     temp3 = temp2.clone();
-    temp1 = ssim_cur_frame[2] + ssim_pre_frame[2] + c1_;
-    temp2 = ssim_cur_frame[3] + ssim_pre_frame[3] + c2_;
+    temp1 = cur_frame->getSSIMDatamu2() + frames_[i]->getSSIMDatamu2() + c1_;
+    temp2 = cur_frame->getSSIMDatasigma2() + frames_[i]->getSSIMDatasigma2() + c2_;
     // temp1 = temp1.mul(temp2);
     temp1 = temp2.clone();
     cv::Mat ssim_map;
