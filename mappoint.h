@@ -14,6 +14,7 @@
 #include <memory> // for shared_ptr etc.
 #include <mutex>
 #include <vector>
+#include <map>
 
 class MapPoint {
 public:
@@ -32,6 +33,8 @@ public:
   size_t getId() const;
 
   std::vector<std::pair<size_t, size_t>> getObservation();
+
+  void eraseObservation(const std::map<size_t, size_t> &e_index);
 
   int getObservationSize();
   

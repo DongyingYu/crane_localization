@@ -301,7 +301,6 @@ G2oOptimizer::Ptr Map::buildG2oOptKeyFrameBa() {
       obs_data[mp->getId()] = observation;
     }
   }
-
   return std::make_shared<G2oOptimizer>(frames_data, mps_data, obs_data);
 }
 
@@ -512,12 +511,12 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
 
   // std::cout << "[Debug]: test one ... " << std::endl;
   // 4. 利用天车高度的先验，计算尺度
-  ave_kf_mp_ = getAveMapPoint();
-  Eigen::Vector3d ave_kf_mp = ave_kf_mp_;
-  // 排除x方向上的影响
-  ave_kf_mp[0] = 0;
-  scale_ = kCraneHeight / ave_kf_mp.norm();
-  std::cout << "[INFO]: The scale value is :         " << scale_ << std::endl;
+  // ave_kf_mp_ = getAveMapPoint();
+  // Eigen::Vector3d ave_kf_mp = ave_kf_mp_;
+  // // 排除x方向上的影响
+  // ave_kf_mp[0] = 0;
+  // scale_ = kCraneHeight / ave_kf_mp.norm();
+  // std::cout << "[INFO]: The scale value is :         " << scale_ << std::endl;
   // std::cout << "[Debug]: test two ... " << std::endl;
   is_initialized_ = true;
 
@@ -824,6 +823,7 @@ void Map::calculateOffset(const double &k1,const double &k2,const double &k3,con
 
       Eigen::Vector3d twc = v.second->getEigenTransWc();
       // double position_estimate = twc[0] * scale_;
+      // 初始系数Ｋ固定，为预先计算好的
       double position_estimate;
       if (crane_id_ == 4) {
         position_estimate = -twc[0] * k4;
@@ -844,6 +844,7 @@ void Map::calculateOffset(const double &k1,const double &k2,const double &k3,con
     }
     statistic(offset_vec, " offset");
     double stddev;
+    // 按这种方式计算的话，前几次计算误差较大的offset会对当前计算的offset产生影响
     calAveStddev(offset_vec, offset_, stddev);
   }
 }

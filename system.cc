@@ -127,6 +127,8 @@ void System::stop() { thread_.join(); }
 
 void System::updatecoef(const std::vector<cv::Point2f> &points) {
   int size = points.size();
+  std::cout << "\033[32m The number of points used to fit a line: \033[0m "
+            << size << std::endl;
   double a = 0.0, b = 0.0, c = 0.0;
   if (size < 2) {
     return;
@@ -154,16 +156,19 @@ void System::updatecoef(const std::vector<cv::Point2f> &points) {
   b = (lambda - Dxx) / den;
   c = -a * x_mean - b * y_mean;
 
-  // if (crane_id_ == 4) {
-  //   k4_ = a / b;
-  // } else if (crane_id_ == 3) {
-  //   k3_ = a / b;
-  // } else if (crane_id_ == 2) {
-  //   k2_ = a / b;
-  // } else {
-  //   k1_ = a / b;
-  // }
-  std::cout << "\033[33m The Calculation results of k value:  \033[0m " << a / b << std::endl;
+  offset_ = -c / b;
+  if (crane_id_ == 4) {
+    k4_ = a / b;
+  } else if (crane_id_ == 3) {
+    k3_ = a / b;
+  } else if (crane_id_ == 2) {
+    k2_ = a / b;
+  } else {
+    k1_ = a / b;
+  }
+  std::cout << "\033[33m The Calculation results of k value:  \033[0m "
+            << -a / b << "\033[33m The calculation results of b value:  \033[0m"
+            << offset_ << std::endl;
 }
 
 // clang-format off
@@ -207,6 +212,7 @@ void System::run() {
         continue;
       }
       cur_map_->setOffset(0.0);
+      offset_ = 0.0;
       int cnt_failed=1;
       int id_failed=0;
 
@@ -222,10 +228,11 @@ void System::run() {
           std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
           cur_frame_->setFlag(true);
           cur_frame_->setAbsPosition(true_position);
-          // 初始offset，offset计算方式存在问题，后续需要解决.
+          // 初始offset确定方式
           cur_map_->calculateOffset(k1_,k2_,k3_,k4_);
         }
       }
+      offset_ = cur_map_->getOffset();
 
       std::cout << "[INFO]: The initialized map after g2o LinearMotion"
                 << std::endl;
@@ -258,21 +265,22 @@ void System::run() {
         double position;
         if(crane_id_ == 4){
           // 4号天车曲线拟合数据
-          position = -twc[0] * k4_; 
+          position = -twc[0] * k4_ + offset_; 
         }else if(crane_id_ == 3){
-          position = -twc[0] * k3_; 
+          position = -twc[0] * k3_ + offset_; 
         }else if(crane_id_ == 2){
-          position = -twc[0] * k2_; 
+          position = -twc[0] * k2_ + offset_; 
         }else{
-          position = -twc[0] * k1_; 
+          position = -twc[0] * k1_ + offset_; 
         }
         // 加上偏移量输出绝对位置信息
-        double offset_temp = cur_map_->getOffset();
+        // double offset_temp = cur_map_->getOffset();
         std::cout << "[INFO]: Frame " << frame_id << ", " << toString(q) << ", " << std::endl
-                  << "[INFO]: Frame Pseudo absolute position: " << /*-position*/position << std::endl
-                  << "[INFO]: Frame absolute position: " << /*-position* + offset_temp */position + offset_temp << std::endl
+                  << "[INFO]: Frame relative position: " << /*-position*/twc[0] << std::endl
+                  << "[INFO]: Frame absolute position: " << /*-position* + offset_temp */position << std::endl
                   << std::endl;
-        position_ = position + offset_temp;
+        // position_ = position + offset_temp;
+        position_ = position;
         // 需修改，天车ID从外部传入
         ws_endpoint_.send(position_, crane_id_);
       } else if(track_status == 2){
@@ -337,11 +345,11 @@ void System::run() {
         }
 
         // 计算优化后的地图点的平均z值，计算尺度
-        Eigen::Vector3d ave_kf_mp = opt->calAveMapPoint();
-        cur_map_->ave_kf_mp_ = ave_kf_mp;
-        ave_kf_mp[0] = 0.0;
-        double scale = Map::kCraneHeight / ave_kf_mp.norm();
-        cur_map_->setScale(scale);
+        // Eigen::Vector3d ave_kf_mp = opt->calAveMapPoint();
+        // cur_map_->ave_kf_mp_ = ave_kf_mp;
+        // ave_kf_mp[0] = 0.0;
+        // double scale = Map::kCraneHeight / ave_kf_mp.norm();
+        // cur_map_->setScale(scale);
         
         double true_position;
 
@@ -350,21 +358,20 @@ void System::run() {
           std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
           points_data_.emplace_back(cur_frame_->getEigenTransWc()[0],true_position);
           std::cout << "\033[33m The points_data size:  \033[0m " << points_data_.size() << std::endl;
-          if(points_data_.size() == 10){
+          if(points_data_.size() % 10 == 0){
             updatecoef(points_data_);
             // 清空point_data_
-            {
-              std::vector<cv::Point2f> tmp;
-              points_data_.swap(tmp);
-            }
+            // {
+            //   std::vector<cv::Point2f> tmp;
+            //   points_data_.swap(tmp);
+            // }
           }  
           cur_frame_->setFlag(true);
           cur_frame_->setAbsPosition(true_position);
           // 更新offset
-          cur_map_->calculateOffset(k1_,k2_,k3_,k4_);
+          // cur_map_->calculateOffset(k1_,k2_,k3_,k4_);
 
         }
-
         std::cout << "[INFO]: The size of keyframes are : " << cur_map_->getKeyframesSize() << std::endl;
 
         cur_map_->debugPrintMap();

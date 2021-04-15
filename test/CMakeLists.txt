@@ -65,6 +65,7 @@ target_link_libraries(test_system
   ${dbow2_lib}
   pthread
   boost_system
+  -lpthread
 )
 
 

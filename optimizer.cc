@@ -275,7 +275,7 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
     optimizer.addVertex(v);
 
     // 不对先前地图点位置及关键帧位姿做调整
-    // 边
+    // 边 对每个地图点查询frame_id、kp_id
     if (1) {
       for (const auto &obs : observations_data_[mp_id]) {
         size_t frame_id = obs.first;
@@ -302,7 +302,8 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
       }
     }
   }
-
+  //  mp_id frame_id
+  std::map<size_t, size_t> e_index;
   // optimize
   for (size_t i = 0; i < 2; i++) {
     optimizer.initializeOptimization();
@@ -317,10 +318,9 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
         double chi2 = e->chi2();
         if (chi2 > 20) {
           e->setLevel(1);
-          // e->vertices()[1]->id(); --> frame_id
-          // e->vertices()[2]->id(); --> mp_id
-          // mp = mps_data[mp_id].second.fist
-          // mp->obsxxx.erase(frame_id);
+          size_t frame_id = e->vertices()[1]->id() - 1;
+          size_t mp_id = e->vertices()[2]->id() - frame_id_max - 2;
+          e_index[mp_id] = frame_id;
         }
       }
     }
@@ -346,6 +346,11 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
     // std::cout << "         tcw " << tcw.transpose() << std::endl;
     frame->setPose(Rwc.transpose(), tcw);
   }
+  bool erase_flag;
+  if (e_index.empty())
+    erase_flag = false;
+  else
+    erase_flag = true;
 
   for (auto &it : mps_data_) {
     const auto &mp = it.second.first;
@@ -360,9 +365,11 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
     Eigen::Vector3d evec = v->estimate();
 
     mp->fromEigenVector3d(evec);
+    if (erase_flag) {
+      mp->eraseObservation(e_index);
+    }
+    erase_flag = false;
   }
-
-
 }
 
 Eigen::Vector3d G2oOptimizer::calAveMapPoint() {
@@ -371,7 +378,8 @@ Eigen::Vector3d G2oOptimizer::calAveMapPoint() {
       kf_mps;
   for (auto &it : mps_data_) {
     auto &mp = it.second.first;
-    if (mp->toEigenVector3d()[2] > 9 || mp->toEigenVector3d()[2] < 0.2) continue;
+    if (mp->toEigenVector3d()[2] > 9 || mp->toEigenVector3d()[2] < 0.2)
+      continue;
     kf_mps.emplace_back(mp->toEigenVector3d());
     ave_kf_mp += mp->toEigenVector3d();
   }

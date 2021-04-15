@@ -1,11 +1,3 @@
-/*
- * @file:  
- * @author: Dongying (yudong2817@sina.com)
- * @brief:  
- * @version:  
- * @date:  Do not edit 
- * @copyright: Copyright (c) 2021
- */
 /**
  * @file test_system.cc
  * @author xiaotaw (you@domain.com)
@@ -73,8 +65,7 @@ int main(int argc, char **argv) {
   for (int cnt = 0;; ++cnt) {
     capture >> img;
     // 现场部署时需要用
-    // if(cnt%3 != 0)
-    //   continue;
+    // if (cnt % 3 != 0) continue;
     system->insertNewImage(img);
     cv::waitKey(50);
   }

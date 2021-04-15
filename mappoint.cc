@@ -43,21 +43,38 @@ std::vector<std::pair<size_t, size_t>> MapPoint::getObservation() {
   return observations_;
 }
 
+void MapPoint::eraseObservation(const std::map<size_t, size_t> &e_index) {
+  std::unique_lock<std::mutex> lock(mutex_observation_);
+  // std::map<size_t, size_t>::iterator find_it;
+  // find_it = e_index.find(it.first);
+  // auto flag = (find_it == e_index.end()) ? 0 : 1;
+  // if (flag) {
+  for (auto &it : e_index) {
+    std::vector<std::pair<size_t, size_t>>::iterator iter;
+    for (iter = observations_.begin(); iter != observations_.end();) {
+      if ((*iter).first == it.second) {
+        // 返回指向被删元素下一个位置元素的迭代器
+        iter = observations_.erase(iter);
+      } else {
+        ++iter;
+      }
+    }
+    
+  }
+}
+
 int MapPoint::getObservationSize() {
   std::unique_lock<std::mutex> lock(mutex_observation_);
   return observations_.size();
 }
 
-int MapPoint::getPointValue(const int &num){
+int MapPoint::getPointValue(const int &num) {
   std::unique_lock<std::mutex> lock(mutex_);
-  if (num == 1)
-  {
+  if (num == 1) {
     return x_;
-  }else if (num == 2)
-  {
+  } else if (num == 2) {
     return y_;
-  }else
-  {
+  } else {
     return z_;
   }
 }
