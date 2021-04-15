@@ -32,7 +32,6 @@ cd ../../..
 #编译DBoW2
 mkdir build
 cd build
-F
 make -j
 cd ../../..
 

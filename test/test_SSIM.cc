@@ -18,19 +18,23 @@
 
 // cv::Scalar getMSSIM(cv::Mat inputimage1, cv::Mat inputimage2);
 int main(int argc, char** argv) {
-  std::string video_file = "/home/ipsg/dataset_temp/74_new_test_cut.mp4";
-  int skip_frames = 0;
+  std::string video_file = "/home/ipsg/dataset_temp/79_location.mp4";
+  int skip_frames = 1000;
 
   // skip some frames
   cv::Mat img;
   cv::VideoCapture capture(video_file);
+  if (!capture.isOpened()) {
+    std::cout << "Could not open the input video: " << video_file << std::endl;
+    return -1;
+  }
   while (skip_frames > 0) {
     capture >> img;
     skip_frames--;
   }
 
   auto location = std::make_shared<Localization>(
-      "./vocabulary/image_save3/rgb.txt", 0.01, true, 1);
+      "./vocabulary/image_save2/rgb.txt", 0.01, true, 1);
   int cnt = 0;
   for (int cnt = 0;; ++cnt) {
     capture >> img;
@@ -42,9 +46,10 @@ int main(int argc, char** argv) {
     // if(cnt%3 != 0)
     //   continue;
     // cv::imshow("image_video", img);
+    int crane_id = 2;
     Frame::Ptr frame = std::make_shared<Frame>(img);
     double position;
-    bool status = location->localizeByMSSIM(frame, position, true);
+    bool status = location->localizeByMSSIM(frame, position, crane_id, true);
     std::cout << "The frame cnt : " << cnt << std::endl;
     std::cout << "The crane position is : " << position << std::endl;
     cv::waitKey();

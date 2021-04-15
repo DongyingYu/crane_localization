@@ -53,7 +53,7 @@ class Localization {
                 const bool &verbose = false);
 
   bool localizeByMSSIM(const Frame::Ptr &cur_frame, double &position,
-                       const bool &verbose = false);
+                       const int &crane_id, const bool &verbose = false);
 
  private:
   std::vector<cv::Mat> loadImages(const std::string &index_filename);
@@ -73,5 +73,4 @@ class Localization {
 
   double const c1_ = 6.5025;
   double const c2_ = 58.5225;
-
 };

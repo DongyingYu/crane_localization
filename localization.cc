@@ -56,7 +56,7 @@ Localization::Localization(const std::string &preload_keyframes,
     // 后续只需传入到frame中然后截取部分图像，用以计算SSIM即可
     Frame::Ptr frame = std::make_shared<Frame>(images[i]);
     frame->computeSSIM();
-    frame->releaseImage();
+    // frame->releaseImage();
     frames_.emplace_back(frame);
   }
 }
@@ -205,7 +205,8 @@ bool Localization::localize(const Frame::Ptr &cur_frame, double &position,
 }
 
 bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
-                                   double &position, const bool &verbose) {
+                                   double &position, const int &crane_id,
+                                   const bool &verbose) {
   cur_frame->computeSSIM();
   // image_convert、mu、mu_2、sigma_2
   // auto ssim_cur_frame = cur_frame->getSSIMData2();
@@ -213,7 +214,8 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
   for (int i = 0; i < frames_.size(); i++) {
     // auto ssim_pre_frame = frames_[i]->getSSIMData2();
     cv::Mat I1_I2 = frames_[i]->getSSIMDatax().mul(cur_frame->getSSIMDatax());
-    cv::Mat mu1_mu2 = frames_[i]->getSSIMDatamu().mul(cur_frame->getSSIMDatamu());
+    cv::Mat mu1_mu2 =
+        frames_[i]->getSSIMDatamu().mul(cur_frame->getSSIMDatamu());
     cv::Mat sigma_I1I2;
     cv::GaussianBlur(I1_I2, sigma_I1I2, cv::Size(11, 11), 1.5);
     sigma_I1I2 -= mu1_mu2;
@@ -223,7 +225,8 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
     // temp3 = temp1.mul(temp2);
     temp3 = temp2.clone();
     temp1 = cur_frame->getSSIMDatamu2() + frames_[i]->getSSIMDatamu2() + c1_;
-    temp2 = cur_frame->getSSIMDatasigma2() + frames_[i]->getSSIMDatasigma2() + c2_;
+    temp2 =
+        cur_frame->getSSIMDatasigma2() + frames_[i]->getSSIMDatasigma2() + c2_;
     // temp1 = temp1.mul(temp2);
     temp1 = temp2.clone();
     cv::Mat ssim_map;
@@ -265,40 +268,164 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
               << "The index is: " << vscore[i].second << std::endl;
   }
   bool is_selected_one = false;
-  if ((abs(vscore[0].first - 2 * vscore[1].first + vscore[2].first) > 1.0) &&
-      ((vscore[0].first - vscore[1].first) /
-           (vscore[1].first - vscore[2].first) <
-       7.0) &&
-      ((vscore[0].first - vscore[1].first) /
-           (vscore[1].first - vscore[2].first) >
-       3.0) &&
-      (abs(image_position_[vscore[0].second] -
-           image_position_[vscore[1].second]) < 1.5)) {
-    is_selected_one = true;
-    std::cout << "\033[31m Screening state of optimal score --one! \033[0m "
-              << std::endl;
+  bool is_selected_two = false;
+  bool is_selected_three = false;
+  //
+  if (crane_id == 4) {
+    // 4号天车在用以定位的数据集上测试效果稳定
+    is_selected_one = false;
+    if ((abs(vscore[0].first - 2 * vscore[1].first + vscore[2].first) > 1.0) &&
+        ((vscore[0].first - vscore[1].first) /
+             (vscore[1].first - vscore[2].first) <
+         7.0) &&
+        ((vscore[0].first - vscore[1].first) /
+             (vscore[1].first - vscore[2].first) >
+         3.0) &&
+        (abs(image_position_[vscore[0].second] -
+             image_position_[vscore[1].second]) < 1.5)) {
+      is_selected_one = true;
+      std::cout << "\033[31m Screening state of optimal score --one! \033[0m "
+                << std::endl;
+    } else {
+      is_selected_one = false;
+    }
+
+    is_selected_two = false;
+    if ((vscore[0].first - vscore[1].first) > 0.5 &&
+        abs(vscore[0].second - vscore[1].second) > 2 &&
+        abs(vscore[0].second - vscore[2].second) > 2) {
+      is_selected_two = true;
+      std::cout << "\033[31m Screening state of optimal score --two! \033[0m "
+                << std::endl;
+    } else {
+      is_selected_two = false;
+    }
+
+    is_selected_three = false;
+    if (vscore[0].first > 75) {
+      std::cout << "\033[31m Screening state of optimal score --three! \033[0m "
+                << std::endl;
+      is_selected_three = true;
+    } else {
+      is_selected_three = false;
+    }
+  } else if (crane_id == 3) {
+    // 三号天车数据已测，效果稳定
+    is_selected_one = false;
+    if ((abs(vscore[0].first - 2 * vscore[1].first + vscore[2].first) > 1.0) &&
+        ((vscore[0].first - vscore[1].first) /
+             (vscore[1].first - vscore[2].first) <
+         7.0) &&
+        ((vscore[0].first - vscore[1].first) /
+             (vscore[1].first - vscore[2].first) >
+         3.0) &&
+        (abs(image_position_[vscore[0].second] -
+             image_position_[vscore[1].second]) < 1.5)) {
+      is_selected_one = true;
+      std::cout << "\033[31m Screening state of optimal score --one! \033[0m "
+                << std::endl;
+    } else {
+      is_selected_one = false;
+    }
+
+    is_selected_two = false;
+    if ((vscore[0].first - vscore[1].first) > 0.5 &&
+        abs(vscore[0].second - vscore[1].second) > 2 &&
+        abs(vscore[0].second - vscore[2].second) > 2) {
+      is_selected_two = true;
+      std::cout << "\033[31m Screening state of optimal score --two! \033[0m "
+                << std::endl;
+    } else {
+      is_selected_two = false;
+    }
+
+    is_selected_three = false;
+    if (vscore[0].first > 75) {
+      std::cout << "\033[31m Screening state of optimal score --three! \033[0m "
+                << std::endl;
+      is_selected_three = true;
+    } else {
+      is_selected_three = false;
+    }
+  } else if (crane_id == 2) {
+    is_selected_one = false;
+    if ((abs(vscore[0].first - 2 * vscore[1].first + vscore[2].first) > 1.5) &&
+        ((vscore[0].first - vscore[1].first) /
+             (vscore[1].first - vscore[2].first) <
+         7.0) &&
+        ((vscore[0].first - vscore[1].first) /
+             (vscore[1].first - vscore[2].first) >
+         3.0) &&
+        (abs(image_position_[vscore[0].second] -
+             image_position_[vscore[1].second]) < 1.5)) {
+      is_selected_one = true;
+      std::cout << "\033[31m Screening state of optimal score --one! \033[0m "
+                << std::endl;
+    } else {
+      is_selected_one = false;
+    }
+
+    is_selected_two = false;
+    if (((vscore[0].first - vscore[1].first) > 1.5 &&
+         abs(vscore[0].second - vscore[1].second) >= 1 &&
+         abs(vscore[0].second - vscore[2].second) > 3) ||
+        ((vscore[0].first - vscore[1].first) > 1.5 &&
+         abs(vscore[0].second - vscore[1].second) >= 1 &&
+         abs(vscore[0].second - vscore[2].second) >= 1 &&
+         abs(vscore[0].second - vscore[3].second) >= 3) && vscore[0].first > 70) {
+      is_selected_two = true;
+      std::cout << "\033[31m Screening state of optimal score --two! \033[0m "
+                << std::endl;
+    } else {
+      is_selected_two = false;
+    }
+
+    is_selected_three = false;
+    if (vscore[0].first > 80 && abs(vscore[0].first - vscore[1].first) >= 1 &&
+        abs(vscore[0].second - vscore[1].second) <= 2) {
+      std::cout << "\033[31m Screening state of optimal score --three! \033[0m "
+                << std::endl;
+      is_selected_three = true;
+    } else {
+      is_selected_three = false;
+    }
   } else {
     is_selected_one = false;
-  }
+    if ((abs(vscore[0].first - 2 * vscore[1].first + vscore[2].first) > 1.0) &&
+        ((vscore[0].first - vscore[1].first) /
+             (vscore[1].first - vscore[2].first) <
+         7.0) &&
+        ((vscore[0].first - vscore[1].first) /
+             (vscore[1].first - vscore[2].first) >
+         3.0) &&
+        (abs(image_position_[vscore[0].second] -
+             image_position_[vscore[1].second]) < 1.5)) {
+      is_selected_one = true;
+      std::cout << "\033[31m Screening state of optimal score --one! \033[0m "
+                << std::endl;
+    } else {
+      is_selected_one = false;
+    }
 
-  bool is_selected_two = false;
-  if ((vscore[0].first - vscore[1].first) > 0.5 &&
-      abs(vscore[0].second - vscore[1].second) > 2 &&
-      abs(vscore[0].second - vscore[2].second) > 2) {
-    is_selected_two = true;
-    std::cout << "\033[31m Screening state of optimal score --two! \033[0m "
-              << std::endl;
-  } else {
     is_selected_two = false;
-  }
+    if ((vscore[0].first - vscore[1].first) > 0.5 &&
+        abs(vscore[0].second - vscore[1].second) > 2 &&
+        abs(vscore[0].second - vscore[2].second) > 2) {
+      is_selected_two = true;
+      std::cout << "\033[31m Screening state of optimal score --two! \033[0m "
+                << std::endl;
+    } else {
+      is_selected_two = false;
+    }
 
-  bool is_selected_three = false;
-  if (vscore[0].first > 75) {
-    std::cout << "\033[31m Screening state of optimal score --three! \033[0m "
-              << std::endl;
-    is_selected_three = true;
-  } else {
     is_selected_three = false;
+    if (vscore[0].first > 75) {
+      std::cout << "\033[31m Screening state of optimal score --three! \033[0m "
+                << std::endl;
+      is_selected_three = true;
+    } else {
+      is_selected_three = false;
+    }
   }
 
   // float score_sum = 0.0;

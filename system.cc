@@ -223,7 +223,7 @@ void System::run() {
       {
         // 获取先验帧的绝对位置信息
         double true_position;
-        auto status = locater_->localizeByMSSIM(cur_frame_, true_position, false);
+        auto status = locater_->localizeByMSSIM(cur_frame_, true_position, crane_id_,false);
         if(status) {
           std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
           cur_frame_->setFlag(true);
@@ -353,7 +353,7 @@ void System::run() {
         
         double true_position;
 
-        auto status = locater_->localizeByMSSIM(cur_frame_,true_position,false);
+        auto status = locater_->localizeByMSSIM(cur_frame_,true_position,crane_id_,false);
         if( status ){
           std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
           points_data_.emplace_back(cur_frame_->getEigenTransWc()[0],true_position);
