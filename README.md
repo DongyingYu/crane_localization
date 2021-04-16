@@ -95,6 +95,9 @@ export LD_LIBRARY_PATH=${g2o_path}
 ./build/test/test_system 3 /home/ipsg/dataset_temp/74_new_test_cut.mp4 ./conf/pipeline_online.yaml 0
 ./build/test/test_system 3 /home/ipsg/dataset_temp/74_new_test.mp4 ./conf/pipeline_online.yaml 0
 
+./build/test/test_system 1 /home/ipsg/dataset_temp/80_location_2.mp4 ./conf/pipeline_online.yaml 0
+
+./build/test/test_system 2 /home/ipsg/dataset_temp/79_location.mp4 ./conf/pipeline_online.yaml 0
 
 ./build/test_websocket
 ./run.sh

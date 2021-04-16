@@ -348,6 +348,7 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
       is_selected_three = false;
     }
   } else if (crane_id == 2) {
+    // 2号天车再定位数据上测试效果稳定
     is_selected_one = false;
     if ((abs(vscore[0].first - 2 * vscore[1].first + vscore[2].first) > 1.5) &&
         ((vscore[0].first - vscore[1].first) /
@@ -390,6 +391,7 @@ bool Localization::localizeByMSSIM(const Frame::Ptr &cur_frame,
       is_selected_three = false;
     }
   } else {
+    // 1号天车筛选约束条件
     is_selected_one = false;
     if ((abs(vscore[0].first - 2 * vscore[1].first + vscore[2].first) > 1.0) &&
         ((vscore[0].first - vscore[1].first) /
