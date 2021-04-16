@@ -1,7 +1,7 @@
 transpose_image: true
 scale_image: 0.5
 debug_draw: 1
-pop_frame: true
+pop_frame: false
 save_position: true
 camera_model:
   camera_yaml: ./conf/BL-EX346HP-15M.yaml
@@ -16,5 +16,5 @@ localization:
 websocket:
   server_address: ws://192.168.1.106:18001/ws?client_type=edge1&id=1
 optimization:
-  sliding_window_size_local: 3
+  sliding_window_size_local: 2
   sliding_window_size_global: 20

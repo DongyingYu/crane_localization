@@ -18,8 +18,8 @@
 
 // cv::Scalar getMSSIM(cv::Mat inputimage1, cv::Mat inputimage2);
 int main(int argc, char** argv) {
-  std::string video_file = "/home/ipsg/dataset_temp/79_location.mp4";
-  int skip_frames = 1000;
+  std::string video_file = "/home/ipsg/dataset_temp/80_location_2.mp4";
+  int skip_frames = 0;
 
   // skip some frames
   cv::Mat img;
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
   }
 
   auto location = std::make_shared<Localization>(
-      "./vocabulary/image_save2/rgb.txt", 0.01, true, 1);
+      "./vocabulary/image_save/rgb.txt", 0.01, true, 1);
   int cnt = 0;
   for (int cnt = 0;; ++cnt) {
     capture >> img;
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     // if(cnt%3 != 0)
     //   continue;
     // cv::imshow("image_video", img);
-    int crane_id = 2;
+    int crane_id = 1;
     Frame::Ptr frame = std::make_shared<Frame>(img);
     double position;
     bool status = location->localizeByMSSIM(frame, position, crane_id, true);

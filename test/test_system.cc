@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     // 现场部署时需要用
     // if (cnt % 3 != 0) continue;
     system->insertNewImage(img);
-    cv::waitKey(50);
+    cv::waitKey();
   }
   system->stop();
 }

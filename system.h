@@ -102,8 +102,8 @@ class System {
 
   // 对应于4辆天车的初始尺度，运行中不断更新
   double offset_ = 0.0;
-  double k1_ = 12.53;
-  double k2_ = 12.53;
+  double k1_ = 12.21;
+  double k2_ = 10.0;
   double k3_ = 6.75;
   double k4_ = 13.18;
 };

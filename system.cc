@@ -216,6 +216,9 @@ void System::run() {
       int cnt_failed=1;
       int id_failed=0;
 
+      std::vector<cv::Point2f> tmp;
+      points_data_.swap(tmp);
+
       G2oOptimizer::Ptr opt = cur_map_->buildG2oOptKeyFrameBa();
       opt->optimize();
       opt->optimizeLinearMotion();
@@ -280,7 +283,17 @@ void System::run() {
                   << "[INFO]: Frame absolute position: " << /*-position* + offset_temp */position << std::endl
                   << std::endl;
         // position_ = position + offset_temp;
-        position_ = position;
+        // 绝对位置转换为三维模型中的位置
+        if(position >= 0 && position <= 68)
+          position_ = (68 - position) * 100 + 50;
+        else if(position > 68 && position <= 136)
+          position_ = (68 - position) * 100 - 100;
+        else if(position > 136)
+          position_ = -6800;
+        else 
+          position_ = 6800;
+        
+        // position_ = position;
         // 需修改，天车ID从外部传入
         ws_endpoint_.send(position_, crane_id_);
       } else if(track_status == 2){
