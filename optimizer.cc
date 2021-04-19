@@ -120,7 +120,9 @@ void G2oOptimizer::optimize(const int &n_iteration) {
       auto e = new g2o::EdgeSE3ProjectXYZ();
       e->setVertex(0, dynamic_cast<GVO *>(optimizer.vertex(id)));
       e->setVertex(1, dynamic_cast<GVO *>(optimizer.vertex(frame_id)));
+      // 决定了边类中computeError()函数和linearizeOplus()函数中的_measurement的值
       e->setMeasurement(uv);
+      // 信息矩阵的设定
       e->setInformation(Eigen::Matrix2d::Identity());
 
       std::vector<double> intr_vec = frame->camera_model_->getNewIntrinsicVec();
@@ -316,11 +318,14 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
       for (auto &e : edges) {
         e->computeError();
         double chi2 = e->chi2();
-        if (chi2 > 20) {
-          e->setLevel(1);
-          size_t frame_id = e->vertices()[1]->id() - 1;
-          size_t mp_id = e->vertices()[2]->id() - frame_id_max - 2;
-          e_index[mp_id] = frame_id;
+        if (i == 0) {
+          if (chi2 > 20) {
+            e->setLevel(1);
+            // 进行了两轮优化，这里需要设置只使用第一次优化中获取值，需做改动
+            size_t frame_id = e->vertices()[1]->id() - 1;
+            size_t mp_id = e->vertices()[2]->id() - frame_id_max - 2;
+            e_index[mp_id] = frame_id;
+          }
         }
       }
     }
@@ -374,6 +379,7 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
 
 Eigen::Vector3d G2oOptimizer::calAveMapPoint() {
   Eigen::Vector3d ave_kf_mp = Eigen::Vector3d::Zero();
+  // 标准的定义容器方法,Eigen管理内存和C++11中的方法不一样，需要单独强调元素的内存分配和管理
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
       kf_mps;
   for (auto &it : mps_data_) {

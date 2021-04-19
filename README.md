@@ -86,6 +86,7 @@ export LD_LIBRARY_PATH=${g2o_path}
 ./build/test/test_system 1 /home/ipsg/dataset_temp/78_cut_4.mp4 ./conf/pipeline_online.yaml 0
 ./build/test/test_system 1 /home/ipsg/dataset_temp/78_test_o.mp4 ./conf/pipeline_online.yaml 0  (含火花)
 
+// 现场数据测试
 ./build/test/test_system 4 /home/ipsg/dataset_temp/77_closing.mp4 ./conf/pipeline_online.yaml 0
 
 ./build/test/test_system 4 /home/ipsg/dataset_temp/77_location.mp4 ./conf/pipeline_online.yaml 0
@@ -95,9 +96,18 @@ export LD_LIBRARY_PATH=${g2o_path}
 ./build/test/test_system 3 /home/ipsg/dataset_temp/74_new_test_cut.mp4 ./conf/pipeline_online.yaml 0
 ./build/test/test_system 3 /home/ipsg/dataset_temp/74_new_test.mp4 ./conf/pipeline_online.yaml 0
 
-./build/test/test_system 1 /home/ipsg/dataset_temp/80_location_2.mp4 ./conf/pipeline_online.yaml 0
+./build/test/test_system 1 /home/ipsg/dataset_temp/81_location_2.mp4 ./conf/pipeline_online.yaml 0
 
 ./build/test/test_system 2 /home/ipsg/dataset_temp/79_location.mp4 ./conf/pipeline_online.yaml 0
+
+./build/test/test_system 2 /home/ipsg/下载/video_79_26.mp4 ./conf/pipeline_online.yaml 0
+
+./build/test/test_system 4 /home/ipsg/dataset_temp/77_test_new_1.mp4 ./conf/pipeline_online.yaml 0
+./build/test/test_system 4 /home/ipsg/dataset_temp/77_test_new_2.mp4 ./conf/pipeline_online.yaml 0
+./build/test/test_system 4 /home/ipsg/dataset_temp/77_test_new_3.mp4 ./conf/pipeline_online.yaml 0
+
+./build/test/test_system 2 /home/ipsg/dataset_temp/79_test_new_1.mp4 ./conf/pipeline_online.yaml 0
+./build/test/test_system 2 /home/ipsg/dataset_temp/79_test_new_2.mp4 ./conf/pipeline_online.yaml 0
 
 ./build/test_websocket
 ./run.sh

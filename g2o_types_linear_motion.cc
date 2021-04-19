@@ -38,9 +38,9 @@ VertexLineTranslation::VertexLineTranslation() {}
 bool VertexLineTranslation::read(std::istream &is) {}
 
 bool VertexLineTranslation::write(std::ostream &os) const {}
-
+// 线性运动给定初值
 void VertexLineTranslation::setToOriginImpl() { _estimate = 0.0; }
-// 直接做加法
+// 直接做加法，更新预测值x(k+1) = x(k) + delta x(k); update_:delta x(k)
 void VertexLineTranslation::oplusImpl(const number_t *update_) {
   setEstimate(*update_ + estimate());
 }
@@ -143,7 +143,7 @@ void EdgeLinearMotion::computeError() {
   Vector3 Xw = v3->estimate();
   Vector3 Xc = se3quat.inverse().map(Xw);
   Vector2 proj = cam_project(Xc);
-  // 计算像素误差
+  // 计算像素误差 观测值-预测值
   _error = obs - proj;
   // std::cout << "[DEBUG]: Xw: " << Xw.transpose() << std::endl;
   // std::cout << "[DEBUG]: Xc: " << Xc.transpose() << std::endl;
@@ -176,7 +176,7 @@ void EdgeLinearMotion::linearizeOplus() {
   // 按照推导，这个符号应该是负
   double sign = -1;
 
-  // 顶点1的雅克比 VertexSO3Expmap
+  // 顶点1的雅克比 VertexSO3Expmap 误差对李代数的导数
   _jacobianOplus[0](0, 0) = sign * (x * y * invz_2 * fx);
   _jacobianOplus[0](0, 1) = sign * (-(1 + (x * x * invz_2)) * fx);
   _jacobianOplus[0](0, 2) = sign * (y * invz * fx);
@@ -184,11 +184,11 @@ void EdgeLinearMotion::linearizeOplus() {
   _jacobianOplus[0](1, 1) = sign * (-x * y * invz_2 * fy);
   _jacobianOplus[0](1, 2) = sign * (-x * invz * fy);
 
-  // 顶点2的雅克比 VertexLineTranslation
+  // 顶点2的雅克比 VertexLineTranslation 误差对x方向平移的导数
   _jacobianOplus[1](0, 0) = sign * (-invz * fx);
   _jacobianOplus[1](1, 0) = sign * (0);
 
-  // 顶点3的雅克比 VertexSBAPointXYZ
+  // 顶点3的雅克比 VertexSBAPointXYZ 误差关于投影点的导数
   Eigen::Matrix<number_t, 2, 3> tmp;
   tmp(0, 0) = fx;
   tmp(0, 1) = 0;

@@ -227,7 +227,7 @@ int Frame::matchWith(const Frame::Ptr frame,
 
   ave_x = 0;
   std::vector<bool> vbInliers;
-  // 使用keypoints_比un_keypoints_更合理
+  //
   Gridmatcher::Ptr gridmatch = std::make_shared<Gridmatcher>(
       this->un_keypoints_, this->img_.size(), frame->un_keypoints_,
       frame->img_.size(), all_matches);

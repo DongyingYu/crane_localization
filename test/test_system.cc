@@ -48,12 +48,30 @@ int main(int argc, char **argv) {
 
   auto system = std::make_shared<System>(yaml_file, crane_id);
 
-  // cv::VideoCapture capture(video_file, CAP_FFMPEG);
-  cv::VideoCapture capture(video_file);
+  // cv::VideoCapture capture(video_file);
+  // if (!capture.isOpened()) {
+  //   std::cout << "Could not open the input video: " << video_file <<
+  //   std::endl;
+  //   sleep(1000);
+  //   cv::VideoCapture capture(video_file);
+  //   std::cout << "Reconnect to the video: " << video_file << std::endl;
+  //   return -1;
+  // }
 
-  if (!capture.isOpened()) {
-    std::cout << "Could not open the input video: " << video_file << std::endl;
-    return -1;
+  bool capture_status = true;
+  cv::VideoCapture capture;
+  {
+    capture.open(video_file);
+    if (!capture.isOpened()) capture_status = false;
+  }
+
+  while (!capture_status) {
+    std::cout << "[WARNING]: Could not open the input video: " << video_file
+              << std::endl;
+    capture.open(video_file);
+    std::cout << "[INFO]: Reconnect to the video: " << video_file << std::endl;
+    if (capture.isOpened()) capture_status = true;
+    sleep(10);
   }
 
   cv::Mat img;

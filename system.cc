@@ -295,7 +295,17 @@ void System::run() {
         
         // position_ = position;
         // 需修改，天车ID从外部传入
-        ws_endpoint_.send(position_, crane_id_);
+        int crane_id_send;
+        if(crane_id_ == 1)
+          crane_id_send = 22;
+        else if(crane_id_ == 2)
+          crane_id_send = 1;
+        else if(crane_id_ == 3)
+          crane_id_send = 2;
+        else
+          crane_id_send = 3;
+        
+        ws_endpoint_.send(position_, crane_id_send);
       } else if(track_status == 2){
         // 跟踪丢时候的重新建立地图点，相当于开始新的初始化，只是初始位姿是给定值(备用)
         std::cout << "[WARNING]: Frame " << frame_id << std::endl
@@ -370,8 +380,11 @@ void System::run() {
         if( status ){
           std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
           points_data_.emplace_back(cur_frame_->getEigenTransWc()[0],true_position);
+          // if(points_data_.size() < 10){
+          //   cur_map_->calculateOffset(k1_,k2_,k3_,k4_);
+          // }
           std::cout << "\033[33m The points_data size:  \033[0m " << points_data_.size() << std::endl;
-          if(points_data_.size() % 10 == 0){
+          if(points_data_.size() % 10 == 0 || points_data_.size() < 10){
             updatecoef(points_data_);
             // 清空point_data_
             // {
