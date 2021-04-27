@@ -1,12 +1,13 @@
 - [金川工厂天车视觉定位](#金川工厂天车视觉定位)
 - [依赖](#依赖)
-- [运行](#运行)
+- [编译](#编译)
 - [开发和测试](#开发和测试)
   - [相机参数标定](#相机参数标定)
   - [功能性测试](#功能性测试)
-- [docker](#docker)
+- [部署上线](#部署上线)
   - [image创建](#image创建)
   - [image使用](#image使用)
+  - [运行](#运行)
 
 ## 金川工厂天车视觉定位
 
@@ -108,6 +109,10 @@ export LD_LIBRARY_PATH=${g2o_path}
 
 ./build/test/test_system 2 /home/ipsg/dataset_temp/79_test_new_1.mp4 ./conf/pipeline_online.yaml 0
 ./build/test/test_system 2 /home/ipsg/dataset_temp/79_test_new_2.mp4 ./conf/pipeline_online.yaml 0
+
+# 2021/05/11录制数据集
+./build/test/test_system 2 /home/ipsg/dataset_temp/crane_2_0511.mp4 ./conf/pipeline_online.yaml 0
+
 
 ./build/test_websocket
 ./run.sh
