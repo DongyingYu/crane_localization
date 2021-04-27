@@ -56,7 +56,7 @@ Localization::Localization(const std::string &preload_keyframes,
     // 后续只需传入到frame中然后截取部分图像，用以计算SSIM即可
     Frame::Ptr frame = std::make_shared<Frame>(images[i]);
     frame->computeSSIM();
-    // frame->releaseImage();
+    frame->releaseImage();
     frames_.emplace_back(frame);
   }
 }
