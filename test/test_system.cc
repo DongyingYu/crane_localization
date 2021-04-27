@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     capture.open(video_file);
     std::cout << "[INFO]: Reconnect to the video: " << video_file << std::endl;
     if (capture.isOpened()) capture_status = true;
-    sleep(10);
+    usleep(500000);
   }
 
   cv::Mat img;

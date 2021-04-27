@@ -250,7 +250,10 @@ int Frame::matchWith(const Frame::Ptr frame,
   points1.clear();
   points2.clear();
   for (const auto &m : matches_good /*better_matches*/) {
+    // queryIdx trainIdx 是对应每张图像上提取到的点对应的查询id,从0开始
     auto kp1 = un_keypoints_[m.queryIdx];
+    // std::cout << "\033[33m [INFO]: The number of matches' queryIdx:  \033[0m"
+    //           << m.queryIdx << std::endl;
     auto kp2 = frame->un_keypoints_[m.trainIdx];
     auto pt_diff = kp1.pt - kp2.pt;
     if (abs(pt_diff.y) > 10) continue;
@@ -499,7 +502,7 @@ void Frame::releaseImage() {
   img_roi_.release();
 }
 
-void Frame::releaseSSIMdata(){
+void Frame::releaseSSIMdata() {
   x_.release();
   mu_.release();
   mu2_.release();

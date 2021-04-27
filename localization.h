@@ -19,6 +19,7 @@
 #include <queue>
 #include <thread>
 #include <utility>
+#include <memory>
 #include "ORBVocabulary.h"
 #include "frame.h"
 

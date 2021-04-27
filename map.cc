@@ -426,6 +426,7 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
 
   // 2. 利用单应矩阵计算R和t，挑选出正确的R和t，初始化地图点
   std::vector<cv::Mat> Rs, ts, normals;
+  // 这里求解得出四组解
   cv::decomposeHomographyMat(H, K, Rs, ts, normals);
 
   cv::Mat R_h, t_h;
@@ -433,6 +434,7 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
   std::vector<uchar> mask;
   std::vector<MapPoint::Ptr> mappoints;
   for (int i = 0; i < Rs.size(); ++i) {
+    std::cout << "\033[33m [INFO]: The size of Rs size: \033[0m" << Rs.size() << std::endl;
     std::vector<uchar> mask_tmp = ransac_status;
     std::vector<MapPoint::Ptr> mps_tmp;
     // 检查R，t，n，统计内点数目
@@ -574,7 +576,8 @@ int Map::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
     // 空间点在相机位置2参考系中的坐标
     cv::Mat x3D_C2 = R * x3D_C1 + t;
 
-    // 判断是否为有效的地图点
+    // 判断是否为有效的地图点，对四种情况下的地图点筛选，只有唯一正确的情况才满足判决条件。
+    // 不满足条件，不会对3D点进行插入，确保地图点有效
     if (!(std::isfinite(x3D_C1.at<double>(0)) &&
           std::isfinite(x3D_C1.at<double>(1)) &&
           std::isfinite(x3D_C1.at<double>(2)) && x3D_C1.at<double>(2) > 0 &&
@@ -609,7 +612,7 @@ int Map::checkRtn(const cv::Mat &R, const cv::Mat &t, const cv::Mat &n,
       }
       continue;
     }
-
+    // 这里可以保存地图点，并确定唯一地图点id
     mappoints.emplace_back(std::make_shared<MapPoint>(
         x3D_C1.at<double>(0), x3D_C1.at<double>(1), x3D_C1.at<double>(2)));
     x3D_cnt++;
