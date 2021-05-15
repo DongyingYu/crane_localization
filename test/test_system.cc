@@ -10,7 +10,9 @@
  */
 #include <yaml-cpp/yaml.h>
 #include <chrono>
+#include <opencv2/videoio.hpp>
 #include "system.h"
+
 
 int main(int argc, char **argv) {
   // 默认参数
@@ -59,9 +61,10 @@ int main(int argc, char **argv) {
   // }
 
   bool capture_status = true;
-  cv::VideoCapture capture;
+  
+  cv::VideoCapture capture(video_file,cv::CAP_GSTREAMER);
   {
-    capture.open(video_file);
+    // capture.open(video_file);
     if (!capture.isOpened()) capture_status = false;
   }
 
@@ -81,7 +84,24 @@ int main(int argc, char **argv) {
 
   int cnt = 0;
   for (int cnt = 0;; ++cnt) {
-    capture >> img;
+    capture.read(img);
+    if (img.empty()) {
+      std::cerr << "ERROR: blank frame. \n";
+
+      {
+        capture.open(video_file);
+        if (!capture.isOpened()) capture_status = false;
+      }
+      while (!capture_status) {
+        std::cout << "[WARNING]: Could not open the input video: " << video_file
+                  << std::endl;
+        capture.open(video_file);
+        std::cout << "[INFO]: Reconnect to the video: " << video_file
+                  << std::endl;
+        if (capture.isOpened()) capture_status = true;
+        usleep(500000);
+      }
+    }
     // 现场部署时需要用
     // if (cnt % 3 != 0) continue;
     system->insertNewImage(img);
