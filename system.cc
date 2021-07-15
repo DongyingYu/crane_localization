@@ -125,6 +125,7 @@ double System::getPosition() {
 
 void System::stop() { thread_.join(); }
 
+// 拟合直线，对天车的绝对位置尺度系数进行更新
 void System::updatecoef(const std::vector<cv::Point2f> &points) {
   int size = points.size();
   std::cout << "\033[32m The number of points used to fit a line: \033[0m "

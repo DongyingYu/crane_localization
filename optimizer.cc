@@ -322,7 +322,9 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
           if (chi2 > 20) {
             e->setLevel(1);
             // 进行了两轮优化，这里需要设置只使用第一次优化中获取值，需做改动
+            // 这里frame_id、mp_id的计算关系首先要里理清楚
             size_t frame_id = e->vertices()[1]->id() - 1;
+            // 获取地图点id值
             size_t mp_id = e->vertices()[2]->id() - frame_id_max - 2;
             e_index[mp_id] = frame_id;
           }
@@ -370,6 +372,7 @@ void G2oOptimizer::optimizeLinearMotion(const int &n_iteration) {
     Eigen::Vector3d evec = v->estimate();
 
     mp->fromEigenVector3d(evec);
+    // 删除无效的共视地图点
     if (erase_flag) {
       mp->eraseObservation(e_index);
     }
