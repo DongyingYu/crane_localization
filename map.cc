@@ -108,6 +108,7 @@ int Map::trackNewFrameByKeyFrame(Frame::Ptr curr_frame,
     // 如果上一帧是关键帧，则返回不对当前帧进行处理，需重新初始化地图，否则继续进行后续(待添加)
 
     // 对普通帧就是如下的处理情况，对未在地图点中的特征点进行三角化，并进行g2o优化求取位姿。
+    // 获取的初始位姿，以上一帧位姿作为初值，是在相机坐标系下，因对两针之间优化求解，故是在像极坐标系下。
     curr_frame->setPose(getLastFrame()->getPose());
     // 优化当前帧curr_frame,及其相关的地图点
     G2oOptimizer::Ptr opt = buildG2oOptForFrame(curr_frame);
@@ -464,12 +465,15 @@ bool Map::initialize(const Frame::Ptr &frame1, const Frame::Ptr &frame2,
   // 3. 初始化地图，建立特征点与地图点之间的关联
   // setPose()最初初始化时用到，设置第一帧图像的初始化位置，用默认值
   // frame1->setPose(cv::Mat::eye(3, 3, CV_64F), cv::Mat::zeros(3, 1, CV_64F));
+  // 获取相机位姿下的旋转、平移数据
   cv::Mat Tcw = frame1->getPose();
   cv::Mat R1, t1;
   Tcw.rowRange(0, 3).colRange(0, 3).copyTo(R1);
   Tcw.rowRange(0, 3).col(3).copyTo(t1);
   frame2->setPose(R_h * R1, R_h * t1 + t_h);
 
+  // 这里仅是输出对平移量进行观察，获取第二帧图像在世界坐标系下的平移，
+  // 即：-旋转矩阵的逆*平移量
   std::cout << "[INFO]: twc: " << toString(frame2->getEigenTransWc())
             << std::endl;
   insertRecentFrame(frame1);
