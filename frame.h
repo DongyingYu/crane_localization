@@ -1,6 +1,6 @@
 /**
  * @file frame.h
- * @author xiaotaw (you@domain.com)
+ * @author Dongying (yudong2817@sina.com)
  * @brief 普通帧
  * @version 0.1
  * @date 2021-02-08

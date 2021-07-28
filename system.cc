@@ -330,6 +330,7 @@ void System::run() {
 
         if(cnt_failed > 10){
           cur_map_->setInitializeStatus(false);
+          // 保存当前的地图，在后续持续开发的过程中可进行地图融合
           //history_maps_.emplace_back(cur_map_);
           cur_map_ = std::make_shared<Map>();
           std::cout << "\033[33m -------------------------system fails for 10 consecutive frames, reinitialize-------------------------\033[0m" << std::endl;
@@ -369,9 +370,11 @@ void System::run() {
         }
 
         // 计算优化后的地图点的平均z值，计算尺度
+        // 对当前所有地图点取累加平均值
         // Eigen::Vector3d ave_kf_mp = opt->calAveMapPoint();
         // cur_map_->ave_kf_mp_ = ave_kf_mp;
         // ave_kf_mp[0] = 0.0;
+        // 不考虑x方向影响，计算尺度值
         // double scale = Map::kCraneHeight / ave_kf_mp.norm();
         // cur_map_->setScale(scale);
         
@@ -380,6 +383,7 @@ void System::run() {
         auto status = locater_->localizeByMSSIM(cur_frame_,true_position,crane_id_,false);
         if( status ){
           std::cout << "\033[33m The key frame matches the prior information successfully \033[0m " << std::endl;
+          // 每检测到一个关键帧数据，均会记录其相对位置、对应的绝对位置数据，当数据量较多是，进行参数拟合
           points_data_.emplace_back(cur_frame_->getEigenTransWc()[0],true_position);
           // if(points_data_.size() < 10){
           //   cur_map_->calculateOffset(k1_,k2_,k3_,k4_);

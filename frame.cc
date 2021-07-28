@@ -1,6 +1,6 @@
 /**
  * @file frame.cc
- * @author xiaotaw (you@domain.com)
+ * @author Dongying (yudong2817@sina.com)
  * @brief
  * @version 0.1
  * @date 2021-02-08
